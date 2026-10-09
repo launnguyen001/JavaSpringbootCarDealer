@@ -1,0 +1,22 @@
+package com.example.lab5.service;
+
+import com.example.lab5.dto.SalesOrderRequest;
+import com.example.lab5.entity.OrderStatus;
+import com.example.lab5.entity.SalesOrder;
+
+import java.util.List;
+
+public interface SalesOrderService {
+
+    SalesOrder create(SalesOrderRequest request);
+
+    List<SalesOrder> getAllOrders();
+
+    SalesOrder getOrderById(Long id);
+
+    List<SalesOrder> getByCustomer(Long customerId);
+
+    SalesOrder updateStatus(Long id, OrderStatus status);
+
+    SalesOrder cancel(Long id);
+}
