@@ -15,4 +15,8 @@ public interface CustomerService {
     List<Customer> searchByName(String name);
 
     List<Customer> searchByPhone(String phone);
+
+    Customer update(Long id, Customer customer);
+
+    void delete(Long id);
 }

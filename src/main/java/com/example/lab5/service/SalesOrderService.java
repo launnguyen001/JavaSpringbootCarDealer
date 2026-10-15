@@ -1,6 +1,8 @@
 package com.example.lab5.service;
 
+import com.example.lab5.dto.OrderItemRequest;
 import com.example.lab5.dto.SalesOrderRequest;
+import com.example.lab5.entity.OrderItem;
 import com.example.lab5.entity.OrderStatus;
 import com.example.lab5.entity.SalesOrder;
 
@@ -19,4 +21,16 @@ public interface SalesOrderService {
     SalesOrder updateStatus(Long id, OrderStatus status);
 
     SalesOrder cancel(Long id);
+
+    SalesOrder update(Long id, SalesOrderRequest request);
+
+    void delete(Long id);
+
+    List<OrderItem> getItems(Long orderId);
+
+    OrderItem addItem(Long orderId, OrderItemRequest request);
+
+    OrderItem updateItem(Long orderId, Long itemId, OrderItemRequest request);
+
+    void deleteItem(Long orderId, Long itemId);
 }

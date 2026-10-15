@@ -10,4 +10,6 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     Optional<Contract> findByContractNumber(String contractNumber);
 
     Optional<Contract> findByOrder_Id(Long orderId);
+
+    boolean existsByOrder_Id(Long orderId);
 }

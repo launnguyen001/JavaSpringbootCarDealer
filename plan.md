@@ -45,7 +45,7 @@ com.example.lab5
 
 ## 3. Lộ trình 5 buổi
 
-> Hôm nay đang ở **Buổi 2**.
+> Đã hoàn thành **Buổi 1 + Buổi 2**, chuẩn bị sang **Buổi 3**.
 
 ### Buổi 1 — Phân tích, thiết kế CSDL & backend SQL lõi  [HOÀN THÀNH]
 - Khảo sát mã mẫu, chốt kiến trúc đa tầng.
@@ -54,15 +54,19 @@ com.example.lab5
 - Cấu hình MySQL prod + H2 test, `GlobalExceptionHandler`.
 - CRUD + tìm kiếm xe chạy được.
 
-### Buổi 2 — Hoàn thiện backend đa tầng  [ĐANG LÀM]
-- **Đã xong:** MongoDB (4 document), Redis (cache/cart/session), báo cáo SQL thuần,
-  21 test PASS, Swagger/OpenAPI, seed dữ liệu, README.
-- **Còn nợ (làm hôm nay):** bổ sung **CRUD đầy đủ (Update/Delete) cho các bảng quan trọng**
-  và `GET /{id}` cho Brand — chi tiết ở `task.md`.
+### Buổi 2 — Hoàn thiện backend đa tầng  [HOÀN THÀNH]
+- MongoDB (4 document), Redis (cache/cart/session), báo cáo SQL thuần, Swagger/OpenAPI,
+  seed dữ liệu, README.
+- **CRUD đầy đủ cho mọi tài nguyên SQL** (`POST`, `GET` list, `GET /{id}`, `PUT /{id}`, `DELETE /{id}`),
+  gồm `GET /{id}` cho Brand; quản lý dòng xe trong đơn `/api/orders/{orderId}/items`.
+- **Guard xoá** chặn xoá khi còn tham chiếu (Brand→CarModel, CarModel→Car, Car→OrderItem/TestDrive,
+  Customer/Employee→đơn/lịch, SalesOrder→phải `CANCELLED` và không có chứng từ).
+- **NoSQL:** `CarReview` thêm list/update/delete; `CarSpecification`/`CarMedia` thêm list.
+- **47 test PASS**; `.\mvnw.cmd clean package` build thành công.
 - Deliverable: backend REST đủ CRUD, tài liệu hóa, test xanh.
 
 ### Buổi 3 — Khởi tạo Frontend & tính năng công khai
-- Khởi tạo `frontend/` (React + Vite + TypeScript), cấu hình proxy `/api` và CORS backend.
+- Khởi tạo `frontend/` (Next.js App Router + TypeScript + Tailwind CSS), cấu hình rewrite `/api` và CORS backend (tùy chọn).
 - Lớp `api/` gọi REST; layout, routing, trang chủ.
 - Trang **danh sách xe** (phân trang), **chi tiết xe** (ảnh từ `car-media`, thông số từ `car-specs`,
   đánh giá từ `car-reviews`), **tìm kiếm/lọc nâng cao** (theo tên/giá/tồn kho/hãng/dòng).

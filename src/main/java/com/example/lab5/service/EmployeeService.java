@@ -13,4 +13,8 @@ public interface EmployeeService {
     Employee getEmployeeById(Long id);
 
     List<Employee> searchByName(String name);
+
+    Employee update(Long id, Employee employee);
+
+    void delete(Long id);
 }

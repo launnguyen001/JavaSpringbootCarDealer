@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 // NoSQL (MongoDB): hình ảnh / video của xe
 @RestController
 @RequestMapping("/api/car-media")
@@ -29,6 +31,11 @@ public class CarMediaController {
     @PutMapping
     public CarMediaResponse save(@Valid @RequestBody CarMediaRequest request) {
         return mapper.toResponse(service.save(request));
+    }
+
+    @GetMapping
+    public List<CarMediaResponse> getAll() {
+        return service.getAll().stream().map(mapper::toResponse).toList();
     }
 
     @GetMapping("/{carId}")

@@ -15,4 +15,8 @@ public interface CarModelService {
     List<CarModel> searchByName(String name);
 
     List<CarModel> getByBrand(Long brandId);
+
+    CarModel update(Long id, CarModel model);
+
+    void delete(Long id);
 }

@@ -75,4 +75,38 @@ public class PaymentServiceImpl implements PaymentService {
         }
         return paymentRepository.findByOrder_IdOrderByIdAsc(orderId);
     }
+
+    @Override
+    @Transactional
+    public Payment update(Long id, PaymentRequest request) {
+        if (request == null) {
+            throw new BadRequestException("Dữ liệu thanh toán không được để trống");
+        }
+        if (request.amount() == null || request.amount() <= 0) {
+            throw new BadRequestException("Số tiền thanh toán phải lớn hơn 0");
+        }
+        if (request.method() == null) {
+            throw new BadRequestException("Phương thức thanh toán không được để trống");
+        }
+
+        Payment payment = getPaymentById(id);
+        payment.setAmount(request.amount());
+        payment.setMethod(request.method());
+        PaymentStatus status = request.status() == null ? payment.getStatus() : request.status();
+        payment.setStatus(status);
+        if (status == PaymentStatus.PAID && payment.getPaidAt() == null) {
+            payment.setPaidAt(LocalDateTime.now());
+            SalesOrder order = payment.getOrder();
+            order.setStatus(OrderStatus.COMPLETED);
+            salesOrderRepository.save(order);
+        }
+        return paymentRepository.save(payment);
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        getPaymentById(id);
+        paymentRepository.deleteById(id);
+    }
 }

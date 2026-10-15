@@ -36,11 +36,47 @@ public class CarReviewServiceImpl implements CarReviewService {
     }
 
     @Override
+    public List<CarReview> getAll() {
+        return repository.findAll();
+    }
+
+    @Override
     public List<CarReview> getByCar(Long carId) {
         if (carId == null) {
             throw new BadRequestException("Xe không được để trống");
         }
         return repository.findByCarIdOrderByCreatedAtDesc(carId);
+    }
+
+    @Override
+    public CarReview update(String reviewId, CarReviewRequest request) {
+        if (request == null) {
+            throw new BadRequestException("Dữ liệu đánh giá không được để trống");
+        }
+        if (request.rating() == null || request.rating() < 1 || request.rating() > 5) {
+            throw new BadRequestException("Điểm đánh giá phải từ 1 đến 5");
+        }
+        CarReview review = repository.findById(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy đánh giá có id = " + reviewId));
+        review.setRating(request.rating());
+        review.setTitle(request.title());
+        review.setContent(request.content());
+        if (request.customerId() != null) {
+            review.setCustomerId(request.customerId());
+        }
+        if (request.customerName() != null) {
+            review.setCustomerName(request.customerName());
+        }
+        return repository.save(review);
+    }
+
+    @Override
+    public void delete(String reviewId) {
+        CarReview review = repository.findById(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy đánh giá có id = " + reviewId));
+        repository.delete(review);
     }
 
     @Override

@@ -2,9 +2,12 @@ package com.example.lab5.service.Impl;
 
 import com.example.lab5.entity.Brand;
 import com.example.lab5.exception.BadRequestException;
+import com.example.lab5.exception.ResourceNotFoundException;
 import com.example.lab5.repository.BrandRepository;
+import com.example.lab5.repository.CarModelRepository;
 import com.example.lab5.service.BrandService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -12,9 +15,11 @@ import java.util.List;
 public class BrandServiceImpl implements BrandService {
 
     private final BrandRepository brandRepository;
+    private final CarModelRepository carModelRepository;
 
-    public BrandServiceImpl(BrandRepository brandRepository) {
+    public BrandServiceImpl(BrandRepository brandRepository, CarModelRepository carModelRepository) {
         this.brandRepository = brandRepository;
+        this.carModelRepository = carModelRepository;
     }
 
     @Override
@@ -27,6 +32,33 @@ public class BrandServiceImpl implements BrandService {
     @Override
     public List<Brand> getAllBrands() {
         return brandRepository.findAll();
+    }
+
+    @Override
+    public Brand getById(Long id) {
+        return brandRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hãng xe có id = " + id));
+    }
+
+    @Override
+    @Transactional
+    public Brand update(Long id, Brand brand) {
+        validateBrand(brand);
+        Brand existing = getById(id);
+        existing.setName(brand.getName());
+        existing.setCountry(brand.getCountry());
+        existing.setDescription(brand.getDescription());
+        return brandRepository.save(existing);
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        getById(id);
+        if (carModelRepository.existsByBrand_Id(id)) {
+            throw new BadRequestException("Không thể xoá hãng vì còn dòng xe");
+        }
+        brandRepository.deleteById(id);
     }
 
     private void validateBrand(Brand brand) {

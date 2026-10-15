@@ -10,6 +10,7 @@ import com.example.lab5.service.CarSpecificationService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class CarSpecificationServiceImpl implements CarSpecificationService {
@@ -34,6 +35,11 @@ public class CarSpecificationServiceImpl implements CarSpecificationService {
         repository.findByCarId(request.carId()).ifPresent(existing -> spec.setId(existing.getId()));
         spec.setUpdatedAt(LocalDateTime.now());
         return repository.save(spec);
+    }
+
+    @Override
+    public List<CarSpecification> getAll() {
+        return repository.findAll();
     }
 
     @Override

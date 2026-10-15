@@ -67,29 +67,46 @@ Test chạy trên **H2 in-memory**, profile `test` (không cần MySQL/MongoDB/R
 .\mvnw.cmd test
 ```
 
-Kết quả hiện tại: **21 test PASS**.
+Kết quả hiện tại: **47 test PASS**.
 
 ## 5. API chính
 
-| Nhóm | Endpoint |
+Mỗi tài nguyên SQL dưới đây đều có đủ **CRUD**: `POST` (tạo), `GET` (danh sách),
+`GET /{id}` (chi tiết), `PUT /{id}` (cập nhật), `DELETE /{id}` (xoá).
+
+| Nhóm | Endpoint cơ bản | Endpoint riêng |
+| --- | --- | --- |
+| Hãng xe | `/api/brands` | `/api/brands/{id}` |
+| Dòng xe | `/api/car-models` | `/api/car-models/{id}`, `/api/car-models/search/name`, `/api/car-models/brand/{brandId}` |
+| Xe | `/api/cars` | `/api/cars/{id}`, `/api/cars/search/name`, `/api/cars/search/price`, `/api/cars/search/stock`, `/api/cars/search/advanced`, `/api/cars/search/advanced/brand`, `/api/cars/brand/{id}`, `/api/cars/model/{id}` |
+| Khách hàng | `/api/customers` | `/api/customers/{id}`, `/api/customers/search/name`, `/api/customers/search/phone` |
+| Nhân viên | `/api/employees` | `/api/employees/{id}`, `/api/employees/search/name` |
+| Đơn hàng | `/api/orders` | `/api/orders/{id}`, `/api/orders/customer/{customerId}`, `PATCH /api/orders/{id}/status`, `POST /api/orders/{id}/cancel`, `/api/orders/{orderId}/items[/{itemId}]` (CRUD dòng xe) |
+| Thanh toán | `/api/payments` | `/api/payments/{id}`, `/api/payments/order/{orderId}` |
+| Hợp đồng | `/api/contracts` | `/api/contracts/{id}`, `/api/contracts/order/{orderId}` |
+| Hóa đơn | `/api/invoices` | `/api/invoices/{id}`, `/api/invoices/order/{orderId}` |
+| Lịch lái thử | `/api/test-drives` | `/api/test-drives/{id}`, `/api/test-drives/customer/{customerId}`, `PATCH /api/test-drives/{id}/status`, `POST /api/test-drives/{id}/cancel` |
+| Thông số kỹ thuật (Mongo) | `/api/car-specs` | `/api/car-specs/{carId}` (`PUT` để lưu, `DELETE` để xoá) |
+| Đánh giá (Mongo) | `/api/car-reviews` | `/api/car-reviews/{id}`, `/api/car-reviews/car/{carId}`, `/api/car-reviews/car/{carId}/summary`, `POST /api/car-reviews/{reviewId}/replies` |
+| Log hoạt động (Mongo) | `/api/activity-logs` | `/api/activity-logs/{id}`, `/api/activity-logs/entity/{type}/{id}` |
+| Media (Mongo) | `/api/car-media` | `/api/car-media/{carId}` (`PUT` để lưu, `DELETE` để xoá) |
+| Giỏ cấu hình (Redis) | `/api/cart` | theo `sessionId` |
+| Session (Redis) | `/api/sessions` | `POST` đăng nhập, `DELETE` đăng xuất |
+| Báo cáo (SQL thuần) | `/api/reports/top-selling-cars`, `/api/reports/inventory-by-brand`, `/api/reports/revenue-summary`, `/api/reports/orders-by-status` | |
+
+### Chính sách xoá (guard)
+
+`DELETE` sẽ trả **400** kèm thông báo khi tài nguyên còn dữ liệu tham chiếu:
+
+| Xoá | Bị chặn khi |
 | --- | --- |
-| Hãng xe | `/api/brands` |
-| Dòng xe | `/api/car-models` |
-| Xe | `/api/cars`, `/api/cars/{id}`, `/api/cars/search/name`, `/api/cars/search/price`, `/api/cars/search/stock`, `/api/cars/search/advanced`, `/api/cars/search/advanced/brand`, `/api/cars/brand/{id}`, `/api/cars/model/{id}` |
-| Khách hàng | `/api/customers` |
-| Nhân viên | `/api/employees` |
-| Đơn hàng | `/api/orders` |
-| Thanh toán | `/api/payments` |
-| Hợp đồng | `/api/contracts` |
-| Hóa đơn | `/api/invoices` |
-| Lịch lái thử | `/api/test-drives` |
-| Thông số kỹ thuật (Mongo) | `/api/car-specs` |
-| Đánh giá (Mongo) | `/api/car-reviews` |
-| Log hoạt động (Mongo) | `/api/activity-logs` |
-| Media (Mongo) | `/api/car-media` |
-| Giỏ cấu hình (Redis) | `/api/cart` |
-| Session (Redis) | `/api/sessions` |
-| Báo cáo (SQL thuần) | `/api/reports/top-selling-cars`, `/api/reports/inventory-by-brand`, `/api/reports/revenue-summary`, `/api/reports/orders-by-status` |
+| Brand | còn `CarModel` |
+| CarModel | còn `Car` |
+| Car | có `OrderItem` hoặc `TestDriveAppointment` |
+| Customer | có `SalesOrder` hoặc `TestDriveAppointment` |
+| Employee | có `SalesOrder` hoặc `TestDriveAppointment` |
+| SalesOrder | không phải `CANCELLED`, hoặc đã có Payment/Contract/Invoice |
+| Payment / Contract / Invoice / TestDrive | (không có tham chiếu) → xoá tự do |
 
 ## 6. Nghiệp vụ tồn kho
 

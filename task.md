@@ -5,6 +5,9 @@
 > (`entity → dto → mapper → repository → service/Impl → controller`) và dùng lại DTO Request.
 >
 > Sau khi xong: chạy `.\mvnw.cmd test` phải xanh (giữ nguyên 21 test hiện có + test mới).
+>
+> **Trạng thái: ĐÃ HOÀN THÀNH** — backend đủ CRUD cho mọi tài nguyên, `.\mvnw.cmd test`
+> xanh **47 test**, `.\mvnw.cmd clean package` build thành công.
 
 ---
 
@@ -73,87 +76,87 @@
 ### Nhóm A — SQL: thêm Update + Delete
 
 #### A1. Brand (cần bổ sung cả Read-by-id + repository)
-- [ ] `repository/BrandRepository.java`: thêm `Optional<Brand> findById(Long)`, `void deleteById(Long)`,
+- [x] `repository/BrandRepository.java`: thêm `Optional<Brand> findById(Long)`, `void deleteById(Long)`,
       `boolean existsByName(String)`.
-- [ ] `repository/JdbcBrandRepository.java`: implement 3 method trên bằng `JdbcTemplate`
+- [x] `repository/JdbcBrandRepository.java`: implement 3 method trên bằng `JdbcTemplate`
       (`SELECT ... WHERE id=?`, `DELETE FROM brands WHERE id=?`, `SELECT COUNT(*)...`).
-- [ ] `service/BrandService.java`: thêm `Brand getById(Long)`, `Brand update(Long, Brand)`, `void delete(Long)`.
-- [ ] `service/Impl/BrandServiceImpl.java`: `getById` (404 nếu không có); `update` (nạp → đổi name/country/description → save);
+- [x] `service/BrandService.java`: thêm `Brand getById(Long)`, `Brand update(Long, Brand)`, `void delete(Long)`.
+- [x] `service/Impl/BrandServiceImpl.java`: `getById` (404 nếu không có); `update` (nạp → đổi name/country/description → save);
       `delete` (**chặn nếu còn CarModel**).
-- [ ] `controller/BrandController.java`: thêm `GET /{id}`, `PUT /{id}`, `DELETE /{id}` (204).
+- [x] `controller/BrandController.java`: thêm `GET /{id}`, `PUT /{id}`, `DELETE /{id}` (204).
 
 #### A2. CarModel
-- [ ] `repository/CarModelRepository.java`: thêm `boolean existsByBrand_Id(Long)`.
-- [ ] `service/CarModelService.java` + `Impl`: `update(Long, CarModel)` (đổi name/bodyType/description/brand), `delete(Long)`
+- [x] `repository/CarModelRepository.java`: thêm `boolean existsByBrand_Id(Long)`.
+- [x] `service/CarModelService.java` + `Impl`: `update(Long, CarModel)` (đổi name/bodyType/description/brand), `delete(Long)`
       (chặn nếu còn Car thuộc model).
-- [ ] `controller/CarModelController.java`: `PUT /{id}`, `DELETE /{id}`.
+- [x] `controller/CarModelController.java`: `PUT /{id}`, `DELETE /{id}`.
 
 #### A3. Car
-- [ ] `repository/OrderItemRepository.java`: thêm `boolean existsByCar_Id(Long)`;
+- [x] `repository/OrderItemRepository.java`: thêm `boolean existsByCar_Id(Long)`;
       `TestDriveAppointmentRepository.java`: thêm `boolean existsByCar_Id(Long)`.
-- [ ] `service/CarService.java` + `Impl`: `update(Long, Car)` (đổi name/description/price/quantity/vin/year/color/status/model;
+- [x] `service/CarService.java` + `Impl`: `update(Long, Car)` (đổi name/description/price/quantity/vin/year/color/status/model;
       dùng `entityManager.getReference` cho model), `delete(Long)` (chặn nếu có OrderItem/TestDrive).
-- [ ] `controller/CarController.java`: `PUT /{id}`, `DELETE /{id}`.
+- [x] `controller/CarController.java`: `PUT /{id}`, `DELETE /{id}`.
 
 #### A4. Customer
-- [ ] `repository/SalesOrderRepository.java`: `boolean existsByCustomer_Id(Long)`;
+- [x] `repository/SalesOrderRepository.java`: `boolean existsByCustomer_Id(Long)`;
       `TestDriveAppointmentRepository.java`: `boolean existsByCustomer_Id(Long)`.
-- [ ] `service/CustomerService.java` + `Impl`: `update`, `delete` (chặn nếu có đơn/lịch lái thử).
-- [ ] `controller/CustomerController.java`: `PUT /{id}`, `DELETE /{id}`.
+- [x] `service/CustomerService.java` + `Impl`: `update`, `delete` (chặn nếu có đơn/lịch lái thử).
+- [x] `controller/CustomerController.java`: `PUT /{id}`, `DELETE /{id}`.
 
 #### A5. Employee
-- [ ] `repository/SalesOrderRepository.java`: `boolean existsByEmployee_Id(Long)`;
+- [x] `repository/SalesOrderRepository.java`: `boolean existsByEmployee_Id(Long)`;
       `TestDriveAppointmentRepository.java`: `boolean existsByEmployee_Id(Long)`.
-- [ ] `service/EmployeeService.java` + `Impl`: `update`, `delete` (chặn nếu đang phụ trách đơn/lịch).
-- [ ] `controller/EmployeeController.java`: `PUT /{id}`, `DELETE /{id}`.
+- [x] `service/EmployeeService.java` + `Impl`: `update`, `delete` (chặn nếu đang phụ trách đơn/lịch).
+- [x] `controller/EmployeeController.java`: `PUT /{id}`, `DELETE /{id}`.
 
 #### A6. Payment
-- [ ] `service/PaymentService.java` + `Impl`: `update(Long, PaymentRequest)` (amount/method/status/paidAt),
+- [x] `service/PaymentService.java` + `Impl`: `update(Long, PaymentRequest)` (amount/method/status/paidAt),
       `delete(Long)`.
-- [ ] `controller/PaymentController.java`: `PUT /{id}`, `DELETE /{id}`.
+- [x] `controller/PaymentController.java`: `PUT /{id}`, `DELETE /{id}`.
 
 #### A7. Contract
-- [ ] `service/ContractService.java` + `Impl`: `update(Long, ContractRequest)`, `delete(Long)`.
-- [ ] `controller/ContractController.java`: `PUT /{id}`, `DELETE /{id}`.
+- [x] `service/ContractService.java` + `Impl`: `update(Long, ContractRequest)`, `delete(Long)`.
+- [x] `controller/ContractController.java`: `PUT /{id}`, `DELETE /{id}`.
 
 #### A8. Invoice
-- [ ] `service/InvoiceService.java` + `Impl`: `update(Long, InvoiceRequest)`, `delete(Long)`.
-- [ ] `controller/InvoiceController.java`: `PUT /{id}`, `DELETE /{id}`.
+- [x] `service/InvoiceService.java` + `Impl`: `update(Long, InvoiceRequest)`, `delete(Long)`.
+- [x] `controller/InvoiceController.java`: `PUT /{id}`, `DELETE /{id}`.
 
 #### A9. SalesOrder
-- [ ] `service/SalesOrderService.java` + `Impl`: `update(Long, SalesOrderRequest)` (chỉ đổi `employee`/`items` khi `PENDING`;
+- [x] `service/SalesOrderService.java` + `Impl`: `update(Long, SalesOrderRequest)` (chỉ đổi `employee`/`items` khi `PENDING`;
       nếu không cho sửa → dùng PATCH status hiện có), `delete(Long)` (**chỉ khi `CANCELLED` và không có Payment/Contract/Invoice**).
-- [ ] `repository/PaymentRepository.java`: `boolean existsByOrder_Id(Long)`; tương tự `ContractRepository`, `InvoiceRepository`.
-- [ ] `controller/SalesOrderController.java`: `PUT /{id}`, `DELETE /{id}`.
+- [x] `repository/PaymentRepository.java`: `boolean existsByOrder_Id(Long)`; tương tự `ContractRepository`, `InvoiceRepository`.
+- [x] `controller/SalesOrderController.java`: `PUT /{id}`, `DELETE /{id}`.
 
 #### A10. TestDriveAppointment
-- [ ] `service/TestDriveAppointmentService.java` + `Impl`: `update(Long, TestDriveAppointmentRequest)` (scheduledAt/note/car/employee),
+- [x] `service/TestDriveAppointmentService.java` + `Impl`: `update(Long, TestDriveAppointmentRequest)` (scheduledAt/note/car/employee),
       `delete(Long)`.
-- [ ] `controller/TestDriveAppointmentController.java`: `PUT /{id}`, `DELETE /{id}`.
+- [x] `controller/TestDriveAppointmentController.java`: `PUT /{id}`, `DELETE /{id}`.
 
 ### Nhóm B — OrderItem (ưu tiên thấp)
-- [ ] `dto/OrderItemRequest.java`: dùng lại (carId, quantity).
-- [ ] Thêm endpoint vào `SalesOrderController` (hoặc controller riêng): `POST/GET/PUT/DELETE /api/orders/{orderId}/items[/{itemId}]`.
-- [ ] Service xử lý: kiểm tra tồn kho, cộng/trừ `quantity` của `Car`, cập nhật lại `SalesOrder.totalAmount`.
+- [x] `dto/OrderItemRequest.java`: dùng lại (carId, quantity).
+- [x] Thêm endpoint vào `SalesOrderController` (hoặc controller riêng): `POST/GET/PUT/DELETE /api/orders/{orderId}/items[/{itemId}]`.
+- [x] Service xử lý: kiểm tra tồn kho, cộng/trừ `quantity` của `Car`, cập nhật lại `SalesOrder.totalAmount`.
 
 ### Nhóm C — NoSQL (Mongo)
-- [ ] `service/CarReviewService.java` + `Impl`: `getAll()`, `update(String id, CarReviewRequest)`, `delete(String id)`.
-- [ ] `controller/CarReviewController.java`: `GET /api/car-reviews`, `PUT /{id}`, `DELETE /{id}`.
-- [ ] `service/CarSpecificationService.java` + `Impl`: `getAll()`; `controller`: `GET /api/car-specs`.
-- [ ] `service/CarMediaService.java` + `Impl`: `getAll()`; `controller`: `GET /api/car-media`.
-- [ ] `ActivityLog`: giữ nguyên (bất biến).
+- [x] `service/CarReviewService.java` + `Impl`: `getAll()`, `update(String id, CarReviewRequest)`, `delete(String id)`.
+- [x] `controller/CarReviewController.java`: `GET /api/car-reviews`, `PUT /{id}`, `DELETE /{id}`.
+- [x] `service/CarSpecificationService.java` + `Impl`: `getAll()`; `controller`: `GET /api/car-specs`.
+- [x] `service/CarMediaService.java` + `Impl`: `getAll()`; `controller`: `GET /api/car-media`.
+- [x] `ActivityLog`: giữ nguyên (bất biến).
 
 ### Nhóm D — Kiểm thử
-- [ ] `controller/*ControllerMockMvcTests`: thêm case `PUT` (200) và `DELETE` (204) cho ít nhất
+- [x] `controller/*ControllerMockMvcTests`: thêm case `PUT` (200) và `DELETE` (204) cho ít nhất
       Brand, CarModel, Car, Customer.
-- [ ] Service test: `update` đổi dữ liệu đúng; `delete` chặn khi còn tham chiếu (kỳ vọng exception).
-- [ ] Test case lỗi: `PUT`/`DELETE` với id không tồn tại → 404.
-- [ ] Chạy `.\mvnw.cmd test` — tất cả xanh.
+- [x] Service test: `update` đổi dữ liệu đúng; `delete` chặn khi còn tham chiếu (kỳ vọng exception).
+- [x] Test case lỗi: `PUT`/`DELETE` với id không tồn tại → 404.
+- [x] Chạy `.\mvnw.cmd test` — tất cả xanh.
 
 ### Nhóm E — Tài liệu
-- [ ] Cập nhật danh sách endpoint trong `README.md`.
-- [ ] Cập nhật mục "Lộ trình" trong `plan.md` nếu có thay đổi.
-- [ ] Kiểm tra Swagger `/swagger-ui.html` hiển thị đủ endpoint mới.
+- [x] Cập nhật danh sách endpoint trong `README.md`.
+- [x] Cập nhật mục "Lộ trình" trong `plan.md` nếu có thay đổi.
+- [x] Kiểm tra Swagger `/swagger-ui.html` hiển thị đủ endpoint mới.
 
 ---
 
@@ -174,9 +177,9 @@
 
 ## 5. Acceptance criteria (buổi 2)
 
-- [ ] Mỗi bảng ở mục 2 có đủ endpoint như ma trận mục tiêu.
-- [ ] `PUT` id không tồn tại → 404; dữ liệu trùng → 409; thiếu field → 400.
-- [ ] `DELETE` bị chặn khi còn tham chiếu, trả 400 kèm thông báo rõ.
-- [ ] `.\mvnw.cmd test` xanh toàn bộ.
-- [ ] `.\mvnw.cmd clean package` build thành công.
-- [ ] Swagger hiển thị đầy đủ CRUD.
+- [x] Mỗi bảng ở mục 2 có đủ endpoint như ma trận mục tiêu.
+- [x] `PUT` id không tồn tại → 404; dữ liệu trùng → 409; thiếu field → 400.
+- [x] `DELETE` bị chặn khi còn tham chiếu, trả 400 kèm thông báo rõ.
+- [x] `.\mvnw.cmd test` xanh toàn bộ.
+- [x] `.\mvnw.cmd clean package` build thành công.
+- [x] Swagger hiển thị đầy đủ CRUD.

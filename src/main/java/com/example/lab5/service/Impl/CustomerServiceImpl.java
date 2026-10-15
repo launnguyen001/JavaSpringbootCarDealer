@@ -4,8 +4,11 @@ import com.example.lab5.entity.Customer;
 import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
 import com.example.lab5.repository.CustomerRepository;
+import com.example.lab5.repository.SalesOrderRepository;
+import com.example.lab5.repository.TestDriveAppointmentRepository;
 import com.example.lab5.service.CustomerService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -13,9 +16,17 @@ import java.util.List;
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final SalesOrderRepository salesOrderRepository;
+    private final TestDriveAppointmentRepository testDriveAppointmentRepository;
 
-    public CustomerServiceImpl(CustomerRepository customerRepository) {
+    public CustomerServiceImpl(
+            CustomerRepository customerRepository,
+            SalesOrderRepository salesOrderRepository,
+            TestDriveAppointmentRepository testDriveAppointmentRepository
+    ) {
         this.customerRepository = customerRepository;
+        this.salesOrderRepository = salesOrderRepository;
+        this.testDriveAppointmentRepository = testDriveAppointmentRepository;
     }
 
     @Override
@@ -50,6 +61,30 @@ public class CustomerServiceImpl implements CustomerService {
             throw new BadRequestException("Số điện thoại không được để trống");
         }
         return customerRepository.findByPhoneContainingOrderByIdAsc(phone.trim());
+    }
+
+    @Override
+    @Transactional
+    public Customer update(Long id, Customer customer) {
+        validateCustomer(customer);
+        Customer existing = getCustomerById(id);
+        existing.setFullName(customer.getFullName());
+        existing.setEmail(customer.getEmail());
+        existing.setPhone(customer.getPhone());
+        existing.setAddress(customer.getAddress());
+        existing.setNationalId(customer.getNationalId());
+        return customerRepository.save(existing);
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        getCustomerById(id);
+        if (salesOrderRepository.existsByCustomer_Id(id)
+                || testDriveAppointmentRepository.existsByCustomer_Id(id)) {
+            throw new BadRequestException("Không thể xoá khách vì đã có đơn/lịch");
+        }
+        customerRepository.deleteById(id);
     }
 
     private void validateCustomer(Customer customer) {

@@ -6,9 +6,11 @@ import com.example.lab5.mapper.CarModelMapper;
 import com.example.lab5.service.CarModelService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -53,6 +55,20 @@ public class CarModelController {
     @GetMapping("/brand/{brandId}")
     public List<CarModelResponse> getByBrand(@PathVariable Long brandId) {
         return toResponses(carModelService.getByBrand(brandId));
+    }
+
+    @PutMapping("/{id}")
+    public CarModelResponse updateModel(
+            @PathVariable Long id,
+            @Valid @RequestBody CarModelRequest request
+    ) {
+        return carModelMapper.toResponse(carModelService.update(id, carModelMapper.toEntity(request)));
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteModel(@PathVariable Long id) {
+        carModelService.delete(id);
     }
 
     private List<CarModelResponse> toResponses(List<com.example.lab5.entity.CarModel> models) {

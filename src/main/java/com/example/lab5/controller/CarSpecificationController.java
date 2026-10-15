@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 // NoSQL (MongoDB): thông số kỹ thuật linh hoạt theo từng xe
 @RestController
 @RequestMapping("/api/car-specs")
@@ -29,6 +31,11 @@ public class CarSpecificationController {
     @PutMapping
     public CarSpecificationResponse save(@Valid @RequestBody CarSpecificationRequest request) {
         return mapper.toResponse(service.save(request));
+    }
+
+    @GetMapping
+    public List<CarSpecificationResponse> getAll() {
+        return service.getAll().stream().map(mapper::toResponse).toList();
     }
 
     @GetMapping("/{carId}")

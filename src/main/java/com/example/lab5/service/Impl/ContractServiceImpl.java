@@ -67,4 +67,32 @@ public class ContractServiceImpl implements ContractService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Không tìm thấy hợp đồng của đơn hàng id = " + orderId));
     }
+
+    @Override
+    @Transactional
+    public Contract update(Long id, ContractRequest request) {
+        if (request == null || request.contractNumber() == null || request.contractNumber().isBlank()) {
+            throw new BadRequestException("Số hợp đồng không được để trống");
+        }
+        Contract contract = getContractById(id);
+        String contractNumber = request.contractNumber().trim();
+        contractRepository.findByContractNumber(contractNumber)
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new BadRequestException("Số hợp đồng đã tồn tại");
+                });
+        contract.setContractNumber(contractNumber);
+        contract.setContent(request.content());
+        if (request.signedAt() != null) {
+            contract.setSignedAt(request.signedAt());
+        }
+        return contractRepository.save(contract);
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        getContractById(id);
+        contractRepository.deleteById(id);
+    }
 }

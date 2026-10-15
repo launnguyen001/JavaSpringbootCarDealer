@@ -7,9 +7,11 @@ import com.example.lab5.mapper.EmployeeMapper;
 import com.example.lab5.service.EmployeeService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -49,6 +51,20 @@ public class EmployeeController {
     @GetMapping("/search/name")
     public List<EmployeeResponse> searchByName(@RequestParam String name) {
         return toResponses(employeeService.searchByName(name));
+    }
+
+    @PutMapping("/{id}")
+    public EmployeeResponse updateEmployee(
+            @PathVariable Long id,
+            @Valid @RequestBody EmployeeRequest request
+    ) {
+        return employeeMapper.toResponse(employeeService.update(id, employeeMapper.toEntity(request)));
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteEmployee(@PathVariable Long id) {
+        employeeService.delete(id);
     }
 
     private List<EmployeeResponse> toResponses(List<Employee> employees) {

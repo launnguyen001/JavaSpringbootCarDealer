@@ -115,4 +115,42 @@ public class TestDriveAppointmentServiceImpl implements TestDriveAppointmentServ
         appointment.setStatus(AppointmentStatus.CANCELLED);
         return appointmentRepository.save(appointment);
     }
+
+    @Override
+    @Transactional
+    public TestDriveAppointment update(Long id, TestDriveAppointmentRequest request) {
+        if (request == null || request.scheduledAt() == null) {
+            throw new BadRequestException("Thời gian hẹn không được để trống");
+        }
+        if (request.carId() == null) {
+            throw new BadRequestException("Xe không được để trống");
+        }
+        TestDriveAppointment appointment = getAppointmentById(id);
+
+        Car car = carRepository.findById(request.carId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy xe có id = " + request.carId()));
+        Employee employee = null;
+        if (request.employeeId() != null) {
+            employee = employeeRepository.findById(request.employeeId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Không tìm thấy nhân viên có id = " + request.employeeId()));
+        }
+
+        appointment.setScheduledAt(request.scheduledAt());
+        appointment.setNote(request.note());
+        appointment.setCar(car);
+        appointment.setEmployee(employee);
+        if (request.status() != null) {
+            appointment.setStatus(request.status());
+        }
+        return appointmentRepository.save(appointment);
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        getAppointmentById(id);
+        appointmentRepository.deleteById(id);
+    }
 }

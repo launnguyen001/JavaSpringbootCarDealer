@@ -12,4 +12,6 @@ public interface CarModelRepository extends JpaRepository<CarModel, Long> {
     List<CarModel> findByBrand_IdOrderByIdAsc(Long brandId);
 
     boolean existsByNameAndBrand_Id(String name, Long brandId);
+
+    boolean existsByBrand_Id(Long brandId);
 }

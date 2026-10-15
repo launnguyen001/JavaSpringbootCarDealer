@@ -11,6 +11,7 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @Repository
 public class JdbcBrandRepository implements BrandRepository {
@@ -32,6 +33,18 @@ public class JdbcBrandRepository implements BrandRepository {
 
     @Override
     public Brand save(Brand brand) {
+        if (brand.getId() != null) {
+            String updateSql = "UPDATE brands SET name = ?, country = ?, description = ? WHERE id = ?";
+            jdbcTemplate.update(
+                    updateSql,
+                    brand.getName(),
+                    brand.getCountry(),
+                    brand.getDescription(),
+                    brand.getId()
+            );
+            return brand;
+        }
+
         String sql = "INSERT INTO brands (name, country, description) VALUES (?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -54,9 +67,29 @@ public class JdbcBrandRepository implements BrandRepository {
     }
 
     @Override
+    public Optional<Brand> findById(Long id) {
+        String sql = "SELECT id, name, country, description FROM brands WHERE id = ?";
+        List<Brand> brands = jdbcTemplate.query(sql, brandRowMapper, id);
+        return brands.stream().findFirst();
+    }
+
+    @Override
     public boolean existsById(Long id) {
         String sql = "SELECT COUNT(*) FROM brands WHERE id = ?";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, id);
         return count != null && count > 0;
+    }
+
+    @Override
+    public boolean existsByName(String name) {
+        String sql = "SELECT COUNT(*) FROM brands WHERE LOWER(name) = LOWER(?)";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, name);
+        return count != null && count > 0;
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        String sql = "DELETE FROM brands WHERE id = ?";
+        jdbcTemplate.update(sql, id);
     }
 }

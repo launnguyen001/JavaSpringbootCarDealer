@@ -6,6 +6,8 @@ import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
 import com.example.lab5.repository.CarModelRepository;
 import com.example.lab5.repository.CarRepository;
+import com.example.lab5.repository.OrderItemRepository;
+import com.example.lab5.repository.TestDriveAppointmentRepository;
 import com.example.lab5.service.CarCatalogService;
 import com.example.lab5.service.CarService;
 import jakarta.persistence.EntityManager;
@@ -19,17 +21,23 @@ public class CarServiceImpl implements CarService {
 
     private final CarRepository carRepository;
     private final CarModelRepository carModelRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final TestDriveAppointmentRepository testDriveAppointmentRepository;
     private final CarCatalogService carCatalogService;
     private final EntityManager entityManager;
 
     public CarServiceImpl(
             CarRepository carRepository,
             CarModelRepository carModelRepository,
+            OrderItemRepository orderItemRepository,
+            TestDriveAppointmentRepository testDriveAppointmentRepository,
             CarCatalogService carCatalogService,
             EntityManager entityManager
     ) {
         this.carRepository = carRepository;
         this.carModelRepository = carModelRepository;
+        this.orderItemRepository = orderItemRepository;
+        this.testDriveAppointmentRepository = testDriveAppointmentRepository;
         this.carCatalogService = carCatalogService;
         this.entityManager = entityManager;
     }
@@ -128,6 +136,41 @@ public class CarServiceImpl implements CarService {
         return carRepository.searchByBrandAndPriceAndQuantity(
                 brandName.trim(), minPrice, maxPrice, minQuantity
         );
+    }
+
+    @Override
+    @Transactional
+    public Car update(Long id, Car car) {
+        validateCar(car);
+        Car existing = getCarById(id);
+        Long modelId = car.getModel().getId();
+        if (!carModelRepository.existsById(modelId)) {
+            throw new ResourceNotFoundException("Không tìm thấy dòng xe có id = " + modelId);
+        }
+        existing.setName(car.getName());
+        existing.setDescription(car.getDescription());
+        existing.setPrice(car.getPrice());
+        existing.setQuantity(car.getQuantity());
+        existing.setVin(car.getVin());
+        existing.setYear(car.getYear());
+        existing.setColor(car.getColor());
+        existing.setStatus(car.getStatus() == null ? existing.getStatus() : car.getStatus());
+        existing.setModel(entityManager.getReference(CarModel.class, modelId));
+        Car saved = carRepository.save(existing);
+        carCatalogService.evictCatalog();
+        return saved;
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        getCarById(id);
+        if (orderItemRepository.existsByCar_Id(id)
+                || testDriveAppointmentRepository.existsByCar_Id(id)) {
+            throw new BadRequestException("Không thể xoá xe vì đã phát sinh giao dịch");
+        }
+        carRepository.deleteById(id);
+        carCatalogService.evictCatalog();
     }
 
     private void validatePriceRange(Double minPrice, Double maxPrice) {

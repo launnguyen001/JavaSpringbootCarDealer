@@ -19,4 +19,8 @@ public interface TestDriveAppointmentService {
     TestDriveAppointment updateStatus(Long id, AppointmentStatus status);
 
     TestDriveAppointment cancel(Long id);
+
+    TestDriveAppointment update(Long id, TestDriveAppointmentRequest request);
+
+    void delete(Long id);
 }

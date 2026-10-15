@@ -19,6 +19,8 @@ public interface CarRepository extends JpaRepository<Car, Long> {
 
     List<Car> findByModel_IdOrderByIdAsc(Long modelId);
 
+    boolean existsByModel_Id(Long modelId);
+
     @Query("""
             SELECT c FROM Car c JOIN c.model m JOIN m.brand b
             WHERE LOWER(m.name) LIKE LOWER(CONCAT('%', :modelName, '%'))

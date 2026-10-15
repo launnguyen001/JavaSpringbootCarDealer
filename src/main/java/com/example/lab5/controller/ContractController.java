@@ -7,9 +7,11 @@ import com.example.lab5.mapper.ContractMapper;
 import com.example.lab5.service.ContractService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -48,6 +50,20 @@ public class ContractController {
     @GetMapping("/order/{orderId}")
     public ContractResponse getByOrder(@PathVariable Long orderId) {
         return contractMapper.toResponse(contractService.getByOrder(orderId));
+    }
+
+    @PutMapping("/{id}")
+    public ContractResponse updateContract(
+            @PathVariable Long id,
+            @Valid @RequestBody ContractRequest request
+    ) {
+        return contractMapper.toResponse(contractService.update(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteContract(@PathVariable Long id) {
+        contractService.delete(id);
     }
 
     private List<ContractResponse> toResponses(List<Contract> contracts) {

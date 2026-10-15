@@ -16,4 +16,8 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
     List<SalesOrder> findByStatusOrderByOrderDateDesc(OrderStatus status);
 
     List<SalesOrder> findAllByOrderByOrderDateDesc();
+
+    boolean existsByCustomer_Id(Long customerId);
+
+    boolean existsByEmployee_Id(Long employeeId);
 }

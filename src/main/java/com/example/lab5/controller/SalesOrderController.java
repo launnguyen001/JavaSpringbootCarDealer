@@ -1,5 +1,7 @@
 package com.example.lab5.controller;
 
+import com.example.lab5.dto.OrderItemRequest;
+import com.example.lab5.dto.OrderItemResponse;
 import com.example.lab5.dto.SalesOrderRequest;
 import com.example.lab5.dto.SalesOrderResponse;
 import com.example.lab5.entity.OrderStatus;
@@ -8,10 +10,12 @@ import com.example.lab5.mapper.SalesOrderMapper;
 import com.example.lab5.service.SalesOrderService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -64,6 +68,53 @@ public class SalesOrderController {
     @PostMapping("/{id}/cancel")
     public SalesOrderResponse cancelOrder(@PathVariable Long id) {
         return salesOrderMapper.toResponse(salesOrderService.cancel(id));
+    }
+
+    @PutMapping("/{id}")
+    public SalesOrderResponse updateOrder(
+            @PathVariable Long id,
+            @Valid @RequestBody SalesOrderRequest request
+    ) {
+        return salesOrderMapper.toResponse(salesOrderService.update(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteOrder(@PathVariable Long id) {
+        salesOrderService.delete(id);
+    }
+
+    // ===== Quản lý dòng xe trong đơn =====
+
+    @GetMapping("/{orderId}/items")
+    public List<OrderItemResponse> getItems(@PathVariable Long orderId) {
+        return salesOrderService.getItems(orderId).stream()
+                .map(salesOrderMapper::toItemResponse)
+                .toList();
+    }
+
+    @PostMapping("/{orderId}/items")
+    @ResponseStatus(HttpStatus.CREATED)
+    public OrderItemResponse addItem(
+            @PathVariable Long orderId,
+            @Valid @RequestBody OrderItemRequest request
+    ) {
+        return salesOrderMapper.toItemResponse(salesOrderService.addItem(orderId, request));
+    }
+
+    @PutMapping("/{orderId}/items/{itemId}")
+    public OrderItemResponse updateItem(
+            @PathVariable Long orderId,
+            @PathVariable Long itemId,
+            @Valid @RequestBody OrderItemRequest request
+    ) {
+        return salesOrderMapper.toItemResponse(salesOrderService.updateItem(orderId, itemId, request));
+    }
+
+    @DeleteMapping("/{orderId}/items/{itemId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteItem(@PathVariable Long orderId, @PathVariable Long itemId) {
+        salesOrderService.deleteItem(orderId, itemId);
     }
 
     private List<SalesOrderResponse> toResponses(List<SalesOrder> orders) {

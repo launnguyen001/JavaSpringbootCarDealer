@@ -14,4 +14,8 @@ public interface PaymentService {
     Payment getPaymentById(Long id);
 
     List<Payment> getByOrder(Long orderId);
+
+    Payment update(Long id, PaymentRequest request);
+
+    void delete(Long id);
 }

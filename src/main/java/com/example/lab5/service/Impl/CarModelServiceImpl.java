@@ -6,6 +6,7 @@ import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
 import com.example.lab5.repository.BrandRepository;
 import com.example.lab5.repository.CarModelRepository;
+import com.example.lab5.repository.CarRepository;
 import com.example.lab5.service.CarModelService;
 import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Service;
@@ -18,15 +19,18 @@ public class CarModelServiceImpl implements CarModelService {
 
     private final CarModelRepository carModelRepository;
     private final BrandRepository brandRepository;
+    private final CarRepository carRepository;
     private final EntityManager entityManager;
 
     public CarModelServiceImpl(
             CarModelRepository carModelRepository,
             BrandRepository brandRepository,
+            CarRepository carRepository,
             EntityManager entityManager
     ) {
         this.carModelRepository = carModelRepository;
         this.brandRepository = brandRepository;
+        this.carRepository = carRepository;
         this.entityManager = entityManager;
     }
 
@@ -68,6 +72,32 @@ public class CarModelServiceImpl implements CarModelService {
             throw new BadRequestException("Hãng xe không được để trống");
         }
         return carModelRepository.findByBrand_IdOrderByIdAsc(brandId);
+    }
+
+    @Override
+    @Transactional
+    public CarModel update(Long id, CarModel model) {
+        validateModel(model);
+        CarModel existing = getModelById(id);
+        Long brandId = model.getBrand().getId();
+        if (!brandRepository.existsById(brandId)) {
+            throw new ResourceNotFoundException("Không tìm thấy hãng xe có id = " + brandId);
+        }
+        existing.setName(model.getName());
+        existing.setBodyType(model.getBodyType());
+        existing.setDescription(model.getDescription());
+        existing.setBrand(entityManager.getReference(Brand.class, brandId));
+        return carModelRepository.save(existing);
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        getModelById(id);
+        if (carRepository.existsByModel_Id(id)) {
+            throw new BadRequestException("Không thể xoá dòng xe vì còn xe");
+        }
+        carModelRepository.deleteById(id);
     }
 
     private void validateModel(CarModel model) {

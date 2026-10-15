@@ -10,4 +10,6 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     Optional<Invoice> findByInvoiceNumber(String invoiceNumber);
 
     Optional<Invoice> findByOrder_Id(Long orderId);
+
+    boolean existsByOrder_Id(Long orderId);
 }

@@ -9,4 +9,10 @@ public interface BrandService {
     Brand create(Brand brand);
 
     List<Brand> getAllBrands();
+
+    Brand getById(Long id);
+
+    Brand update(Long id, Brand brand);
+
+    void delete(Long id);
 }

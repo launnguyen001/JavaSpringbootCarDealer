@@ -14,8 +14,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -102,6 +104,57 @@ class CarControllerMockMvcTests {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Civic 1.5"))
                 .andExpect(jsonPath("$.modelId").value(modelId));
+    }
+
+    @Test
+    void updateCarReturnsUpdatedCar() throws Exception {
+        String json = """
+                {
+                  "name": "Camry 2.5",
+                  "price": 150.0,
+                  "quantity": 2,
+                  "color": "Trắng",
+                  "modelId": %d
+                }
+                """.formatted(modelId);
+
+        mockMvc.perform(put("/api/cars/{id}", carId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(carId))
+                .andExpect(jsonPath("$.name").value("Camry 2.5"))
+                .andExpect(jsonPath("$.price").value(150.0))
+                .andExpect(jsonPath("$.quantity").value(2));
+    }
+
+    @Test
+    void updateCarReturnsNotFound() throws Exception {
+        String json = """
+                {
+                  "name": "Không tồn tại",
+                  "price": 100.0,
+                  "quantity": 1,
+                  "modelId": %d
+                }
+                """.formatted(modelId);
+
+        mockMvc.perform(put("/api/cars/{id}", 9999999L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteCarReturnsNoContent() throws Exception {
+        mockMvc.perform(delete("/api/cars/{id}", carId))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deleteCarReturnsNotFound() throws Exception {
+        mockMvc.perform(delete("/api/cars/{id}", 9999999L))
+                .andExpect(status().isNotFound());
     }
 
     @Test

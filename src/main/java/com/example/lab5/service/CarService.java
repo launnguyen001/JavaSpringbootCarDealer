@@ -35,4 +35,8 @@ public interface CarService {
             Double maxPrice,
             Integer minQuantity
     );
+
+    Car update(Long id, Car car);
+
+    void delete(Long id);
 }

@@ -13,4 +13,10 @@ public interface TestDriveAppointmentRepository extends JpaRepository<TestDriveA
     List<TestDriveAppointment> findByStatusOrderByScheduledAtAsc(AppointmentStatus status);
 
     List<TestDriveAppointment> findAllByOrderByScheduledAtAsc();
+
+    boolean existsByCar_Id(Long carId);
+
+    boolean existsByCustomer_Id(Long customerId);
+
+    boolean existsByEmployee_Id(Long employeeId);
 }

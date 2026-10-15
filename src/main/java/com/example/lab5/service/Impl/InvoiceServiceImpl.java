@@ -70,4 +70,35 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Không tìm thấy hóa đơn của đơn hàng id = " + orderId));
     }
+
+    @Override
+    @Transactional
+    public Invoice update(Long id, InvoiceRequest request) {
+        if (request == null || request.invoiceNumber() == null || request.invoiceNumber().isBlank()) {
+            throw new BadRequestException("Số hóa đơn không được để trống");
+        }
+        if (request.total() == null || request.total() < 0) {
+            throw new BadRequestException("Tổng tiền hóa đơn không hợp lệ");
+        }
+        Invoice invoice = getInvoiceById(id);
+        String invoiceNumber = request.invoiceNumber().trim();
+        invoiceRepository.findByInvoiceNumber(invoiceNumber)
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new BadRequestException("Số hóa đơn đã tồn tại");
+                });
+        invoice.setInvoiceNumber(invoiceNumber);
+        invoice.setTotal(request.total());
+        if (request.issuedAt() != null) {
+            invoice.setIssuedAt(request.issuedAt());
+        }
+        return invoiceRepository.save(invoice);
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        getInvoiceById(id);
+        invoiceRepository.deleteById(id);
+    }
 }

@@ -10,6 +10,7 @@ import com.example.lab5.service.CarMediaService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class CarMediaServiceImpl implements CarMediaService {
@@ -31,6 +32,11 @@ public class CarMediaServiceImpl implements CarMediaService {
         repository.findByCarId(request.carId()).ifPresent(existing -> media.setId(existing.getId()));
         media.setUpdatedAt(LocalDateTime.now());
         return repository.save(media);
+    }
+
+    @Override
+    public List<CarMedia> getAll() {
+        return repository.findAll();
     }
 
     @Override

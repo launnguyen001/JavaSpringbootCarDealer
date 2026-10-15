@@ -8,4 +8,6 @@ import java.util.List;
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     List<Payment> findByOrder_IdOrderByIdAsc(Long orderId);
+
+    boolean existsByOrder_Id(Long orderId);
 }

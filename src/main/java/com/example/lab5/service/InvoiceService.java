@@ -14,4 +14,8 @@ public interface InvoiceService {
     Invoice getInvoiceById(Long id);
 
     Invoice getByOrder(Long orderId);
+
+    Invoice update(Long id, InvoiceRequest request);
+
+    void delete(Long id);
 }

@@ -10,7 +10,13 @@ public interface CarReviewService {
 
     CarReview create(CarReviewRequest request);
 
+    List<CarReview> getAll();
+
     List<CarReview> getByCar(Long carId);
+
+    CarReview update(String reviewId, CarReviewRequest request);
+
+    void delete(String reviewId);
 
     CarReview addReply(String reviewId, String author, String content);
 
