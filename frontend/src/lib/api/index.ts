@@ -2,6 +2,7 @@
 export {
   listCars,
   getCar,
+  getCarItems,
   searchCarsByName,
   searchCarsByPrice,
   searchCarsByStock,
@@ -14,6 +15,18 @@ export {
   deleteCar,
 } from './cars';
 export type { CarRequest } from './cars';
+
+export {
+  listCarItems,
+  listAvailableCarItems,
+  getCarItem,
+  createCarItem,
+  updateCarItem,
+  updateCarItemStatus,
+  deleteCarItem,
+} from './carItems';
+
+export { listUsers, updateUserStatus, updateUserRole } from './users';
 
 export { listBrands, getBrand, createBrand, updateBrand, deleteBrand } from './brands';
 export type { BrandRequest } from './brands';
@@ -47,7 +60,7 @@ export {
 export type { CarReviewRequest } from './carReviews';
 
 // ---- Auth ----
-export { login, register, me, logout } from './auth';
+export { login, register, me, updateMe, logout } from './auth';
 
 // ---- Nghiệp vụ ----
 export * from './cart';

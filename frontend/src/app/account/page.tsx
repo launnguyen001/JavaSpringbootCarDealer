@@ -11,16 +11,17 @@ import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/context/AuthContext';
 import { getErrorMessage } from '@/lib/utils/error';
 import { formatVnd, formatDateTime } from '@/lib/utils/format';
-import { getCustomerId, setCustomerId } from '@/lib/auth/token';
+import { setCustomerId } from '@/lib/auth/token';
 import {
-  getCustomer,
-  createCustomer,
+  getMyProfile,
+  updateMyProfile,
+  updateMe,
   getOrdersByCustomer,
   getTestDrivesByCustomer,
 } from '@/lib/api';
 import type { Customer, Order, TestDrive } from '@/types';
 
-type Tab = 'orders' | 'test-drives' | 'profile';
+type Tab = 'orders' | 'test-drives' | 'profile' | 'account';
 
 const orderColumns: Column<Order>[] = [
   { key: 'orderCode', label: 'Mã đơn' },
@@ -37,17 +38,25 @@ const orderColumns: Column<Order>[] = [
 
 const testDriveColumns: Column<TestDrive>[] = [
   { key: 'scheduledAt', label: 'Thời gian', render: (r) => formatDateTime(r.scheduledAt) },
-  { key: 'carName', label: 'Xe' },
+  {
+    key: 'carName',
+    label: 'Xe',
+    render: (r) => (
+      <span>
+        {r.carName}
+        {r.vin ? ` • ${r.vin}` : ''}
+      </span>
+    ),
+  },
   { key: 'status', label: 'Trạng thái', render: (r) => <StatusPill status={r.status} /> },
   { key: 'note', label: 'Ghi chú', render: (r) => r.note ?? '—' },
 ];
 
 export default function AccountPage() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, refresh } = useAuth();
   const toast = useToast();
 
   const [tab, setTab] = useState<Tab>('orders');
-  const [customerId, setCustomerIdState] = useState<number | null>(null);
   const [profile, setProfile] = useState<Customer | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [testDrives, setTestDrives] = useState<TestDrive[]>([]);
@@ -58,19 +67,37 @@ export default function AccountPage() {
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
 
-  useEffect(() => {
-    setCustomerIdState(getCustomerId());
-  }, []);
+  // Tài khoản đăng nhập
+  const [loginEmail, setLoginEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
 
-  const load = useCallback(async (id: number) => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [ordersData, drivesData] = await Promise.all([
-        getOrdersByCustomer(id),
-        getTestDrivesByCustomer(id),
-      ]);
-      setOrders(ordersData);
-      setTestDrives(drivesData);
+      // Hồ sơ khách hàng gắn với tài khoản đang đăng nhập.
+      let current: Customer | null = null;
+      try {
+        current = await getMyProfile();
+        setProfile(current);
+        setCustomerId(current.id);
+        setFullName(current.fullName);
+        setPhone(current.phone ?? '');
+        setAddress(current.address ?? '');
+      } catch {
+        current = null;
+        setProfile(null);
+      }
+      if (current) {
+        const [ordersData, drivesData] = await Promise.all([
+          getOrdersByCustomer(current.id),
+          getTestDrivesByCustomer(current.id),
+        ]);
+        setOrders(ordersData);
+        setTestDrives(drivesData);
+      } else {
+        setOrders([]);
+        setTestDrives([]);
+      }
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -79,27 +106,46 @@ export default function AccountPage() {
   }, [toast]);
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated && customerId) {
-      getCustomer(customerId).then(setProfile).catch(() => setProfile(null));
-      load(customerId);
-    }
-    if (!authLoading && (!isAuthenticated || !customerId)) setLoading(false);
-  }, [authLoading, isAuthenticated, customerId, load]);
+    if (!authLoading && isAuthenticated) load();
+    if (!authLoading && !isAuthenticated) setLoading(false);
+  }, [authLoading, isAuthenticated, load]);
+
+  useEffect(() => {
+    setLoginEmail(user?.email ?? '');
+  }, [user?.email]);
 
   const submitProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      const created = await createCustomer({
+      // PUT /api/customers/me: tạo mới nếu chưa có, cập nhật nếu đã có.
+      const saved = await updateMyProfile({
         fullName,
         phone: phone || null,
         address: address || null,
         email: user?.email ?? null,
       });
-      setCustomerId(created.id);
-      setCustomerIdState(created.id);
-      setProfile(created);
-      toast.success('Đã tạo hồ sơ khách hàng');
+      setProfile(saved);
+      setCustomerId(saved.id);
+      toast.success('Đã lưu hồ sơ khách hàng');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await updateMe({
+        email: loginEmail || null,
+        password: newPassword || null,
+      });
+      await refresh();
+      setNewPassword('');
+      toast.success('Đã cập nhật thông tin tài khoản');
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -138,8 +184,19 @@ export default function AccountPage() {
         </div>
         <div>
           <h1 className="text-2xl font-serif font-bold text-[#0a0a0a]">{user?.username}</h1>
-          <p className="text-sm text-[#6b7280]">
-            {user?.email ?? 'Chưa có email'} • Vai trò: {user?.role}
+          <p className="text-sm text-[#6b7280] flex items-center gap-2 flex-wrap">
+            <span>{user?.email ?? 'Chưa có email'}</span>
+            <span>• Vai trò: {user?.role}</span>
+            <span>•</span>
+            <span
+              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide border ${
+                user?.enabled
+                  ? 'bg-[#ecfdf5] text-[#10b981] border-[#10b981]/30'
+                  : 'bg-[#fef2f2] text-[#ef4444] border-[#ef4444]/30'
+              }`}
+            >
+              {user?.enabled ? 'Đang hoạt động' : 'Đã bị khoá'}
+            </span>
           </p>
         </div>
       </div>
@@ -149,7 +206,8 @@ export default function AccountPage() {
           [
             ['orders', `Đơn hàng (${orders.length})`],
             ['test-drives', `Lịch lái thử (${testDrives.length})`],
-            ['profile', 'Hồ sơ'],
+            ['profile', 'Hồ sơ khách hàng'],
+            ['account', 'Tài khoản'],
           ] as [Tab, string][]
         ).map(([key, label]) => (
           <button
@@ -168,20 +226,40 @@ export default function AccountPage() {
 
       {tab === 'orders' && (
         <div>
-          {customerId ? (
+          {profile ? (
             <DataTable columns={orderColumns} rows={orders} rowKey={(r) => r.id} empty="Bạn chưa có đơn hàng nào." />
           ) : (
-            <ProfilePrompt onSubmit={submitProfile} busy={busy} fullName={fullName} setFullName={setFullName} phone={phone} setPhone={setPhone} address={address} setAddress={setAddress} email={user?.email ?? ''} />
+            <ProfilePrompt
+              onSubmit={submitProfile}
+              busy={busy}
+              fullName={fullName}
+              setFullName={setFullName}
+              phone={phone}
+              setPhone={setPhone}
+              address={address}
+              setAddress={setAddress}
+              email={user?.email ?? ''}
+            />
           )}
         </div>
       )}
 
       {tab === 'test-drives' && (
         <div>
-          {customerId ? (
+          {profile ? (
             <DataTable columns={testDriveColumns} rows={testDrives} rowKey={(r) => r.id} empty="Bạn chưa có lịch lái thử nào." />
           ) : (
-            <ProfilePrompt onSubmit={submitProfile} busy={busy} fullName={fullName} setFullName={setFullName} phone={phone} setPhone={setPhone} address={address} setAddress={setAddress} email={user?.email ?? ''} />
+            <ProfilePrompt
+              onSubmit={submitProfile}
+              busy={busy}
+              fullName={fullName}
+              setFullName={setFullName}
+              phone={phone}
+              setPhone={setPhone}
+              address={address}
+              setAddress={setAddress}
+              email={user?.email ?? ''}
+            />
           )}
         </div>
       )}
@@ -189,17 +267,75 @@ export default function AccountPage() {
       {tab === 'profile' && (
         <div>
           {profile ? (
-            <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 max-w-xl space-y-3 text-sm">
-              <Row label="Mã khách hàng" value={`#${profile.id}`} />
-              <Row label="Họ và tên" value={profile.fullName} />
-              <Row label="Điện thoại" value={profile.phone ?? '—'} />
-              <Row label="Email" value={profile.email ?? '—'} />
-              <Row label="Địa chỉ" value={profile.address ?? '—'} />
-              <Row label="CMND/CCCD" value={profile.nationalId ?? '—'} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 space-y-3 text-sm">
+                <Row label="Mã khách hàng" value={`#${profile.id}`} />
+                <Row label="Họ và tên" value={profile.fullName} />
+                <Row label="Điện thoại" value={profile.phone ?? '—'} />
+                <Row label="Email" value={profile.email ?? '—'} />
+                <Row label="Địa chỉ" value={profile.address ?? '—'} />
+                <Row label="CMND/CCCD" value={profile.nationalId ?? '—'} />
+              </div>
+              <ProfileForm
+                title="Cập nhật hồ sơ"
+                subtitle="Chỉnh sửa thông tin hồ sơ khách hàng của bạn."
+                onSubmit={submitProfile}
+                busy={busy}
+                fullName={fullName}
+                setFullName={setFullName}
+                phone={phone}
+                setPhone={setPhone}
+                address={address}
+                setAddress={setAddress}
+                email={user?.email ?? ''}
+              />
             </div>
           ) : (
-            <ProfilePrompt onSubmit={submitProfile} busy={busy} fullName={fullName} setFullName={setFullName} phone={phone} setPhone={setPhone} address={address} setAddress={setAddress} email={user?.email ?? ''} />
+            <ProfilePrompt
+              onSubmit={submitProfile}
+              busy={busy}
+              fullName={fullName}
+              setFullName={setFullName}
+              phone={phone}
+              setPhone={setPhone}
+              address={address}
+              setAddress={setAddress}
+              email={user?.email ?? ''}
+            />
           )}
+        </div>
+      )}
+
+      {tab === 'account' && (
+        <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 max-w-xl">
+          <h2 className="font-serif font-bold text-lg mb-1">Thông tin đăng nhập</h2>
+          <p className="text-sm text-[#6b7280] mb-5">
+            Cập nhật email hoặc đổi mật khẩu. Bỏ trống phần không muốn thay đổi.
+          </p>
+          <form onSubmit={submitAccount} className="space-y-4">
+            <Field label="Tên đăng nhập">
+              <Input value={user?.username ?? ''} disabled />
+            </Field>
+            <Field label="Email">
+              <Input
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="you@example.com"
+              />
+            </Field>
+            <Field label="Mật khẩu mới" hint="Tối thiểu 4 ký tự. Bỏ trống nếu không đổi.">
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="••••••"
+              />
+            </Field>
+            <Button type="submit" variant="gold" loading={busy}>
+              Lưu thay đổi
+            </Button>
+          </form>
         </div>
       )}
     </div>
@@ -215,7 +351,9 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-interface ProfilePromptProps {
+interface ProfileFormProps {
+  title: string;
+  subtitle: string;
   onSubmit: (e: React.FormEvent) => void;
   busy: boolean;
   fullName: string;
@@ -227,7 +365,9 @@ interface ProfilePromptProps {
   email: string;
 }
 
-function ProfilePrompt({
+function ProfileForm({
+  title,
+  subtitle,
   onSubmit,
   busy,
   fullName,
@@ -237,13 +377,11 @@ function ProfilePrompt({
   address,
   setAddress,
   email,
-}: ProfilePromptProps) {
+}: ProfileFormProps) {
   return (
     <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6 max-w-xl">
-      <h2 className="font-serif font-bold text-lg mb-1">Tạo hồ sơ khách hàng</h2>
-      <p className="text-sm text-[#6b7280] mb-5">
-        Bạn cần có hồ sơ khách hàng để đặt hàng và đăng ký lái thử.
-      </p>
+      <h2 className="font-serif font-bold text-lg mb-1">{title}</h2>
+      <p className="text-sm text-[#6b7280] mb-5">{subtitle}</p>
       <form onSubmit={onSubmit} className="space-y-4">
         <Field label="Họ và tên" required>
           <Input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
@@ -264,5 +402,15 @@ function ProfilePrompt({
         </Button>
       </form>
     </div>
+  );
+}
+
+function ProfilePrompt(props: Omit<ProfileFormProps, 'title' | 'subtitle'>) {
+  return (
+    <ProfileForm
+      {...props}
+      title="Tạo hồ sơ khách hàng"
+      subtitle="Bạn cần có hồ sơ khách hàng để đặt hàng và đăng ký lái thử."
+    />
   );
 }

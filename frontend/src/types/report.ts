@@ -6,6 +6,8 @@ export interface DashboardSummary {
   reservedCars: number;
   soldCars: number;
   maintenanceCars: number;
+  newItems: number;
+  usedItems: number;
   totalCustomers: number;
   totalEmployees: number;
   totalOrders: number;
@@ -35,6 +37,7 @@ export interface InventoryByBrand {
   brandName: string;
   totalCars: number;
   totalQuantity: number;
+  availableItems: number;
 }
 
 export interface InventoryByModel {
@@ -43,8 +46,10 @@ export interface InventoryByModel {
   bodyType: string | null;
   totalCars: number;
   totalQuantity: number;
+  availableItems: number;
 }
 
+/** Một chiếc xe vật lý trong báo cáo tồn kho (drilldown theo dòng xe). */
 export interface CarInventoryItem {
   carId: number;
   carName: string;
@@ -52,7 +57,8 @@ export interface CarInventoryItem {
   color: string | null;
   year: number | null;
   status: string;
-  quantity: number | null;
+  condition: string | null;
+  mileageKm: number | null;
   price: number;
 }
 

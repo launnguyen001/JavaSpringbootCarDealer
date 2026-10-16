@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
@@ -10,7 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getErrorMessage } from '@/lib/utils/error';
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { register, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [username, setUsername] = useState('');
@@ -18,6 +18,21 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Đã đăng nhập thì không hiển thị form đăng ký → chuyển về trang tài khoản
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace('/account');
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center text-[#6b7280]">
+        Đang chuyển hướng…
+      </div>
+    );
+  }
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

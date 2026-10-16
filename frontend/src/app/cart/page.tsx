@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import Button from '@/components/ui/Button';
 import EmptyState from '@/components/ui/EmptyState';
 import Loading from '@/components/ui/Loading';
 import { useToast } from '@/components/ui/Toast';
@@ -10,25 +9,28 @@ import { useAuth } from '@/context/AuthContext';
 import { getErrorMessage } from '@/lib/utils/error';
 import { formatVnd } from '@/lib/utils/format';
 import { getSessionId } from '@/lib/auth/token';
-import { getCart, removeItem, clearCart, listCars } from '@/lib/api';
-import type { Car, CartItem } from '@/types';
+import { getCart, removeItem, clearCart, getCarItem } from '@/lib/api';
+import type { CarItem, CartItem } from '@/types';
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&q=80';
+const CONDITION_LABEL: Record<string, string> = { NEW: 'Mới', USED: 'Đã dùng' };
 
 export default function CartPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const toast = useToast();
   const [items, setItems] = useState<CartItem[]>([]);
-  const [cars, setCars] = useState<Record<number, Car>>({});
+  const [carItems, setCarItems] = useState<Record<number, CarItem>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [cart, allCars] = await Promise.all([getCart(getSessionId()), listCars()]);
+      const cart = await getCart(getSessionId());
       setItems(cart);
-      setCars(Object.fromEntries(allCars.map((c) => [c.id, c])));
+      // Mỗi dòng giỏ trỏ tới một chiếc xe cụ thể — nạp chi tiết từng chiếc.
+      const detailed = await Promise.all(cart.map((it) => getCarItem(it.carItemId)));
+      setCarItems(Object.fromEntries(detailed.map((c) => [c.id, c])));
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -41,10 +43,10 @@ export default function CartPage() {
     if (!authLoading && !isAuthenticated) setLoading(false);
   }, [authLoading, isAuthenticated, load]);
 
-  const handleRemove = async (carId: number) => {
+  const handleRemove = async (carItemId: number) => {
     setBusy(true);
     try {
-      const updated = await removeItem(getSessionId(), carId);
+      const updated = await removeItem(getSessionId(), carItemId);
       setItems(updated);
       toast.success('Đã xóa khỏi giỏ hàng');
     } catch (err) {
@@ -67,7 +69,10 @@ export default function CartPage() {
     }
   };
 
-  const subtotal = items.reduce((sum, it) => sum + (cars[it.carId]?.price ?? 0) * it.quantity, 0);
+  const subtotal = items.reduce(
+    (sum, it) => sum + (carItems[it.carItemId]?.price ?? 0) * it.quantity,
+    0,
+  );
 
   if (authLoading || loading) {
     return (
@@ -107,28 +112,33 @@ export default function CartPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
             {items.map((item) => {
-              const car = cars[item.carId];
+              const car = carItems[item.carItemId];
               if (!car) return null;
               return (
                 <div
-                  key={item.carId}
+                  key={item.carItemId}
                   className="flex items-center gap-4 p-4 rounded-2xl border border-[#e5e7eb] bg-white"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={PLACEHOLDER}
-                    alt={car.name}
+                    alt={car.carName}
                     className="w-24 h-20 object-cover rounded-xl"
                   />
                   <div className="flex-1 min-w-0">
                     <Link
-                      href={`/cars/${car.id}`}
+                      href={`/cars/${car.carId}`}
                       className="font-serif font-bold text-[#0a0a0a] hover:text-[#c58e00]"
                     >
-                      {car.name}
+                      {car.carName}
                     </Link>
                     <p className="text-xs text-[#9ca3af] mt-0.5">
                       {car.brandName ?? ''} {car.modelName ? `• ${car.modelName}` : ''}
+                    </p>
+                    <p className="text-xs text-[#6b7280] mt-1">
+                      {car.vin ? `VIN: ${car.vin}` : `#${car.id}`}
+                      {car.color ? ` • ${car.color}` : ''}
+                      {` • ${CONDITION_LABEL[car.condition] ?? car.condition}`}
                     </p>
                     <p className="text-sm text-[#6b7280] mt-1">
                       Số lượng: <b>{item.quantity}</b>
@@ -139,7 +149,7 @@ export default function CartPage() {
                       {formatVnd(car.price * item.quantity)}
                     </p>
                     <button
-                      onClick={() => handleRemove(item.carId)}
+                      onClick={() => handleRemove(item.carItemId)}
                       disabled={busy}
                       className="text-xs text-[#ef4444] hover:underline mt-2"
                     >

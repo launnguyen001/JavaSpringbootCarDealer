@@ -144,15 +144,26 @@ export default function Header() {
                       Giỏ hàng
                     </Link>
                     {isAdmin && (
-                      <Link
-                        href="/admin"
-                        className={`block px-4 py-2 text-sm font-medium hover:bg-[#f9fafb] ${
-                          isActive('/admin') ? 'bg-[#f9fafb] text-[#c58e00]' : 'text-[#c58e00]'
-                        }`}
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        Trang quản trị
-                      </Link>
+                      <>
+                        <Link
+                          href="/admin"
+                          className={`block px-4 py-2 text-sm font-medium hover:bg-[#f9fafb] ${
+                            isActive('/admin') ? 'bg-[#f9fafb] text-[#c58e00]' : 'text-[#c58e00]'
+                          }`}
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          Trang quản trị
+                        </Link>
+                        <Link
+                          href="/admin/users"
+                          className={`block px-4 py-2 text-sm font-medium hover:bg-[#f9fafb] ${
+                            pathname === '/admin/users' ? 'bg-[#f9fafb] text-[#c58e00]' : 'text-[#c58e00]'
+                          }`}
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          Người dùng
+                        </Link>
+                      </>
                     )}
                     <button
                       onClick={handleLogout}
@@ -242,18 +253,32 @@ export default function Header() {
                     Tài khoản của tôi
                   </Link>
                   {isAdmin && (
-                    <Link
-                      href="/admin"
-                      onClick={() => setOpen(false)}
-                      aria-current={isActive('/admin') ? 'page' : undefined}
-                      className={`block px-2 py-2 rounded-xl transition-colors ${
-                        isActive('/admin')
-                          ? 'bg-[#f3f4f6] text-[#c58e00] font-medium'
-                          : 'text-[#c58e00] font-medium hover:bg-[#f3f4f6]'
-                      }`}
-                    >
-                      Trang quản trị
-                    </Link>
+                    <>
+                      <Link
+                        href="/admin"
+                        onClick={() => setOpen(false)}
+                        aria-current={isActive('/admin') ? 'page' : undefined}
+                        className={`block px-2 py-2 rounded-xl transition-colors ${
+                          isActive('/admin')
+                            ? 'bg-[#f3f4f6] text-[#c58e00] font-medium'
+                            : 'text-[#c58e00] font-medium hover:bg-[#f3f4f6]'
+                        }`}
+                      >
+                        Trang quản trị
+                      </Link>
+                      <Link
+                        href="/admin/users"
+                        onClick={() => setOpen(false)}
+                        aria-current={pathname === '/admin/users' ? 'page' : undefined}
+                        className={`block px-2 py-2 rounded-xl transition-colors ${
+                          pathname === '/admin/users'
+                            ? 'bg-[#f3f4f6] text-[#c58e00] font-medium'
+                            : 'text-[#c58e00] font-medium hover:bg-[#f3f4f6]'
+                        }`}
+                      >
+                        Người dùng
+                      </Link>
+                    </>
                   )}
                   <button
                     onClick={handleLogout}

@@ -13,6 +13,15 @@ export async function createCustomer(payload: CustomerRequest): Promise<Customer
   return apiRequest<Customer>('/customers', { method: 'POST', body: payload, auth: true });
 }
 
+// ---- Hồ sơ của chính người dùng đang đăng nhập ----
+export async function getMyProfile(): Promise<Customer> {
+  return apiRequest<Customer>('/customers/me', { auth: true });
+}
+
+export async function updateMyProfile(payload: CustomerRequest): Promise<Customer> {
+  return apiRequest<Customer>('/customers/me', { method: 'PUT', body: payload, auth: true });
+}
+
 export async function updateCustomer(id: number, payload: CustomerRequest): Promise<Customer> {
   return apiRequest<Customer>(`/customers/${id}`, { method: 'PUT', body: payload, auth: true });
 }

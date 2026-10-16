@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Button from '@/components/ui/Button';
@@ -18,7 +18,7 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
-  const { login } = useAuth();
+  const { login, isAuthenticated, isAdmin, loading: authLoading } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get('next') || '/';
@@ -27,6 +27,21 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Đã đăng nhập thì KHÔNG cho mở form login nữa → tự chuyển hướng
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace(isAdmin ? '/admin' : next);
+    }
+  }, [authLoading, isAuthenticated, isAdmin, next, router]);
+
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center text-[#6b7280]">
+        Đang chuyển hướng…
+      </div>
+    );
+  }
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -2,7 +2,13 @@
 
 import ResourceManager from '@/components/admin/ResourceManager';
 import StatusPill from '@/components/ui/StatusPill';
-import { listPayments, createPayment, updatePayment, deletePayment } from '@/lib/api';
+import {
+  listPayments,
+  createPayment,
+  updatePayment,
+  deletePayment,
+  getOrderOptions,
+} from '@/lib/api';
 import { formatVnd, formatDateTime } from '@/lib/utils/format';
 import type { Payment } from '@/types';
 
@@ -37,7 +43,25 @@ export default function AdminPaymentsPage() {
         status: row.status,
       })}
       fields={[
-        { name: 'orderId', label: 'ID đơn hàng', type: 'number', required: true },
+        {
+          name: 'orderId',
+          label: 'Đơn hàng',
+          type: 'select',
+          required: true,
+          hideOnEdit: true,
+          placeholder: '— Chọn đơn hàng —',
+          optionsLoader: () =>
+            getOrderOptions('payment').then((orders) =>
+              orders.map((o) => ({
+                value: o.orderId,
+                label: `${o.orderCode} — ${o.customerName ?? 'Khách lẻ'} — ${formatVnd(o.totalAmount)} · ${
+                  o.remainingAmount > 0
+                    ? `còn thiếu ${formatVnd(o.remainingAmount)}`
+                    : 'đã thanh toán đủ'
+                }`,
+              })),
+            ),
+        },
         { name: 'amount', label: 'Số tiền (triệu)', type: 'number', required: true, step: '0.1' },
         { name: 'method', label: 'Phương thức', type: 'select', options: methodOptions, required: true },
         { name: 'status', label: 'Trạng thái', type: 'select', options: statusOptions, required: true },

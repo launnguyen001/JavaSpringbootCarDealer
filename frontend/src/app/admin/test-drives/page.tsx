@@ -1,15 +1,18 @@
 'use client';
 
-import ResourceManager from '@/components/admin/ResourceManager';
+import { useEffect, useState } from 'react';
+import ResourceManager, { type FieldConfig } from '@/components/admin/ResourceManager';
 import StatusPill from '@/components/ui/StatusPill';
 import {
   listTestDrives,
   createTestDrive,
   updateTestDrive,
   deleteTestDrive,
+  listCars,
+  listCarItems,
 } from '@/lib/api';
 import { formatDateTime } from '@/lib/utils/format';
-import type { TestDrive } from '@/types';
+import type { CarItem, TestDrive } from '@/types';
 
 const statusOptions = [
   { value: 'SCHEDULED', label: 'Đã lên lịch' },
@@ -19,6 +22,41 @@ const statusOptions = [
 ];
 
 export default function AdminTestDrivesPage() {
+  // Danh sách tất cả chiếc xe để chọn khi tạo/sửa lịch lái thử.
+  const [carItemOptions, setCarItemOptions] = useState<
+    { value: number; label: string }[]
+  >([]);
+
+  useEffect(() => {
+    listCars()
+      .then(async (cars) => {
+        const lists = await Promise.all(cars.map((c) => listCarItems(c.id).catch(() => [])));
+        const flat: CarItem[] = lists.flat();
+        setCarItemOptions(
+          flat.map((it) => ({
+            value: it.id,
+            label: `${it.carName} • ${it.vin ?? `#${it.id}`}`,
+          })),
+        );
+      })
+      .catch(() => setCarItemOptions([]));
+  }, []);
+
+  const fields: FieldConfig[] = [
+    { name: 'scheduledAt', label: 'Thời gian hẹn', type: 'datetime', required: true },
+    { name: 'status', label: 'Trạng thái', type: 'select', options: statusOptions },
+    { name: 'customerId', label: 'ID khách hàng', type: 'number', required: true },
+    {
+      name: 'carItemId',
+      label: 'Xe (chiếc cụ thể)',
+      type: 'select',
+      required: true,
+      options: carItemOptions,
+    },
+    { name: 'employeeId', label: 'ID nhân viên phụ trách', type: 'number' },
+    { name: 'note', label: 'Ghi chú', type: 'textarea' },
+  ];
+
   return (
     <ResourceManager<TestDrive>
       title="Lịch lái thử"
@@ -32,18 +70,11 @@ export default function AdminTestDrivesPage() {
         scheduledAt: row.scheduledAt,
         status: row.status,
         customerId: row.customerId,
-        carId: row.carId,
+        carItemId: row.carItemId,
         employeeId: row.employeeId ?? '',
         note: row.note ?? '',
       })}
-      fields={[
-        { name: 'scheduledAt', label: 'Thời gian hẹn', type: 'datetime', required: true },
-        { name: 'status', label: 'Trạng thái', type: 'select', options: statusOptions },
-        { name: 'customerId', label: 'ID khách hàng', type: 'number', required: true },
-        { name: 'carId', label: 'ID xe', type: 'number', required: true },
-        { name: 'employeeId', label: 'ID nhân viên phụ trách', type: 'number' },
-        { name: 'note', label: 'Ghi chú', type: 'textarea' },
-      ]}
+      fields={fields}
       columns={[
         { key: 'id', label: 'ID' },
         {
@@ -52,7 +83,16 @@ export default function AdminTestDrivesPage() {
           render: (r) => formatDateTime(r.scheduledAt),
         },
         { key: 'customerName', label: 'Khách hàng' },
-        { key: 'carName', label: 'Xe' },
+        {
+          key: 'carName',
+          label: 'Xe',
+          render: (r) => (
+            <span>
+              {r.carName}
+              {r.vin ? ` • ${r.vin}` : ''}
+            </span>
+          ),
+        },
         {
           key: 'employeeName',
           label: 'Nhân viên',

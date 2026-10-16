@@ -4,19 +4,14 @@ export function useDebounce<T extends (...args: any[]) => void>(
   callback: T,
   delay: number,
 ): T {
+  const callbackRef = useRef(callback);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const debounced = useCallback(
-    (...args: any[]) => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-      timerRef.current = setTimeout(() => {
-        callback(...args);
-      }, delay);
-    },
-    [callback, delay],
-  );
+  // Giữ tham chiếu tới callback mới nhất để hàm trả về có danh tính ổn định,
+  // tránh việc useEffect phụ thuộc vào nó chạy lại sau mỗi lần render.
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
 
   useEffect(() => {
     return () => {
@@ -26,5 +21,15 @@ export function useDebounce<T extends (...args: any[]) => void>(
     };
   }, []);
 
-  return debounced as T;
+  return useCallback(
+    (...args: any[]) => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+      timerRef.current = setTimeout(() => {
+        callbackRef.current(...args);
+      }, delay);
+    },
+    [delay],
+  ) as T;
 }

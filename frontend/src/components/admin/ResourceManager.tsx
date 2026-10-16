@@ -8,11 +8,24 @@ import DataTable, { type Column } from '@/components/ui/DataTable';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage } from '@/lib/utils/error';
 
+export interface FieldOption {
+  value: string | number;
+  label: string;
+  /** Dữ liệu phụ tuỳ chọn, ví dụ totalAmount để auto-fill ô khác khi chọn. */
+  meta?: Record<string, unknown>;
+}
+
 export interface FieldConfig {
   name: string;
   label: string;
   type?: 'text' | 'number' | 'textarea' | 'select' | 'datetime' | 'checkbox';
-  options?: { value: string | number; label: string }[];
+  options?: FieldOption[];
+  /** Nạp lựa chọn bất đồng bộ khi mở form "Thêm mới" (chỉ dùng với type: 'select'). */
+  optionsLoader?: () => Promise<FieldOption[]>;
+  /** Hook khi người dùng chọn một lựa chọn — trả về các ô cần cập nhật thêm (auto-fill). */
+  onPick?: (option: FieldOption) => Record<string, unknown> | void;
+  /** Ẩn ô này khi mở form "Sửa" (ví dụ khoá đổi đơn hàng của chứng từ). */
+  hideOnEdit?: boolean;
   required?: boolean;
   placeholder?: string;
   step?: string;
@@ -106,6 +119,8 @@ export default function ResourceManager<T>({
   const [form, setForm] = useState<Record<string, unknown>>(() => emptyForm(fields));
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<T | null>(null);
+  const [dynamicOptions, setDynamicOptions] = useState<Record<string, FieldOption[]>>({});
+  const [loadingOptions, setLoadingOptions] = useState<Record<string, boolean>>({});
 
   // Giữ tham chiếu mới nhất để tránh reload vòng lặp khi caller truyền inline function.
   const listRef = useRef(list);
@@ -127,9 +142,25 @@ export default function ResourceManager<T>({
     load();
   }, [load]);
 
+  const loadDynamicOptions = () => {
+    fields.forEach((f) => {
+      if (!f.optionsLoader) return;
+      const loader = f.optionsLoader;
+      setLoadingOptions((p) => ({ ...p, [f.name]: true }));
+      loader()
+        .then((opts) => setDynamicOptions((p) => ({ ...p, [f.name]: opts })))
+        .catch((err) => {
+          toast.error(getErrorMessage(err));
+          setDynamicOptions((p) => ({ ...p, [f.name]: [] }));
+        })
+        .finally(() => setLoadingOptions((p) => ({ ...p, [f.name]: false })));
+    });
+  };
+
   const openCreate = () => {
     setEditing(null);
     setForm(emptyForm(fields));
+    loadDynamicOptions();
     setOpen(true);
   };
 
@@ -231,6 +262,8 @@ export default function ResourceManager<T>({
       : []),
   ];
 
+  const visibleFields = fields.filter((f) => !(f.hideOnEdit && editing));
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -280,7 +313,7 @@ export default function ResourceManager<T>({
         }
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {fields.map((f) => (
+          {visibleFields.map((f) => (
             <Field
               key={f.name}
               label={f.label}
@@ -296,14 +329,40 @@ export default function ResourceManager<T>({
               ) : f.type === 'select' ? (
                 <Select
                   value={String(form[f.name] ?? '')}
-                  onChange={(e) => setForm((p) => ({ ...p, [f.name]: e.target.value }))}
+                  disabled={f.optionsLoader ? !!loadingOptions[f.name] : false}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const opts = f.optionsLoader
+                      ? (dynamicOptions[f.name] ?? [])
+                      : (f.options ?? []);
+                    const picked = opts.find((o) => String(o.value) === value);
+                    setForm((p) => {
+                      const next: Record<string, unknown> = { ...p, [f.name]: value };
+                      if (picked && f.onPick) {
+                        const patch = f.onPick(picked);
+                        if (patch) Object.assign(next, patch);
+                      }
+                      return next;
+                    });
+                  }}
                 >
-                  <option value="">— Chọn —</option>
-                  {f.options?.map((o) => (
+                  <option value="">
+                    {f.optionsLoader && loadingOptions[f.name]
+                      ? 'Đang tải…'
+                      : f.placeholder ?? '— Chọn —'}
+                  </option>
+                  {(f.optionsLoader ? (dynamicOptions[f.name] ?? []) : (f.options ?? [])).map((o) => (
                     <option key={String(o.value)} value={String(o.value)}>
                       {o.label}
                     </option>
                   ))}
+                  {f.optionsLoader &&
+                    !loadingOptions[f.name] &&
+                    (dynamicOptions[f.name] ?? []).length === 0 && (
+                      <option key="__none" value="" disabled>
+                        Không có lựa chọn phù hợp
+                      </option>
+                    )}
                 </Select>
               ) : f.type === 'checkbox' ? (
                 <label className="flex items-center gap-2 text-sm text-[#374151] py-2.5">

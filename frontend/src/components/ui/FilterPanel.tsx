@@ -15,15 +15,15 @@ interface FilterPanelProps {
 }
 
 const SELECT_CLASS =
-  'w-full pl-3 pr-9 py-2.5 rounded-xl border border-[#e5e7eb] bg-white text-[#0a0a0a] text-sm ' +
+  'w-full pl-3 pr-9 py-2 rounded-xl border border-[#e5e7eb] bg-white text-[#0a0a0a] text-sm ' +
   'focus:outline-none focus:ring-2 focus:ring-[#c58e00] focus:border-transparent appearance-none transition-shadow';
 
 const INPUT_CLASS =
-  'w-full px-3 py-2.5 rounded-xl border border-[#e5e7eb] bg-white text-[#0a0a0a] text-sm ' +
+  'w-full px-3 py-2 rounded-xl border border-[#e5e7eb] bg-white text-[#0a0a0a] text-sm ' +
   'focus:outline-none focus:ring-2 focus:ring-[#c58e00] focus:border-transparent transition-shadow';
 
 const LABEL_CLASS =
-  'block text-[10px] font-semibold text-[#6b7280] uppercase mb-1.5 tracking-wider';
+  'block text-[10px] font-semibold text-[#6b7280] uppercase mb-1 tracking-wider';
 
 function Chevron() {
   return (
@@ -61,7 +61,14 @@ export default function FilterPanel({
     ? models.filter((m) => String(m.brandId) === selectedBrand)
     : models;
 
-  const hasFilter = Boolean(selectedBrand || selectedModel || minPrice || maxPrice || minQuantity);
+  const hasFilter = Boolean(
+    searchParams.get('q') ||
+      selectedBrand ||
+      selectedModel ||
+      minPrice ||
+      maxPrice ||
+      minQuantity,
+  );
 
   const pushParams = (params: URLSearchParams) => {
     const qs = params.toString();
@@ -82,27 +89,17 @@ export default function FilterPanel({
 
   const clearFilters = () => {
     const params = new URLSearchParams(searchParams.toString());
-    ['brand', 'model', 'minPrice', 'maxPrice', 'minQuantity', 'page'].forEach((k) => params.delete(k));
+    ['q', 'brand', 'model', 'minPrice', 'maxPrice', 'minQuantity', 'page'].forEach((k) =>
+      params.delete(k),
+    );
     pushParams(params);
   };
 
   return (
-    <div className="bg-[#fafafa] border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="font-serif font-bold text-lg text-[#0a0a0a] leading-none">Bộ lọc</h2>
-        <button
-          type="button"
-          onClick={clearFilters}
-          disabled={!hasFilter}
-          className="text-xs font-medium text-[#6b7280] underline underline-offset-4 transition-colors
-                     hover:text-[#c58e00] disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
-        >
-          Xóa lọc
-        </button>
-      </div>
-
-      {/* Xếp dọc 1 cột vì panel nằm trong sidebar (lg:w-72) — không dùng breakpoint theo viewport */}
-      <div className="flex flex-col gap-5">
+    // Thanh ngang: các trường xếp trên 1 hàng ở màn rộng, tự xuống dòng ở màn nhỏ
+    <div className="bg-[#fafafa] border border-[#e5e7eb] rounded-2xl px-4 py-3 shadow-sm">
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-x-4 gap-y-3 items-end">
+        {/* Hãng xe */}
         <div>
           <label htmlFor="filter-brand" className={LABEL_CLASS}>
             Hãng xe
@@ -145,6 +142,7 @@ export default function FilterPanel({
           </div>
         </div>
 
+        {/* Dòng xe */}
         <div>
           <label htmlFor="filter-model" className={LABEL_CLASS}>
             Dòng xe
@@ -167,7 +165,8 @@ export default function FilterPanel({
           </div>
         </div>
 
-        <div>
+        {/* Khoảng giá — chiếm 2 cột */}
+        <div className="col-span-2">
           <label htmlFor="filter-min-price" className={LABEL_CLASS}>
             Khoảng giá (triệu)
           </label>
@@ -196,9 +195,10 @@ export default function FilterPanel({
           </div>
         </div>
 
+        {/* Số xe còn hàng */}
         <div>
           <label htmlFor="filter-min-quantity" className={LABEL_CLASS}>
-            Tồn kho tối thiểu
+            Số xe còn hàng (tối thiểu)
           </label>
           <input
             id="filter-min-quantity"
@@ -210,16 +210,28 @@ export default function FilterPanel({
             placeholder="0"
           />
         </div>
-      </div>
 
-      <div className="mt-6 pt-4 border-t border-[#e5e7eb] text-xs font-medium text-[#6b7280]">
-        {hasFilter ? (
-          <span className="text-[#0a0a0a]">
-            <span className="text-[#c58e00] mr-1">●</span> Đang áp dụng bộ lọc
+        {/* Trạng thái bộ lọc + nút xóa */}
+        <div className="flex items-center justify-between md:justify-end gap-3 min-h-[36px]">
+          <span className="text-xs font-medium text-[#6b7280] whitespace-nowrap">
+            {hasFilter ? (
+              <>
+                <span className="text-[#c58e00] mr-1">●</span>Đang lọc
+              </>
+            ) : (
+              'Chưa chọn bộ lọc'
+            )}
           </span>
-        ) : (
-          <span>Chưa chọn bộ lọc</span>
-        )}
+          <button
+            type="button"
+            onClick={clearFilters}
+            disabled={!hasFilter}
+            className="text-xs font-medium text-[#6b7280] underline underline-offset-4 transition-colors
+                       hover:text-[#c58e00] disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            Xóa lọc
+          </button>
+        </div>
       </div>
     </div>
   );

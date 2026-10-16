@@ -1,15 +1,23 @@
-export type { CarStatus } from './car';
-export type { Car } from './car';
+export type { CarStatus, CarCondition, Car, CarItem } from './car';
 export type { Brand } from './brand';
 export type { CarModel } from './carModel';
+export type { CarItemRequest } from './carItem';
 export type { CarSpecification } from './carSpec';
 export type { CarMedia } from './carMedia';
 export type { Reply } from './carReview';
 export type { CarReview } from './carReview';
 export type { CarReviewSummary } from './carReview';
 
-export type { UserRole, AuthUser, AuthResponse, RegisterRequest } from './user';
-export type { OrderStatus, OrderItem, Order, OrderItemRequest, OrderRequest } from './order';
+export type {
+  UserRole,
+  AuthUser,
+  AuthResponse,
+  RegisterRequest,
+  UpdateMeRequest,
+  UserStatusRequest,
+  UserRoleRequest,
+} from './user';
+export type { OrderStatus, OrderItem, Order, OrderItemRequest, OrderRequest, OrderOption, OrderOptionTarget } from './order';
 export type { Customer, CustomerRequest } from './customer';
 export type { Employee, EmployeeRequest } from './employee';
 export type { AppointmentStatus, TestDrive, TestDriveRequest } from './testDrive';

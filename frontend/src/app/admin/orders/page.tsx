@@ -6,6 +6,7 @@ import Modal from '@/components/ui/Modal';
 import { Field, Input, Select } from '@/components/ui/Field';
 import DataTable, { type Column } from '@/components/ui/DataTable';
 import StatusPill from '@/components/ui/StatusPill';
+import OrderDetailModal from '@/components/admin/OrderDetailModal';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage } from '@/lib/utils/error';
 import { formatVnd, formatDateTime } from '@/lib/utils/format';
@@ -15,27 +16,33 @@ import {
   updateOrderStatus,
   cancelOrder,
   deleteOrder,
+  listCars,
+  listAvailableCarItems,
 } from '@/lib/api';
-import type { Order, OrderStatus } from '@/types';
+import type { Car, CarItem, Order, OrderStatus } from '@/types';
 
 const statuses: OrderStatus[] = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
+const CONDITION_LABEL: Record<string, string> = { NEW: 'Mới', USED: 'Cũ' };
 
 interface ItemRow {
   carId: string;
-  quantity: string;
+  carItemId: string;
 }
 
 export default function AdminOrdersPage() {
   const toast = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Order | null>(null);
+  // Đơn đang xem chi tiết trong popup (gồm hợp đồng / thanh toán / hóa đơn)
+  const [detailId, setDetailId] = useState<number | null>(null);
 
   const [customerId, setCustomerId] = useState('');
   const [employeeId, setEmployeeId] = useState('');
-  const [items, setItems] = useState<ItemRow[]>([{ carId: '', quantity: '1' }]);
+  const [items, setItems] = useState<ItemRow[]>([{ carId: '', carItemId: '' }]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,6 +57,7 @@ export default function AdminOrdersPage() {
 
   useEffect(() => {
     load();
+    listCars().then(setCars).catch(() => setCars([]));
   }, [load]);
 
   const changeStatus = async (order: Order, status: OrderStatus) => {
@@ -90,7 +98,7 @@ export default function AdminOrdersPage() {
   const openCreate = () => {
     setCustomerId('');
     setEmployeeId('');
-    setItems([{ carId: '', quantity: '1' }]);
+    setItems([{ carId: '', carItemId: '' }]);
     setOpen(true);
   };
 
@@ -99,11 +107,10 @@ export default function AdminOrdersPage() {
       toast.error('Vui lòng nhập ID khách hàng');
       return;
     }
-    const parsed = items
-      .filter((i) => i.carId)
-      .map((i) => ({ carId: Number(i.carId), quantity: Number(i.quantity) || 1 }));
+    // Mỗi dòng đơn là một chiếc xe cụ thể (car_item), số lượng luôn = 1.
+    const parsed = items.filter((i) => i.carItemId).map((i) => ({ carItemId: Number(i.carItemId) }));
     if (parsed.length === 0) {
-      toast.error('Cần ít nhất một xe trong đơn');
+      toast.error('Cần chọn ít nhất một chiếc xe');
       return;
     }
     setSubmitting(true);
@@ -146,6 +153,9 @@ export default function AdminOrdersPage() {
       className: 'text-right whitespace-nowrap',
       render: (r) => (
         <div className="flex justify-end items-center gap-2">
+          <Button size="sm" variant="gold" onClick={() => setDetailId(r.id)}>
+            Chi tiết
+          </Button>
           <Select
             value={r.status}
             onChange={(e) => changeStatus(r, e.target.value as OrderStatus)}
@@ -175,7 +185,9 @@ export default function AdminOrdersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-serif font-bold text-[#0a0a0a]">Đơn hàng</h1>
-          <p className="text-sm text-[#6b7280] mt-1">Quản lý đơn hàng, đổi trạng thái, hủy đơn.</p>
+          <p className="text-sm text-[#6b7280] mt-1">
+            Quản lý đơn hàng, đổi trạng thái, hủy đơn — bấm “Chi tiết” để xem hợp đồng, thanh toán và hóa đơn của đơn.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={load} title="Tải lại">
@@ -231,50 +243,28 @@ export default function AdminOrdersPage() {
         <div className="mt-5">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-semibold text-[#6b7280] uppercase tracking-wider">
-              Mặt hàng
+              Xe trong đơn (mỗi dòng 1 chiếc)
             </span>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setItems((prev) => [...prev, { carId: '', quantity: '1' }])}
+              onClick={() => setItems((prev) => [...prev, { carId: '', carItemId: '' }])}
             >
               + Thêm xe
             </Button>
           </div>
           <div className="space-y-3">
             {items.map((item, index) => (
-              <div key={index} className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  value={item.carId}
-                  placeholder="ID xe"
-                  onChange={(e) =>
-                    setItems((prev) =>
-                      prev.map((it, i) => (i === index ? { ...it, carId: e.target.value } : it)),
-                    )
-                  }
-                />
-                <Input
-                  type="number"
-                  value={item.quantity}
-                  placeholder="SL"
-                  className="w-28"
-                  onChange={(e) =>
-                    setItems((prev) =>
-                      prev.map((it, i) => (i === index ? { ...it, quantity: e.target.value } : it)),
-                    )
-                  }
-                />
-                {items.length > 1 && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setItems((prev) => prev.filter((_, i) => i !== index))}
-                  >
-                    ✕
-                  </Button>
-                )}
-              </div>
+              <OrderItemRow
+                key={index}
+                cars={cars}
+                value={item}
+                canRemove={items.length > 1}
+                onChange={(v) =>
+                  setItems((prev) => prev.map((it, i) => (i === index ? v : it)))
+                }
+                onRemove={() => setItems((prev) => prev.filter((_, i) => i !== index))}
+              />
             ))}
           </div>
         </div>
@@ -297,9 +287,86 @@ export default function AdminOrdersPage() {
         }
       >
         <p className="text-sm text-[#374151]">
-          Bạn có chắc muốn xóa đơn <b>{confirmDelete?.orderCode}</b>? Hành động không thể hoàn tác.
+          Bạn có chắc muốn xóa đơn <b>{confirmDelete?.orderCode}</b>? Hành động này không thể hoàn tác.
         </p>
       </Modal>
+
+      {/* Chi tiết đơn: gom hợp đồng + thanh toán + hóa đơn vào 1 popup, expand từng mục */}
+      <OrderDetailModal orderId={detailId} onClose={() => setDetailId(null)} />
+    </div>
+  );
+}
+
+function OrderItemRow({
+  cars,
+  value,
+  onChange,
+  onRemove,
+  canRemove,
+}: {
+  cars: Car[];
+  value: ItemRow;
+  onChange: (v: ItemRow) => void;
+  onRemove: () => void;
+  canRemove: boolean;
+}) {
+  const [carItems, setCarItems] = useState<CarItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+
+  useEffect(() => {
+    if (!value.carId) {
+      setCarItems([]);
+      return;
+    }
+    let active = true;
+    setLoadingItems(true);
+    listAvailableCarItems(Number(value.carId))
+      .then((data) => {
+        if (active) setCarItems(data);
+      })
+      .catch(() => {
+        if (active) setCarItems([]);
+      })
+      .finally(() => {
+        if (active) setLoadingItems(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [value.carId]);
+
+  return (
+    <div className="flex items-center gap-3">
+      <Select
+        value={value.carId}
+        onChange={(e) => onChange({ carId: e.target.value, carItemId: '' })}
+      >
+        <option value="">Chọn dòng xe…</option>
+        {cars.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </Select>
+      <Select
+        value={value.carItemId}
+        disabled={!value.carId || loadingItems}
+        onChange={(e) => onChange({ ...value, carItemId: e.target.value })}
+      >
+        <option value="">{loadingItems ? 'Đang tải…' : 'Chọn xe cụ thể…'}</option>
+        {carItems.map((it) => (
+          <option key={it.id} value={it.id}>
+            {(it.vin ?? `#${it.id}`) +
+              ' • ' +
+              (CONDITION_LABEL[it.condition] ?? it.condition) +
+              ' • ' +
+              formatVnd(it.price)}
+          </option>
+        ))}
+      </Select>
+      <Button size="sm" variant="ghost" disabled={!canRemove} onClick={onRemove}>
+        ✕
+      </Button>
     </div>
   );
 }

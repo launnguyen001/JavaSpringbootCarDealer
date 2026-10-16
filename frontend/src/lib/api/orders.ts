@@ -1,8 +1,26 @@
 import { apiRequest } from './http';
-import type { Order, OrderItem, OrderItemRequest, OrderRequest, OrderStatus } from '@/types';
+import type {
+  Order,
+  OrderItem,
+  OrderItemRequest,
+  OrderOption,
+  OrderOptionTarget,
+  OrderRequest,
+  OrderStatus,
+} from '@/types';
 
 export async function listOrders(): Promise<Order[]> {
   return apiRequest<Order[]>('/orders', { auth: true });
+}
+
+/**
+ * Danh sách đơn hàng đủ điều kiện gắn chứng từ, dùng cho dropdown ở form admin.
+ * target = 'invoice' | 'contract' | 'payment'.
+ */
+export async function getOrderOptions(target: OrderOptionTarget): Promise<OrderOption[]> {
+  return apiRequest<OrderOption[]>(`/orders/options?target=${encodeURIComponent(target)}`, {
+    auth: true,
+  });
 }
 
 export async function getOrder(id: number): Promise<Order> {

@@ -1,7 +1,13 @@
 'use client';
 
 import ResourceManager from '@/components/admin/ResourceManager';
-import { listInvoices, createInvoice, updateInvoice, deleteInvoice } from '@/lib/api';
+import {
+  listInvoices,
+  createInvoice,
+  updateInvoice,
+  deleteInvoice,
+  getOrderOptions,
+} from '@/lib/api';
 import { formatVnd, formatDateTime } from '@/lib/utils/format';
 import type { Invoice } from '@/types';
 
@@ -22,7 +28,23 @@ export default function AdminInvoicesPage() {
         issuedAt: row.issuedAt ?? '',
       })}
       fields={[
-        { name: 'orderId', label: 'ID đơn hàng', type: 'number', required: true },
+        {
+          name: 'orderId',
+          label: 'Đơn hàng',
+          type: 'select',
+          required: true,
+          hideOnEdit: true,
+          placeholder: '— Chọn đơn chưa có hóa đơn —',
+          optionsLoader: () =>
+            getOrderOptions('invoice').then((orders) =>
+              orders.map((o) => ({
+                value: o.orderId,
+                label: `${o.orderCode} — ${o.customerName ?? 'Khách lẻ'} — ${formatVnd(o.totalAmount)}`,
+                meta: { totalAmount: o.totalAmount },
+              })),
+            ),
+          onPick: (option) => ({ total: String(option.meta?.totalAmount ?? '') }),
+        },
         { name: 'invoiceNumber', label: 'Số hóa đơn', required: true },
         { name: 'total', label: 'Tổng tiền (triệu)', type: 'number', required: true, step: '0.1' },
         { name: 'issuedAt', label: 'Ngày phát hành', type: 'datetime' },

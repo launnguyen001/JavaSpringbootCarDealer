@@ -7,8 +7,6 @@ import {
   searchCarsByStock,
   searchCarsAdvanced,
   searchCarsAdvancedByBrand,
-  getCarsByBrand,
-  getCarsByModel,
 } from '@/lib/api';
 import CarGrid from '@/components/ui/CarGrid';
 import EmptyState from '@/components/ui/EmptyState';
@@ -22,7 +20,8 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-const PAGE_SIZE = 9;
+// Số xe/trang: vừa 2 hàng lưới (4 cột trên màn rộng) để danh sách lọt trọn 1 view
+const PAGE_SIZE = 8;
 
 interface CarsPageProps {
   searchParams: Promise<{
@@ -33,7 +32,6 @@ interface CarsPageProps {
     maxPrice?: string;
     minQuantity?: string;
     page?: string;
-    size?: string;
   }>;
 }
 
@@ -46,7 +44,7 @@ export default async function CarsPage({ searchParams }: CarsPageProps) {
   const maxPrice = params.maxPrice ?? undefined;
   const minQuantity = params.minQuantity ?? undefined;
   const page = Math.max(1, parseInt(params.page ?? '1', 10));
-  const size = 8;
+  const size = PAGE_SIZE;
 
   let brands: Brand[] = [];
   let models: CarModel[] = [];
@@ -109,56 +107,52 @@ export default async function CarsPage({ searchParams }: CarsPageProps) {
   const start = (page - 1) * size;
   const pagedCars = cars.slice(start, start + size);
 
-  const modelsForBrand = brand ? models.filter((m) => String(m.brandId) === brand) : models;
-
   return (
-    <div className="min-h-[calc(100vh-200px)] py-12 px-6 lg:px-12 max-w-7xl mx-auto">
-      <nav className="mb-8 flex items-center gap-2 text-[#6b7280] text-sm">
+    // Cột dọc vừa 1 view: breadcrumb → tiêu đề + tìm kiếm → bộ lọc ngang → lưới (flex-1) → phân trang
+    <div className="min-h-[calc(100vh-4rem)] flex flex-col max-w-[1400px] mx-auto px-6 lg:px-10 py-6">
+      <nav className="mb-4 flex items-center gap-2 text-[#6b7280] text-sm">
         <Link href="/" className="hover:text-[#c58e00] transition-colors">Trang chủ</Link>
         <span className="mx-1">/</span>
         <span className="font-medium text-[#0a0a0a]">Danh sách xe</span>
       </nav>
 
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Sidebar filters */}
-        <aside className="lg:w-72 flex-shrink-0">
-          <FilterPanel
-            brands={brands}
-            models={models}
-            selectedBrand={brand}
-            selectedModel={model}
-            minPrice={minPrice}
-            maxPrice={maxPrice}
-            minQuantity={minQuantity}
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-serif font-bold text-[#0a0a0a] mb-1">Danh sách xe</h1>
+          <p className="text-[#6b7280] text-xs tracking-wide uppercase font-medium">
+            {total} kết quả tìm thấy
+          </p>
+        </div>
+        <div className="w-full sm:w-80">
+          <SearchBar placeholder="Tìm xe theo tên…" />
+        </div>
+      </div>
+
+      {/* Bộ lọc thanh ngang, full width */}
+      <FilterPanel
+        brands={brands}
+        models={models}
+        selectedBrand={brand}
+        selectedModel={model}
+        minPrice={minPrice}
+        maxPrice={maxPrice}
+        minQuantity={minQuantity}
+      />
+
+      <div className="flex-1 mt-5">
+        {cars.length === 0 ? (
+          <EmptyState
+            title="Không có xe phù hợp"
+            subtitle="Hãy thử thay đổi bộ lọc hoặc từ khóa tìm kiếm."
           />
-        </aside>
-
-        {/* Results */}
-        <main className="flex-1">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-serif font-bold text-[#0a0a0a] mb-2">
-                Danh sách xe
-              </h1>
-              <p className="text-[#6b7280] text-sm tracking-wide uppercase font-medium">
-                {total} kết quả tìm thấy
-              </p>
-            </div>
-            <SearchBar placeholder="Tìm xe theo tên…" />
-          </div>
-
-          {cars.length === 0 ? (
-            <EmptyState
-              title="Không có xe phù hợp"
-              subtitle="Hãy thử thay đổi bộ lọc hoặc từ khóa tìm kiếm."
-            />
-          ) : (
-            <>
-              <CarGrid cars={pagedCars} />
+        ) : (
+          <div className="flex flex-col h-full">
+            <CarGrid cars={pagedCars} compact />
+            <div className="mt-5">
               <Pagination totalItems={total} pageSize={size} />
-            </>
-          )}
-        </main>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

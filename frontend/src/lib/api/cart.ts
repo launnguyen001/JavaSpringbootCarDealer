@@ -11,15 +11,19 @@ export async function getCart(sessionId: string): Promise<CartItem[]> {
   return apiRequest<CartItem[]>(`/cart?${qs({ sessionId })}`, { auth: true });
 }
 
-export async function addItem(sessionId: string, carId: number, quantity = 1): Promise<CartItem[]> {
-  return apiRequest<CartItem[]>(`/cart/items?${qs({ sessionId, carId, quantity })}`, {
+export async function addItem(
+  sessionId: string,
+  carItemId: number,
+  quantity = 1,
+): Promise<CartItem[]> {
+  return apiRequest<CartItem[]>(`/cart/items?${qs({ sessionId, carItemId, quantity })}`, {
     method: 'POST',
     auth: true,
   });
 }
 
-export async function removeItem(sessionId: string, carId: number): Promise<CartItem[]> {
-  return apiRequest<CartItem[]>(`/cart/items?${qs({ sessionId, carId })}`, {
+export async function removeItem(sessionId: string, carItemId: number): Promise<CartItem[]> {
+  return apiRequest<CartItem[]>(`/cart/items?${qs({ sessionId, carItemId })}`, {
     method: 'DELETE',
     auth: true,
   });

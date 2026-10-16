@@ -6,11 +6,14 @@ import {
   getCarReviews,
   getCarReviewSummary,
 } from '@/lib/api';
-import { formatPrice, formatDate, formatRating } from '@/lib/utils/format';
+import { formatDate, formatRating } from '@/lib/utils/format';
 import PriceTag from '@/components/ui/PriceTag';
 import StatusBadge from '@/components/ui/StatusBadge';
 import RatingStars from '@/components/ui/RatingStars';
 import CarPurchasePanel from '@/components/car/CarPurchasePanel';
+import CarGallery from '@/components/car/CarGallery';
+import { SelectedItemProvider } from '@/components/car/SelectedItemContext';
+import { SelectedItemTotal, SelectedItemSpecs } from '@/components/car/SelectedItemSummary';
 import ReviewForm from '@/components/car/ReviewForm';
 import Link from 'next/link';
 import type { CarSpecification, CarReview } from '@/types';
@@ -64,12 +67,15 @@ export default async function CarDetailPage({ params }: CarDetailPageProps) {
   const reviewSummary: Awaited<ReturnType<typeof getCarReviewSummary>> | null =
     summaryRes.status === 'fulfilled' ? summaryRes.value : null;
 
-  const images = carMedia?.images?.length
-    ? carMedia.images
-    : [carMedia?.thumbnail ?? null].filter(Boolean);
-  const thumbnail = carMedia?.thumbnail;
+  const images: string[] = (
+    carMedia?.images?.length ? carMedia.images : [carMedia?.thumbnail ?? '']
+  ).filter((img): img is string => Boolean(img));
+  const thumbnail = carMedia?.thumbnail ?? null;
 
-  const isAvailable = car.status === 'AVAILABLE';
+  // Giá hiển thị theo các chiếc thực tế (priceFrom..priceTo), nếu chỉ một mức thì lấy mức đó.
+  const priceFrom = car.priceFrom ?? car.basePrice;
+  const priceTo = car.priceTo ?? car.priceFrom ?? car.basePrice;
+  const isPriceRange = priceFrom != null && priceTo != null && priceFrom !== priceTo;
 
   return (
     <div className="min-h-[calc(100vh-200px)] py-12 px-6 lg:px-12 max-w-7xl mx-auto">
@@ -82,63 +88,30 @@ export default async function CarDetailPage({ params }: CarDetailPageProps) {
       </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Gallery */}
+        {/* Gallery — client component, bấm thumbnail để đổi ảnh chính */}
         <div className="lg:col-span-7">
-          <div className="relative h-[500px] rounded-3xl border border-[#e5e7eb] bg-[#f3f4f6] overflow-hidden shadow-lg">
-            <img
-              src={
-                thumbnail ??
-                images[0] ??
-                'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=1200&q=80'
-              }
-              alt={car.name}
-              className="w-full h-full object-cover object-center"
-            />
-            <div className="absolute top-4 right-4 z-10">
-              <StatusBadge status={car.status} className="shadow-lg" />
-            </div>
-            {images.length > 1 && (
-              <div className="absolute bottom-4 left-4 z-10 flex gap-2">
-                {images.slice(0, 4).map((img, i) => (
-                  <button
-                    key={i}
-                    className="w-10 h-10 rounded-xl bg-white/90 backdrop-blur border border-[#e5e7eb] hover:border-[#c58e00] transition-all"
-                  >
-                    <img
-                      src={img!}
-                      alt={`thumb ${i}`}
-                      className="w-full h-full object-cover object-center rounded-xl"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="mt-6 grid grid-cols-3 gap-2">
-            {images.slice(1, 6).map((img, i) => (
-              <button
-                key={i}
-                className="aspect-square rounded-2xl border border-[#e5e7eb] bg-[#f3f4f6] overflow-hidden hover:border-[#c58e00] transition-all"
-              >
-                <img
-                  src={img!}
-                  alt={`thumb ${i + 1}`}
-                  className="w-full h-full object-cover object-center"
-                />
-              </button>
-            ))}
-          </div>
+          <CarGallery
+            images={images}
+            thumbnail={thumbnail}
+            alt={car.name}
+            statusBadge={<StatusBadge status={car.status} className="shadow-lg" />}
+          />
         </div>
 
         {/* Details */}
         <div className="lg:col-span-5 flex flex-col gap-8">
+          <SelectedItemProvider items={car.items}>
           <div>
             <div className="flex items-baseline gap-3 mb-2">
-              <PriceTag price={car.price} className="text-3xl lg:text-4xl" />
-              {car.quantity != null && car.quantity > 0 && (
+              <PriceTag price={priceFrom} className="text-3xl lg:text-4xl" />
+              {isPriceRange && (
+                <span className="text-[#6b7280] text-lg font-medium">
+                  – <PriceTag price={priceTo} className="text-lg" />
+                </span>
+              )}
+              {car.availableItems > 0 && (
                 <span className="text-[#6b7280] text-sm font-medium">
-                  {car.quantity} xe còn lại
+                  {car.availableItems} xe còn lại
                 </span>
               )}
             </div>
@@ -189,6 +162,7 @@ export default async function CarDetailPage({ params }: CarDetailPageProps) {
                   <p className="text-[#0a0a0a] font-medium">{carSpecs?.seats ?? '—'}</p>
                 </div>
               </div>
+              <SelectedItemSpecs />
             </div>
 
             {car.description && (
@@ -203,10 +177,11 @@ export default async function CarDetailPage({ params }: CarDetailPageProps) {
           <div className="border border-[#e5e7eb] rounded-2xl p-6 bg-[#fafafa]">
             <div className="flex items-center justify-between mb-6">
               <span className="text-sm font-semibold text-[#6b7280] uppercase tracking-widest">Tổng tiền</span>
-              <PriceTag price={car.price} className="text-xl" />
+              <SelectedItemTotal fallback={priceFrom} />
             </div>
-            <CarPurchasePanel carId={car.id} isAvailable={isAvailable} carName={car.name} />
+            <CarPurchasePanel carId={car.id} carName={car.name} />
           </div>
+          </SelectedItemProvider>
         </div>
       </div>
 

@@ -1,15 +1,11 @@
 import { fetchJson, apiRequest } from './http';
-import type { Car, CarStatus } from '@/types';
+import type { Car, CarItem } from '@/types';
 
+/** Form tạo/sửa DÒNG XE (cars): chỉ còn thông tin sản phẩm. */
 export type CarRequest = {
   name: string;
   description?: string | null;
-  price: number;
-  quantity: number;
-  vin?: string | null;
-  year?: number | null;
-  color?: string | null;
-  status?: CarStatus;
+  basePrice: number;
   modelId: number;
 };
 
@@ -19,6 +15,11 @@ export async function listCars(): Promise<Car[]> {
 
 export async function getCar(id: number | string): Promise<Car> {
   return fetchJson<Car>(`/cars/${id}`);
+}
+
+/** Danh sách từng chiếc xe vật lý của một dòng xe. */
+export async function getCarItems(id: number | string): Promise<CarItem[]> {
+  return fetchJson<CarItem[]>(`/cars/${id}/items`);
 }
 
 export async function searchCarsByName(name: string): Promise<Car[]> {

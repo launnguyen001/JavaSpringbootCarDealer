@@ -25,9 +25,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8 flex gap-8">
-        <AdminSidebar />
-        <main className="flex-1 min-w-0">{children}</main>
+      {/* Sidebar dạng dải icon dọc cố định bên trái (mở rộng khi hover) */}
+      <AdminSidebar />
+      {/* pl-16 = đúng chiều rộng dải icon khi thu gọn, không bị che nội dung */}
+      <div className="pl-16">
+        <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8">
+          <main>{children}</main>
+        </div>
       </div>
     </div>
   );

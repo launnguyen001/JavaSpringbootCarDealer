@@ -1,8 +1,14 @@
 'use client';
 
 import ResourceManager from '@/components/admin/ResourceManager';
-import { listContracts, createContract, updateContract, deleteContract } from '@/lib/api';
-import { formatDateTime } from '@/lib/utils/format';
+import {
+  listContracts,
+  createContract,
+  updateContract,
+  deleteContract,
+  getOrderOptions,
+} from '@/lib/api';
+import { formatVnd, formatDateTime } from '@/lib/utils/format';
 import type { Contract } from '@/types';
 
 export default function AdminContractsPage() {
@@ -22,7 +28,21 @@ export default function AdminContractsPage() {
         content: row.content ?? '',
       })}
       fields={[
-        { name: 'orderId', label: 'ID đơn hàng', type: 'number', required: true },
+        {
+          name: 'orderId',
+          label: 'Đơn hàng',
+          type: 'select',
+          required: true,
+          hideOnEdit: true,
+          placeholder: '— Chọn đơn chưa có hợp đồng —',
+          optionsLoader: () =>
+            getOrderOptions('contract').then((orders) =>
+              orders.map((o) => ({
+                value: o.orderId,
+                label: `${o.orderCode} — ${o.customerName ?? 'Khách lẻ'} — ${formatVnd(o.totalAmount)}`,
+              })),
+            ),
+        },
         { name: 'contractNumber', label: 'Số hợp đồng', required: true },
         { name: 'signedAt', label: 'Ngày ký', type: 'datetime' },
         { name: 'content', label: 'Nội dung', type: 'textarea' },

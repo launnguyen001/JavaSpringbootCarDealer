@@ -9,23 +9,32 @@ import Image from 'next/image';
 
 interface CarCardProps {
   car: Car;
+  /** Bố cục gọn (ảnh thấp, padding nhỏ) — dùng cho trang danh sách để vừa 1 view */
+  compact?: boolean;
 }
 
-export default function CarCard({ car }: CarCardProps) {
+const CONDITION_LABEL: Record<string, string> = { NEW: 'Mới', USED: 'Đã dùng' };
+
+export default function CarCard({ car, compact = false }: CarCardProps) {
   const isAvailable = car.status === 'AVAILABLE';
   const imageSrc = car.modelName?.toLowerCase().includes('camry')
     ? 'https://images.unsplash.com/photo-1607082348822-070a57f97f21?w=800&q=80'
     : 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&q=80';
 
+  // Giá hiển thị: khoảng giá theo các chiếc thực tế, nếu chỉ một mức thì lấy mức đó.
+  const from = car.priceFrom ?? car.basePrice;
+  const to = car.priceTo ?? car.priceFrom ?? car.basePrice;
+  const isRange = from != null && to != null && from !== to;
+
   return (
-    <Link href={`/cars/${car.id}`} className="block group">
+    <Link href={`/cars/${car.id}`} className="block group h-full">
       <div className="relative overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-sm transition-all duration-300 hover:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] hover:-translate-y-1">
-        <div className="relative h-48 bg-[#f3f4f6] overflow-hidden">
+        <div className={`relative bg-[#f3f4f6] overflow-hidden ${compact ? 'h-32' : 'h-48'}`}>
           <Image
             src={imageSrc}
             alt={car.name}
             fill
-            sizes="(max-width: 768px) 100vw, 250px"
+            sizes={compact ? '(max-width: 768px) 100vw, 300px' : '(max-width: 768px) 100vw, 250px'}
             className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
             priority
           />
@@ -40,24 +49,35 @@ export default function CarCard({ car }: CarCardProps) {
             <StatusBadge status={car.status} className="shadow-md" />
           </div>
         </div>
-        <div className="p-5">
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="text-lg font-serif font-bold text-[#0a0a0a] leading-tight group-hover:text-[#c58e00] transition-colors">
+        <div className={compact ? 'p-3.5' : 'p-5'}>
+          <div className="flex justify-between items-start gap-2 mb-1">
+            <h3
+              className={`font-serif font-bold text-[#0a0a0a] leading-tight group-hover:text-[#c58e00] transition-colors ${
+                compact ? 'text-base' : 'text-lg'
+              }`}
+            >
               {car.name}
             </h3>
-            <PriceTag price={car.price} className="text-[#c58e00]" />
+            <PriceTag
+              price={isRange ? from : (from ?? car.basePrice)}
+              className={compact ? 'text-[#c58e00] whitespace-nowrap' : 'text-[#c58e00]'}
+            />
           </div>
           {car.brandName && car.modelName && (
-            <p className="text-xs text-[#6b7280] mb-3 tracking-wide uppercase font-medium">
+            <p
+              className={`tracking-wide uppercase font-medium text-[#6b7280] ${
+                compact ? 'text-[11px] mb-1.5' : 'text-xs mb-3'
+              }`}
+            >
               {car.brandName} • {car.modelName}
             </p>
           )}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1 text-[#6b7280] text-xs">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M22 2H11l-4 4V2H2l8 8 8-8z" />
+                <path d="M20 6L9 17l-5-5" />
               </svg>
-              {car.year ?? '—'}
+              {car.conditions.map((c) => CONDITION_LABEL[c] ?? c).join(' • ') || '—'}
             </div>
             <div className="flex items-center gap-1 text-[#6b7280] text-xs">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -65,9 +85,9 @@ export default function CarCard({ car }: CarCardProps) {
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
-              {car.quantity} xe
+              {car.availableItems} xe
             </div>
-            <RatingStars rating={4.8} size={12} className="ml-auto" />
+            {!compact && <RatingStars rating={4.8} size={12} className="ml-auto" />}
           </div>
         </div>
       </div>

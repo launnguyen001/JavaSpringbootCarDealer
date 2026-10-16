@@ -10,17 +10,24 @@ import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/context/AuthContext';
 import { getErrorMessage } from '@/lib/utils/error';
 import { formatVnd } from '@/lib/utils/format';
-import { getSessionId, getCustomerId, setCustomerId } from '@/lib/auth/token';
-import { getCart, createOrder, clearCart, listCars, createCustomer } from '@/lib/api';
-import type { Car, CartItem, Order } from '@/types';
+import { getSessionId, setCustomerId } from '@/lib/auth/token';
+import {
+  getCart,
+  createOrder,
+  clearCart,
+  getCarItem,
+  getMyProfile,
+  updateMyProfile,
+} from '@/lib/api';
+import type { CarItem, CartItem, Customer, Order } from '@/types';
 
 export default function CheckoutPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const toast = useToast();
 
-  const [customerId, setCustomerIdState] = useState<number | null>(null);
+  const [profile, setProfile] = useState<Customer | null>(null);
   const [items, setItems] = useState<CartItem[]>([]);
-  const [cars, setCars] = useState<Record<number, Car>>({});
+  const [carItems, setCarItems] = useState<Record<number, CarItem>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [placed, setPlaced] = useState<Order | null>(null);
@@ -30,16 +37,22 @@ export default function CheckoutPage() {
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
 
-  useEffect(() => {
-    setCustomerIdState(getCustomerId());
-  }, []);
-
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [cart, allCars] = await Promise.all([getCart(getSessionId()), listCars()]);
+      // Giỏ hàng + chi tiết từng chiếc xe đang có trong giỏ.
+      const cart = await getCart(getSessionId());
       setItems(cart);
-      setCars(Object.fromEntries(allCars.map((c) => [c.id, c])));
+      const detailed = await Promise.all(cart.map((it) => getCarItem(it.carItemId)));
+      setCarItems(Object.fromEntries(detailed.map((c) => [c.id, c])));
+      // Hồ sơ khách hàng gắn với tài khoản đang đăng nhập (nếu đã có).
+      try {
+        const p = await getMyProfile();
+        setProfile(p);
+        setCustomerId(p.id);
+      } catch {
+        setProfile(null);
+      }
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -56,14 +69,15 @@ export default function CheckoutPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      const created = await createCustomer({
+      // PUT /api/customers/me: tạo hồ sơ nếu chưa có, cập nhật nếu đã có.
+      const saved = await updateMyProfile({
         fullName,
         phone: phone || null,
         address: address || null,
         email: user?.email ?? null,
       });
-      setCustomerId(created.id);
-      setCustomerIdState(created.id);
+      setProfile(saved);
+      setCustomerId(saved.id);
       toast.success('Đã lưu hồ sơ khách hàng');
     } catch (err) {
       toast.error(getErrorMessage(err));
@@ -73,12 +87,12 @@ export default function CheckoutPage() {
   };
 
   const placeOrder = async () => {
-    if (!customerId || items.length === 0) return;
+    if (!profile || items.length === 0) return;
     setBusy(true);
     try {
       const order = await createOrder({
-        customerId,
-        items: items.map((i) => ({ carId: i.carId, quantity: i.quantity })),
+        customerId: profile.id,
+        items: items.map((i) => ({ carItemId: i.carItemId })),
       });
       await clearCart(getSessionId());
       setPlaced(order);
@@ -91,7 +105,10 @@ export default function CheckoutPage() {
     }
   };
 
-  const subtotal = items.reduce((sum, it) => sum + (cars[it.carId]?.price ?? 0) * it.quantity, 0);
+  const subtotal = items.reduce(
+    (sum, it) => sum + (carItems[it.carItemId]?.price ?? 0) * it.quantity,
+    0,
+  );
 
   if (authLoading || (loading && isAuthenticated)) {
     return (
@@ -155,7 +172,7 @@ export default function CheckoutPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          {!customerId ? (
+          {!profile ? (
             <div className="rounded-2xl border border-[#e5e7eb] bg-white p-6">
               <h2 className="font-serif font-bold text-lg mb-1">Thông tin khách hàng</h2>
               <p className="text-sm text-[#6b7280] mb-5">
@@ -196,7 +213,9 @@ export default function CheckoutPage() {
                 </div>
                 <div>
                   <p className="font-medium text-[#0a0a0a]">Hồ sơ khách hàng đã sẵn sàng</p>
-                  <p className="text-sm text-[#6b7280]">Mã khách hàng: #{customerId}</p>
+                  <p className="text-sm text-[#6b7280]">
+                    {profile.fullName} • Mã khách hàng: #{profile.id}
+                  </p>
                 </div>
               </div>
             </div>
@@ -214,12 +233,13 @@ export default function CheckoutPage() {
             ) : (
               <div className="space-y-3">
                 {items.map((it) => {
-                  const car = cars[it.carId];
+                  const car = carItems[it.carItemId];
                   if (!car) return null;
                   return (
-                    <div key={it.carId} className="flex justify-between text-sm">
+                    <div key={it.carItemId} className="flex justify-between text-sm">
                       <span className="text-[#374151]">
-                        {car.name} × {it.quantity}
+                        {car.carName}
+                        {car.vin ? ` (${car.vin})` : ''} × {it.quantity}
                       </span>
                       <span className="font-medium">{formatVnd(car.price * it.quantity)}</span>
                     </div>
@@ -239,7 +259,7 @@ export default function CheckoutPage() {
                 {formatVnd(subtotal)}
               </span>
             </div>
-            {!customerId && (
+            {!profile && (
               <div className="mb-4">
                 <ErrorMessage message="Vui lòng tạo hồ sơ khách hàng trước." />
               </div>
@@ -248,7 +268,7 @@ export default function CheckoutPage() {
               variant="gold"
               size="lg"
               className="w-full"
-              disabled={!customerId || items.length === 0}
+              disabled={!profile || items.length === 0}
               loading={busy}
               onClick={placeOrder}
             >
