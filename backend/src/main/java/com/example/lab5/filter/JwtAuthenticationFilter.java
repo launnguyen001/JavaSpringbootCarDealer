@@ -1,0 +1,64 @@
+package com.example.lab5.filter;
+
+import com.example.lab5.config.JwtUtils;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+// Lọc JWT: trích xuất token từ header Authorization, validate, ném vào SecurityContext
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private final JwtUtils jwtUtils;
+    private final org.springframework.security.core.userdetails.UserDetailsService userDetailsService;
+
+    public JwtAuthenticationFilter(
+            JwtUtils jwtUtils,
+            org.springframework.security.core.userdetails.UserDetailsService userDetailsService
+    ) {
+        this.jwtUtils = jwtUtils;
+        this.userDetailsService = userDetailsService;
+    }
+
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, java.io.IOException {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        String token = authHeader.substring(7);
+        try {
+            String username = jwtUtils.extractUsername(token);
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                if (jwtUtils.validateToken(token, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                    );
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+            }
+        } catch (Exception ex) {
+            // Token không hợp lệ/hết hạn → bỏ qua, để entrypoint/access denied xử lý
+            SecurityContextHolder.clearContext();
+        }
+
+        filterChain.doFilter(request, response);
+    }
+}
