@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --luxury-gold: #c58e00;
+    --luxury-gold-dark: #8a6d00;
+    --luxury-black: #0a0a0a;
+    --luxury-gray: #f5f5f0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-white text-[#0a0a0a];
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-serif {
+    font-family: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+    letter-spacing: -0.02em;
+  }
+
+  .font-serif {
+    font-family: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+  }
+
+  .luxury-gold {
+    color: var(--luxury-gold);
+  }
+
+  .luxury-gold-hover:hover {
+    color: var(--luxury-gold-dark);
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.7s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .reel-track {
+    display: flex;
+    gap: 1rem;
+    animation: reel 20s linear infinite;
+  }
+
+  @keyframes reel {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+}
