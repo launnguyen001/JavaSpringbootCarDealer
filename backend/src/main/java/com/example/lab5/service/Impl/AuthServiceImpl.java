@@ -48,7 +48,8 @@ public class AuthServiceImpl implements AuthService {
                 token,
                 userDetails.getUsername(),
                 userDetails.getAuthorities().iterator().next().getAuthority().replace("ROLE_", ""),
-                86400000L
+                // Đọc từ cấu hình thay vì hard-code để phản ánh đúng app.jwt.expiration-ms
+                jwtUtils.getExpirationMs()
         );
     }
 

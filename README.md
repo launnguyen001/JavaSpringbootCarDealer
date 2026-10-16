@@ -10,7 +10,7 @@ Hệ thống backend cho **đại lý bán xe**, xây dựng trên Spring Boot 4
 | --- | --- |
 | Ngôn ngữ / Build | Java 21, Maven (wrapper 3.9.16) |
 | Framework | Spring Boot 4.1.1 (Spring MVC, Spring Data JPA) |
-| CSDL giao dịch | MySQL (`lauth43`) |
+| CSDL giao dịch | MySQL (`ngoclaudb`) |
 | CSDL linh hoạt | MongoDB (`cardealer`) |
 | Cache / session | Redis |
 | Tài liệu API | springdoc OpenAPI 3 + Swagger UI |
@@ -45,10 +45,11 @@ com.example.lab5
 
 ## 3. Chạy ứng dụng
 
-Cần sẵn: **MySQL 3306**, **MongoDB 27017**, **Redis 6379**.
+**Bắt buộc:** MySQL 3306. **Tùy chọn (có thể chạy sau):** MongoDB 27017, Redis 6379.
 
 ```powershell
-# cấu hình kết nối trong src/main/resources/application.properties
+# cấu hình kết nối trong backend/src/main/resources/application.properties
+cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
@@ -56,18 +57,59 @@ Cần sẵn: **MySQL 3306**, **MongoDB 27017**, **Redis 6379**.
 - Swagger UI: http://localhost:8080/swagger-ui.html
 - OpenAPI JSON: http://localhost:8080/v3/api-docs
 
-Dữ liệu mẫu (brands/models/cars/customers/employees) tự động được seed khi khởi động
-(`app.seed.enabled=true`, bỏ qua ở profile `test`).
+### Chạy chỉ với MySQL (MongoDB / Redis chưa cài)
+
+Cấu hình mặc định hiện tại hỗ trợ chạy **chỉ với MySQL** — dùng để xem danh sách xe và test CRUD admin:
+
+| Thuộc tính | Giá trị | Khi nào cần đổi |
+| --- | --- | --- |
+| `spring.cache.type` | `simple` | Đặt lại `redis` sau khi cài Redis (bật `CacheConfig`) |
+| `spring.data.mongodb.auto-index-creation` | `false` | Đặt lại `true` sau khi cài MongoDB (tự tạo index) |
+
+Hành vi khi thiếu dịch vụ:
+
+- **Cache:** với `spring.cache.type=simple`, `CacheConfig` không được tạo → `@Cacheable`/`@CacheEvict`
+  tại `CarCatalogService` thành no-op → danh sách/chi tiết xe vẫn chạy bình thường.
+- **Seeder:** phần SQL (MySQL) được seed đầy đủ; phần NoSQL được **bỏ qua kèm cảnh báo** nếu
+  MongoDB không phản hồi (kiểm tra TCP trước, chờ ≤1.5s — không treo chờ driver).
+- **Chưa dùng được khi thiếu dịch vụ:** endpoint `/api/cart/**` và `/api/sessions` (cần Redis),
+  `/api/car-reviews/**`, `/api/car-media/**`, `/api/car-specs/**`, `/api/activity-logs/**` (cần MongoDB).
+
+Dữ liệu mẫu tự động được seed khi khởi động (`app.seed.enabled=true`, bỏ qua ở profile `test`),
+thực hiện bởi `config/DataSeeder.java`. Seeder có tính **idempotent** (bỏ qua nếu dữ liệu đã tồn tại)
+và seed MongoDB trong `try/catch` để ứng dụng vẫn khởi động được khi MongoDB chưa chạy.
+
+**Dữ liệu SQL (MySQL):**
+
+| Thực thể | Số lượng | Ghi chú |
+| --- | --- | --- |
+| `Brand` | 9 | Toyota, Honda, Ford, Mercedes-Benz, BMW, Audi, Lexus, Porsche, VinFast |
+| `CarModel` | 22 | 2–3 dòng xe mỗi hãng (Sedan, SUV, Bán tải…) |
+| `Car` | 23 | Đủ trạng thái `AVAILABLE` / `RESERVED` / `SOLD` / `MAINTENANCE` |
+| `Customer` | 6 | Có email / CMND |
+| `Employee` | 4 | Có chức vụ |
+| `User` (tài khoản JWT) | 3 | `admin`/`admin`, `user`/`user`, `employee`/`employee` |
+| `SalesOrder` + `OrderItem` | 14 | Rải khắp tháng 1 → 10/2026, đủ 4 trạng thái |
+| `Payment` | 14 | `PAID` / `PARTIAL` / `UNPAID` / `REFUNDED`, nhiều phương thức |
+| `Contract` / `Invoice` | 9 / 9 | Cho các đơn `COMPLETED` |
+| `TestDriveAppointment` | 8 | 3 lịch `SCHEDULED` (cho dashboard) |
+
+**Dữ liệu NoSQL (MongoDB):** `CarSpecification` và `CarMedia` cho **mỗi xe**, `CarReview` (8 đánh giá,
+có reply), `ActivityLog` (8 bản ghi).
+
+> Để **seed lại từ đầu**, hãy xoá dữ liệu cũ (drop database `ngoclaudb` / `cardealer`,
+> hoặc `TRUNCATE` các bảng SQL) rồi khởi động lại — seeder chỉ chèn khi bảng còn trống.
 
 ## 4. Chạy test
 
 Test chạy trên **H2 in-memory**, profile `test` (không cần MySQL/MongoDB/Redis thật):
 
 ```powershell
+cd backend
 .\mvnw.cmd test
 ```
 
-Kết quả hiện tại: **47 test PASS**.
+Kết quả hiện tại: **84 test PASS** (bao gồm 16 test phân quyền `SecurityAuthorizationTests` và 9 test dashboard `ReportControllerMockMvcTests`).
 
 ## 5. API chính
 
@@ -91,8 +133,26 @@ Mỗi tài nguyên SQL dưới đây đều có đủ **CRUD**: `POST` (tạo), 
 | Log hoạt động (Mongo) | `/api/activity-logs` | `/api/activity-logs/{id}`, `/api/activity-logs/entity/{type}/{id}` |
 | Media (Mongo) | `/api/car-media` | `/api/car-media/{carId}` (`PUT` để lưu, `DELETE` để xoá) |
 | Giỏ cấu hình (Redis) | `/api/cart` | theo `sessionId` |
+| Xác thực | `/api/auth/register`, `/api/auth/login`, `/api/auth/me`, `/api/auth/logout` | JWT (Bearer token) |
 | Session (Redis) | `/api/sessions` | `POST` đăng nhập, `DELETE` đăng xuất |
 | Báo cáo (SQL thuần) | `/api/reports/top-selling-cars`, `/api/reports/inventory-by-brand`, `/api/reports/revenue-summary`, `/api/reports/orders-by-status` | |
+| Dashboard & drilldown | `/api/reports/dashboard-summary`, `/api/reports/revenue-by-month`, `/api/reports/inventory-by-brand/{brandId}/models`, `/api/reports/inventory-by-model/{modelId}/cars`, `/api/reports/top-selling-cars/{carId}/orders`, `/api/reports/orders-by-status/{status}` | |
+
+### Xác thực & phân quyền (RBAC)
+
+Ứng dụng dùng **JWT stateless** (`Authorization: Bearer <token>`), quy tắc phân quyền tập trung tại
+`config/SecurityConfig.java` theo HTTP method (so khớp **first-match-wins**).
+
+| Vai trò (`Role`) | Quyền chính |
+| --- | --- |
+| 🟢 Công khai | `GET` catalog: `/api/cars`, `/api/brands`, `/api/car-models`, `/api/car-specs`, `/api/car-media`, `/api/car-reviews/**`; `/api/auth/**`; Swagger |
+| 🔵 Đã đăng nhập (`USER`/`EMPLOYEE`/`ADMIN`) | `/api/auth/me`, `/api/cart/**`, `GET /api/orders/customer/**`, `GET /api/test-drives/customer/**`, `POST /api/customers`, `POST /api/orders`, `POST /api/test-drives`, `POST /api/car-reviews/**` |
+| 🟠 `EMPLOYEE` hoặc `ADMIN` | CRUD khách hàng/đơn hàng/lịch lái thử/thanh toán/hợp đồng/hóa đơn; `GET/PUT/DELETE` media & specs; `PUT/DELETE` đánh giá; `GET` nhân viên; nhật ký hoạt động |
+| 🔴 `ADMIN` | Ghi catalog (xe/hãng/dòng xe), CRUD nhân viên, `/api/reports/**`, `/api/admin/**` |
+
+> Lưu ý: `USER` tự tạo hồ sơ `Customer` (`POST /api/customers`) rồi dùng `customerId` cho đơn hàng /
+> lái thử / đánh giá (chưa có liên kết FK giữa `User` và `Customer`).
+
 
 ### Chính sách xoá (guard)
 
@@ -108,13 +168,70 @@ Mỗi tài nguyên SQL dưới đây đều có đủ **CRUD**: `POST` (tạo), 
 | SalesOrder | không phải `CANCELLED`, hoặc đã có Payment/Contract/Invoice |
 | Payment / Contract / Invoice / TestDrive | (không có tham chiếu) → xoá tự do |
 
-## 6. Nghiệp vụ tồn kho
+## 7. Nghiệp vụ tồn kho
 
 `SalesOrderServiceImpl.create` (trong `@Transactional`) kiểm tra và trừ tồn kho,
 đặt xe `SOLD` khi hết hàng; `cancel` khôi phục tồn kho và trạng thái xe.
 `PaymentServiceImpl` cập nhật đơn thành `COMPLETED` khi thanh toán `PAID`.
 
-## 7. Tài liệu liên quan
+## 8. Frontend (Next.js)
+
+Giao diện người dùng & quản trị: **Next.js 16 (App Router) + React 19 + Tailwind CSS v4**.
+
+```powershell
+cd frontend
+npm install
+npm run dev     # http://localhost:3000 (dev server)
+npm run build   # kiểm tra build production
+```
+
+`next.config.ts` rewrite `/api/*` → `http://localhost:8080/api`, nên cần chạy backend song song.
+JWT được lưu ở `localStorage`, gắn tự động vào header qua `lib/api/http.ts`.
+
+**Base URL & CORS:** `lib/api/http.ts` tự chọn URL theo ngữ cảnh — ở **browser** luôn dùng đường dẫn
+tương đối `/api` (đi qua rewrite của Next → *same-origin*, không dính CORS); ở **server (RSC)** dùng
+`NEXT_PUBLIC_API_BASE_URL` (mặc định `http://localhost:8080/api`). Backend cũng cấu hình CORS cho
+`app.cors.allowed-origins` (`:3000`/`:3001`) để gọi trực tiếp `http://localhost:8080` từ trình duyệt
+vẫn chạy — xem `WebCorsConfig` + `.cors(withDefaults())` trong `SecurityConfig`.
+
+Cấu trúc chính:
+
+```
+frontend/src
+├── app
+│   ├── page.tsx, cars/, cars/[id]/   (catalog công khai)
+│   ├── login/, register/             (xác thực)
+│   ├── cart/, checkout/, account/    (người dùng)
+│   └── admin/                        (dashboard + 15 trang CRUD, chỉ ADMIN)
+├── components
+│   ├── ui/        (Button, Field, Modal, Toast, DataTable, BarChart, KpiCard…)
+│   ├── admin/     (ResourceManager – CRUD tổng quát)
+│   ├── car/       (CarPurchasePanel, ReviewForm)
+│   └── layout/    (Header, Footer, AdminSidebar)
+├── context/AuthContext.tsx
+└── lib/api/*, lib/auth/token.ts, lib/utils/*
+```
+
+| Khu vực | Trang |
+| --- | --- |
+| Công khai | `/`, `/cars`, `/cars/[id]` |
+| Xác thực | `/login`, `/register` |
+| Người dùng | `/cart`, `/checkout`, `/account` |
+| Quản trị (ADMIN) | `/admin` (dashboard + drilldown), `/admin/cars`, `/admin/brands`, `/admin/car-models`, `/admin/customers`, `/admin/employees`, `/admin/orders`, `/admin/test-drives`, `/admin/payments`, `/admin/contracts`, `/admin/invoices`, `/admin/reviews`, `/admin/media`, `/admin/specs`, `/admin/activity-logs` |
+
+**Ghi chú UI:**
+- `FilterPanel` (`/cars`) là **sidebar dọc 1 cột** (`lg:w-72`), không dùng grid theo breakpoint — tránh việc
+  panel 288px lại chia 4 cột trên màn hình lớn (breakpoint Tailwind tính theo *viewport*, không theo container).
+- `Header` có trạng thái **active** theo `usePathname()`: mục đang xem được tô vàng + gạch chân (desktop),
+  nền xám + chữ vàng (mobile), kèm `aria-current="page"`.
+
+
+Dashboard có **drilldown**: nhấp cột trạng thái → danh sách đơn; nhấp hãng → dòng xe → danh sách xe;
+nhấp xe bán chạy → các dòng đơn chứa xe đó.
+
+## 9. Tài liệu liên quan
 
 - `plan.md` — kế hoạch 7 phase.
-- `report.md` — báo cáo tiến độ theo từng phase.
+- `task2.md`, `task3.md` — đề bài & đặc tả các buổi.
+- `task4.md` — kế hoạch bổ sung: RBAC đầy đủ + API dashboard/drilldown + hoàn thiện frontend.
+- `report.md` — báo cáo tổng hợp.

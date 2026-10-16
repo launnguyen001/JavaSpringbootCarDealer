@@ -45,7 +45,8 @@ com.example.lab5
 
 ## 3. Lộ trình 5 buổi
 
-> Đã hoàn thành **Buổi 1 + Buổi 2**, chuẩn bị sang **Buổi 3**.
+> Đã hoàn thành **Buổi 1 → Buổi 4**. Buổi 4 mở rộng thêm backend (RBAC đầy đủ + API dashboard/drilldown)
+> theo yêu cầu bổ sung (xem `task4.md`).
 
 ### Buổi 1 — Phân tích, thiết kế CSDL & backend SQL lõi  [HOÀN THÀNH]
 - Khảo sát mã mẫu, chốt kiến trúc đa tầng.
@@ -65,26 +66,39 @@ com.example.lab5
 - **47 test PASS**; `.\mvnw.cmd clean package` build thành công.
 - Deliverable: backend REST đủ CRUD, tài liệu hóa, test xanh.
 
-### Buổi 3 — Khởi tạo Frontend & tính năng công khai
-- Khởi tạo `frontend/` (Next.js App Router + TypeScript + Tailwind CSS), cấu hình rewrite `/api` và CORS backend (tùy chọn).
-- Lớp `api/` gọi REST; layout, routing, trang chủ.
-- Trang **danh sách xe** (phân trang), **chi tiết xe** (ảnh từ `car-media`, thông số từ `car-specs`,
-  đánh giá từ `car-reviews`), **tìm kiếm/lọc nâng cao** (theo tên/giá/tồn kho/hãng/dòng).
-- Deliverable: website xem/sản phẩm xe hoạt động, dữ liệu lấy từ backend.
+### Buổi 3 — Hoàn thiện API backend & xác thực JWT  [HOÀN THÀNH]
+- Hoàn thiện toàn bộ API backend (CRUD, tìm kiếm nâng cao, báo cáo SQL thuần) đã chuẩn bị từ Buổi 1–2.
+- **Thay thế session Redis (`/api/sessions`) bằng JWT:** đăng nhập/đăng xuất user – admin.
+- Bổ sung entity `User` (username, password BCrypt, role `ADMIN`/`USER`/`EMPLOYEE`, enabled),
+  `UserRepository`, `UserDetailsService`, `JwtUtils`, `JwtAuthenticationFilter`, `SecurityConfig`.
+- `AuthController`: `POST /api/auth/login`, `POST /api/auth/logout`, `POST /api/auth/register`,
+  `GET /api/auth/me`.
+- Bảo vệ endpoint: `/api/admin/**` chỉ `ADMIN`; endpoint khách hàng `USER`/`EMPLOYEE`; công khai
+  cho xem sản phẩm (`/api/brands`, `/api/cars`, `/api/car-models`, v.v.).
+- Cập nhật `README.md` (mục xác thực/phân quyền), `plan.md`, Swagger hiển thị endpoint auth.
+- Chạy `.\mvnw.cmd test` xanh; `.\mvnw.cmd clean package` build thành công.
+- Deliverable: backend API đủ chức năng, xác thực & phân quyền JWT, test xanh, Swagger hiển thị endpoint auth.
+- **Không động vào mã nguồn frontend.**
 
-### Buổi 4 — Frontend nghiệp vụ & tài khoản
-- Giỏ cấu hình (gọi `/api/cart`, lưu theo `sessionId`); đặt hàng (`/api/orders`).
-- Thanh toán (`/api/payments`), lịch lái thử (`/api/test-drives`), gửi đánh giá (`/api/car-reviews`).
-- Đăng nhập/đăng xuất với session Redis (`/api/sessions`).
-- Trang **quản trị** CRUD: brands, car-models, cars, customers, employees, orders.
-- Deliverable: luồng mua xe end-to-end + trang admin.
+### Buổi 4 — Frontend Next.js + RBAC backend & dashboard drilldown  [HOÀN THÀNH]
+- Scaffold Next.js App Router + TypeScript + Tailwind trong `frontend/`; gọi REST backend JWT.
+- Layout, routing, trang chủ, danh sách xe, chi tiết xe, tìm kiếm/lọc, phân trang; lưu JWT + gửi `Authorization: Bearer`.
+- **Bổ sung backend (theo `task4.md`):**
+  - **RBAC đầy đủ** trong `SecurityConfig` (ma trận quyền theo HTTP method, first-match-wins);
+    viết lại 4 `*ControllerMockMvcTests` dùng base class `AbstractAdminMockMvcTest`; thêm `SecurityAuthorizationTests`.
+  - **6 API dashboard/drilldown** (`/api/reports/dashboard-summary`, `revenue-by-month`,
+    `inventory-by-brand/{id}/models`, `inventory-by-model/{id}/cars`, `top-selling-cars/{id}/orders`,
+    `orders-by-status/{status}`) + 6 DTO + `ReportControllerMockMvcTests`.
+  - **`.\mvnw.cmd test` → 84 test PASS.**
+- **Frontend đầy đủ:** auth pages (`/login`, `/register`); user (`/cart`, `/checkout`, `/account`);
+  car detail có đặt mua/lái thử/đánh giá; admin (`/admin` dashboard + drilldown + 15 trang CRUD qua `ResourceManager`).
+- **`npm run build` thành công** (24 route).
 
 ### Buổi 5 — Bảo mật, triển khai & hoàn thiện
-- Phân quyền: Spring Security + JWT (admin / nhân viên bán hàng / khách), bảo vệ endpoint admin.
-- Upload media xe, dashboard báo cáo (chart từ `/api/reports/*`).
+- Nâng cao bảo mật (refresh token, blacklist JWT, rate limit), upload media xe, dashboard báo cáo (chart từ `/api/reports/*`).
 - `docker-compose.yml` (MySQL + MongoDB + Redis), seed, biến môi trường.
 - Kiểm thử end-to-end, tối ưu cache, xuất `openapi.yaml`, hoàn thiện tài liệu.
-- Deliverable: website full-stack chạy end-to-end, có phân quyền, đóng gói triển khai.
+- Deliverable: website full-stack chạy end-to-end, có phân quyền JWT, đóng gói triển khai.
 
 ## 4. Quy ước theo layer (bám mã mẫu)
 
@@ -104,7 +118,8 @@ com.example.lab5
   (trừ ngoại lệ đã thống nhất trong `task.md`).
 - Validate đầy đủ; lỗi trả về qua `GlobalExceptionHandler` (400/404/409/500).
 - Dữ liệu giao dịch trong MySQL, linh hoạt trong MongoDB, cache/session trong Redis.
-- `.\mvnw.cmd test` xanh toàn bộ; `.\mvnw.cmd clean package` build thành công.
+- `cd backend && .\mvnw.cmd test` xanh toàn bộ (**84 test**); `cd backend && .\mvnw.cmd clean package` build thành công.
+- `cd frontend && npm run build` thành công.
 - Swagger hiển thị đủ endpoint.
 
 ## 6. Rủi ro & lưu ý

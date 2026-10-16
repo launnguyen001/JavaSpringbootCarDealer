@@ -78,6 +78,11 @@ public class JwtUtils {
         return extractExpiration(token).before(new Date());
     }
 
+    /** Thời hạn token (ms) đúng theo cấu hình app.jwt.expiration-ms. */
+    public long getExpirationMs() {
+        return expirationMs;
+    }
+
     public boolean validateToken(String token, UserDetails userDetails) {
         String username = extractUsername(token);
         return username.equals(userDetails.getUsername()) && !isTokenExpired(token);

@@ -1,16 +1,18 @@
-# Task — Buổi 3: Khởi tạo Frontend (Next.js + Tailwind) & tính năng công khai
+# Task — Buổi sau (Buổi 4): Chỉ build frontend, gọi backend JWT — không thiep lại backend
 
-> Mục tiêu: dựng **website xem xe (public)** bằng **Next.js (App Router) + TypeScript + Tailwind CSS**
-> trong thư mục `frontend/`, gọi REST backend hiện có. Gồm: layout + routing, lớp `lib/api/`,
+> Mục tiêu: **chỉ build frontend** website xem xe (public) bằng **Next.js (App Router) + TypeScript + Tailwind CSS**
+> trong thư mục `frontend/`, gọi REST backend JWT đã hoàn thiện ở Buổi 3. Gồm: layout + routing, lớp `lib/api/`,
 > **trang chủ**, **danh sách xe (phân trang)**, **chi tiết xe** (ảnh từ `car-media`, thông số từ `car-specs`,
 > đánh giá từ `car-reviews`) và **tìm kiếm/lọc nâng cao** (theo tên / giá / tồn kho / hãng / dòng).
 >
-> Bám đúng contract backend đã hoàn thành ở Buổi 1–2 (xem `README.md`). **Không sửa logic backend**
-> (chỉ thêm cấu hình CORS — tùy chọn). Không phá mã mẫu, không đổi test backend.
+> Backend (Java/Spring Boot) **ĐÃ HOÀN THÀNH** ở Buổi 3 (CRUD + JWT auth). **Không sửa logic backend**,
+> **không thêm CORS backend**, **không thiep lại mã Java**. Frontend chỉ consume các endpoint JWT đã có
+> (`/api/auth/login`, `/api/auth/logout`, `/api/auth/me`, `/api/cars`, …) và gửi header
+> `Authorization: Bearer <jwt>` khi cần auth.
 >
 > **Trạng thái: CHƯA BẮT ĐẦU** — tài liệu này là kế hoạch chốt trước khi viết code.
 >
-> Sau khi xong: `cd frontend && npm run build` phải thành công; backend `.\mvnw.cmd test` vẫn xanh (47 test).
+> Sau khi xong: `cd frontend && npm run build` phải thành công; backend `.\mvnw.cmd test` vẫn xanh (không động lại code Java).
 
 ---
 
@@ -24,11 +26,10 @@
    Chỉ những phần tương tác mới là **Client Components**: `SearchBar`, `FilterPanel`, `Pagination`, menu mobile.
 3. **Base URL backend:** biến môi trường server `API_BASE_URL` (mặc định `http://localhost:8080/api`)
    trong `.env.local`. Vì gọi server-to-server nên **không cần CORS** cho luồng chính.
-4. **Proxy/rewrite (cho client & buổi 4):** `next.config.ts` cấu hình `rewrites()`:
-   `/api/:path*` → `${API_BASE_URL}/:path*`. Dùng để client component (và nghiệp vụ giỏ hàng/đăng nhập ở buổi 4)
-   gọi `/api/...` **cùng origin** → miễn CORS.
-5. **CORS backend (tùy chọn):** vẫn thêm `config/WebConfig.java` cho `http://localhost:3000` để hỗ trợ khi
-   gọi trực tiếp cổng 8080 (Postman/tool/không qua rewrite). Đánh dấu **tùy chọn**, không bắt buộc cho luồng RSC.
+4. **Proxy/rewrite (cho client & buồi sau):** `next.config.ts` cấu hình `rewrites()`:
+   `/api/:path*` → `${API_BASE_URL}/:path*`. Dùng để client component gọi `/api/...` **cùng origin** → miễn CORS.
+5. **CORS backend:** **KHÔNG CẦN** cấu hình `config/WebConfig.java` — backend Buổi 3 đã hoàn thiện và frontend gọi
+   qua rewrite cùng origin (server-to-server hoặc cùng host), không cần CORS bổ sung.
 6. **Tìm kiếm/lọc qua URL (server-rendered):** trang `/cars` đọc `searchParams` và fetch theo bộ lọc →
    share/bookmark được, không cần state phức tạp. `FilterPanel`/`SearchBar` cập nhật query bằng `router.push`.
 7. **Phân trang:** backend `GET /api/cars` trả **toàn bộ** danh sách → phân trang **phía client**
@@ -44,8 +45,8 @@
     hiển thị **triệu VND** (`950 → "950 triệu"`). Chốt trong `lib/utils/format.ts`.
 11. **Ngôn ngữ UI:** tiếng Việt; file `.tsx/.ts` viết UTF-8 (tránh lỗi font).
 12. **Trạng thái xe:** `CarStatus = AVAILABLE | RESERVED | SOLD | MAINTENANCE` → badge màu;
-    chỉ `AVAILABLE` mới bật nút "Đặt mua"/"Lái thử" (nút ở buổi 3 là placeholder/disabled, xử lý thật ở buổi 4).
-13. **Không phá mã mẫu:** mọi thay đổi backend giới hạn ở file mới `config/WebConfig.java` (tùy chọn).
+    chỉ `AVAILABLE` mới bật nút "Đặt mua"/"Lái thử" (nút ở buồi này là placeholder/disabled, xử lý thật ở buồi sau).
+13. **Không phá mã mẫu:** **Không thiep lại mã backend Java** — tất cả thay đổi chỉ trong thư mục `frontend/`.
 
 ---
 
@@ -148,8 +149,8 @@ frontend/
 
 **Điều hướng:** dùng `next/link` (`<Link href="/cars">`), `useRouter`/`useSearchParams` từ `next/navigation`.
 
-**Nút hành động (placeholder buổi 3):** "Đặt mua" / "Đăng ký lái thử" hiển thị nhưng `disabled`
-(hoặc thông báo "Sẽ mở ở buổi 4") — nghiệp vụ thật làm ở Buổi 4.
+**Nút hành động (placeholder buồi này):** "Đặt mua" / "Đăng ký lái thử" hiển thị nhưng `disabled`
+(hoặc thông báo "Sẽ mở ở buồi sau") — nghiệp vụ thật làm ở Buổi sau.
 
 ---
 
@@ -231,11 +232,8 @@ export interface ApiErrorBody { timestamp: string; status: number; error: string
 
 ## 5. Checklist công việc theo file
 
-### Nhóm A — Backend (tùy chọn, không phá mã mẫu)
-- [ ] `config/WebConfig.java` (mới, **tùy chọn**): `WebMvcConfigurer#addCorsMappings` cho `/api/**`,
-      `allowedOrigins = http://localhost:3000` (đọc từ property `app.cors.allowed-origins`, có default),
-      `allowedMethods = GET, POST, PUT, DELETE`, `allowedHeaders = *`.
-- [ ] Xác nhận `.\mvnw.cmd test` vẫn 47 test xanh (CORS không ảnh hưởng test).
+### Nhóm A — Backend (BUỔI 3 ĐÃ LÀM — BUỔI SAU KHÔNG ĐỘNG)
+- [ ] **Bỏ qua** — backend JWT đã hoàn thiện ở Buổi 3, không cần sửa `config/WebConfig.java` hay mã Java nào khác.
 
 ### Nhóm B — Khởi tạo dự án frontend
 - [ ] `npx create-next-app@latest frontend --typescript --tailwind --app --src-dir --eslint --import-alias "@/*"`.
@@ -332,9 +330,9 @@ export interface ApiErrorBody { timestamp: string; status: number; error: string
 
 ---
 
-## 8. Ngoài phạm vi buổi 3 (để buổi 4/5)
+## 8. Ngoài phạm vi buồi này (để buồi sau / Buổi 5)
 
 - Giỏ cấu hình (`/api/cart`), đặt hàng (`/api/orders`), thanh toán, lái thử, gửi đánh giá.
-- Đăng nhập/đăng xuất (session Redis), phân quyền.
-- Trang quản trị CRUD.
+- [Đã làm ở Buổi 3] Đăng nhập/đăng xuất JWT, phân quyền admin/user.
+- Trang quản trị CRUD (frontend).
 - Upload media, dashboard báo cáo, docker-compose, `openapi.yaml`.
