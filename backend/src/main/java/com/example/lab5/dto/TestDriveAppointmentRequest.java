@@ -18,8 +18,9 @@ public record TestDriveAppointmentRequest(
         @NotNull(message = "Khách hàng không được để trống")
         Long customerId,
 
+        // Chiếc xe cụ thể khách muốn lái thử
         @NotNull(message = "Xe không được để trống")
-        Long carId,
+        Long carItemId,
 
         Long employeeId
 ) {

@@ -11,8 +11,10 @@ public record TestDriveAppointmentResponse(
         String note,
         Long customerId,
         String customerName,
+        Long carItemId,
         Long carId,
         String carName,
+        String vin,
         Long employeeId,
         String employeeName
 ) {

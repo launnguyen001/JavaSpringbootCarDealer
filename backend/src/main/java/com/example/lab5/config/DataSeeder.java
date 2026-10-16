@@ -7,6 +7,8 @@ import com.example.lab5.document.CarSpecification;
 import com.example.lab5.entity.AppointmentStatus;
 import com.example.lab5.entity.Brand;
 import com.example.lab5.entity.Car;
+import com.example.lab5.entity.CarCondition;
+import com.example.lab5.entity.CarItem;
 import com.example.lab5.entity.CarModel;
 import com.example.lab5.entity.CarStatus;
 import com.example.lab5.entity.Contract;
@@ -27,6 +29,7 @@ import com.example.lab5.mongorepository.CarMediaRepository;
 import com.example.lab5.mongorepository.CarReviewRepository;
 import com.example.lab5.mongorepository.CarSpecificationRepository;
 import com.example.lab5.repository.BrandRepository;
+import com.example.lab5.repository.CarItemRepository;
 import com.example.lab5.repository.CarModelRepository;
 import com.example.lab5.repository.CarRepository;
 import com.example.lab5.repository.ContractRepository;
@@ -94,6 +97,7 @@ public class DataSeeder implements CommandLineRunner {
     private final BrandRepository brandRepository;
     private final CarModelRepository carModelRepository;
     private final CarRepository carRepository;
+    private final CarItemRepository carItemRepository;
     private final CustomerRepository customerRepository;
     private final EmployeeRepository employeeRepository;
     private final SalesOrderRepository salesOrderRepository;
@@ -115,6 +119,7 @@ public class DataSeeder implements CommandLineRunner {
             BrandRepository brandRepository,
             CarModelRepository carModelRepository,
             CarRepository carRepository,
+            CarItemRepository carItemRepository,
             CustomerRepository customerRepository,
             EmployeeRepository employeeRepository,
             SalesOrderRepository salesOrderRepository,
@@ -128,11 +133,12 @@ public class DataSeeder implements CommandLineRunner {
             CarMediaRepository carMediaRepository,
             CarReviewRepository carReviewRepository,
             ActivityLogRepository activityLogRepository,
-            @Value("${spring.data.mongodb.uri}") String mongoUri
+            @Value("${spring.mongodb.uri}") String mongoUri
     ) {
         this.brandRepository = brandRepository;
         this.carModelRepository = carModelRepository;
         this.carRepository = carRepository;
+        this.carItemRepository = carItemRepository;
         this.customerRepository = customerRepository;
         this.employeeRepository = employeeRepository;
         this.salesOrderRepository = salesOrderRepository;
@@ -240,61 +246,100 @@ public class DataSeeder implements CommandLineRunner {
         CarModel vf9 = carModelRepository.save(model("VF 9", "SUV",
                 "SUV điện 7 chỗ cỡ lớn.", vinfast));
 
-        // ---------- Xe ----------
-        Car camry20 = carRepository.save(car("Toyota Camry 2.0G", "VIN-CAM-001", 950.0, 5, 2024, "Đen",
-                CarStatus.AVAILABLE, "Camry 2.0G động cơ 2.0L, nội thất da, màn hình 9 inch.", camry));
-        Car camry25 = carRepository.save(car("Toyota Camry 2.5Q", "VIN-CAM-002", 1200.0, 3, 2024, "Trắng",
-                CarStatus.AVAILABLE, "Camry 2.5Q bản cao cấp, cửa sổ trời, ghế chỉnh điện.", camry));
-        Car corollaCross = carRepository.save(car("Toyota Corolla Cross 1.8V", "VIN-COR-001", 800.0, 8, 2023, "Bạc",
-                CarStatus.AVAILABLE, "Crossover đô thị, gói an toàn Toyota Safety Sense.", corolla));
-        Car fortunerCar = carRepository.save(car("Toyota Fortuner 2.4G", "VIN-FOR-001", 1150.0, 4, 2024, "Xám",
-                CarStatus.RESERVED, "SUV 7 chỗ khung gầm rời, máy dầu 2.4L.", fortuner));
+        // ---------- Dòng xe + các chiếc xe trong kho ----------
+        // Mỗi dòng xe (cars) có nhiều chiếc vật lý (car_items). Biến giữ CHIẾC ĐẦU TIÊN
+        // để gắn vào đơn hàng/lịch lái thử bên dưới (tên biến giống trước đây).
+        Car trimCamry = carRepository.save(car("Toyota Camry 2.0G", 950.0,
+                "Camry 2.0G động cơ 2.0L, nội thất da, màn hình 9 inch.", camry));
+        CarItem camry20 = stock(trimCamry, "VIN-CAM20-", 950.0, 5, 2024, "Đen", CarStatus.AVAILABLE);
 
-        Car civicCar = carRepository.save(car("Honda Civic 1.5 RS", "VIN-CIV-001", 780.0, 6, 2024, "Xanh",
-                CarStatus.AVAILABLE, "Civic RS thể thao, động cơ turbo 1.5L.", civic));
-        Car crvCar = carRepository.save(car("Honda CR-V L", "VIN-CRV-001", 1050.0, 5, 2024, "Đỏ",
-                CarStatus.AVAILABLE, "CR-V bản L, Honda Sensing, 7 chỗ.", crv));
-        Car cityCar = carRepository.save(car("Honda City RS", "VIN-CIT-001", 560.0, 10, 2023, "Trắng",
-                CarStatus.AVAILABLE, "Sedan hạng B tiết kiệm nhiên liệu.", city));
+        Car trimCamry25 = carRepository.save(car("Toyota Camry 2.5Q", 1200.0,
+                "Camry 2.5Q bản cao cấp, cửa sổ trời, ghế chỉnh điện.", camry));
+        CarItem camry25 = stock(trimCamry25, "VIN-CAM25-", 1200.0, 3, 2024, "Trắng", CarStatus.AVAILABLE);
 
-        Car rangerCar = carRepository.save(car("Ford Ranger Wildtrak", "VIN-RAN-001", 1100.0, 4, 2023, "Cam",
-                CarStatus.AVAILABLE, "Bán tải Wildtrak 2.0L Bi-Turbo, 4x4.", ranger));
-        Car everestCar = carRepository.save(car("Ford Everest Titanium", "VIN-EVE-001", 1300.0, 3, 2024, "Đen",
-                CarStatus.RESERVED, "SUV 7 chỗ Titanium, động cơ dầu 2.0L.", everest));
+        Car trimCorolla = carRepository.save(car("Toyota Corolla Cross 1.8V", 800.0,
+                "Crossover đô thị, gói an toàn Toyota Safety Sense.", corolla));
+        CarItem corollaCross = stock(trimCorolla, "VIN-COR-", 800.0, 8, 2023, "Bạc", CarStatus.AVAILABLE);
 
-        Car c300 = carRepository.save(car("Mercedes-Benz C300 AMG", "VIN-MER-001", 1900.0, 3, 2024, "Trắng",
-                CarStatus.AVAILABLE, "C300 AMG Line, động cơ 2.0L tăng áp.", cClass));
-        Car e300 = carRepository.save(car("Mercedes-Benz E300 AMG", "VIN-MER-002", 2600.0, 2, 2024, "Đen",
-                CarStatus.AVAILABLE, "E300 AMG, nội thất cao cấp, MBUX.", eClass));
-        Car glc300 = carRepository.save(car("Mercedes-Benz GLC 300 4MATIC", "VIN-MER-003", 2200.0, 4, 2024, "Xám",
-                CarStatus.AVAILABLE, "GLC 300 4MATIC, SUV sang đô thị.", glc));
+        Car trimFortuner = carRepository.save(car("Toyota Fortuner 2.4G", 1150.0,
+                "SUV 7 chỗ khung gầm rời, máy dầu 2.4L.", fortuner));
+        CarItem fortunerCar = stock(trimFortuner, "VIN-FOR-", 1150.0, 4, 2024, "Xám", CarStatus.RESERVED);
 
-        Car bmw320i = carRepository.save(car("BMW 320i Sport Line", "VIN-BMW-001", 1800.0, 3, 2024, "Xanh đen",
-                CarStatus.AVAILABLE, "320i Sport Line, động cơ 2.0L TwinPower.", bmw3));
-        Car bmw520i = carRepository.save(car("BMW 520i M Sport", "VIN-BMW-002", 2500.0, 2, 2024, "Đen",
-                CarStatus.AVAILABLE, "520i M Sport, sedan sang cỡ lớn.", bmw5));
-        Car bmwx5Car = carRepository.save(car("BMW X5 xDrive40i", "VIN-BMW-003", 4200.0, 2, 2024, "Trắng",
-                CarStatus.MAINTENANCE, "X5 xDrive40i, SUV sang cỡ lớn.", bmwX5));
+        Car trimCivic = carRepository.save(car("Honda Civic 1.5 RS", 780.0,
+                "Civic RS thể thao, động cơ turbo 1.5L.", civic));
+        CarItem civicCar = stock(trimCivic, "VIN-CIV-", 780.0, 6, 2024, "Xanh", CarStatus.AVAILABLE);
 
-        Car a4Car = carRepository.save(car("Audi A4 40 TFSI", "VIN-AUD-001", 1700.0, 3, 2023, "Trắng",
-                CarStatus.AVAILABLE, "A4 40 TFSI, thiết kế tối giản sang trọng.", a4));
-        Car q5Car = carRepository.save(car("Audi Q5 45 TFSI quattro", "VIN-AUD-002", 2300.0, 2, 2024, "Đen",
-                CarStatus.AVAILABLE, "Q5 quattro, SUV sang cỡ trung.", q5));
+        Car trimCrv = carRepository.save(car("Honda CR-V L", 1050.0,
+                "CR-V bản L, Honda Sensing, 7 chỗ.", crv));
+        CarItem crvCar = stock(trimCrv, "VIN-CRV-", 1050.0, 5, 2024, "Đỏ", CarStatus.AVAILABLE);
 
-        Car es250 = carRepository.save(car("Lexus ES 250", "VIN-LEX-001", 2700.0, 2, 2024, "Trắng",
-                CarStatus.AVAILABLE, "ES 250 êm ái, nội thất tinh tế.", es));
-        Car rx350 = carRepository.save(car("Lexus RX 350", "VIN-LEX-002", 3500.0, 1, 2024, "Đen",
-                CarStatus.SOLD, "RX 350 SUV sang cỡ lớn.", rx));
+        Car trimCity = carRepository.save(car("Honda City RS", 560.0,
+                "Sedan hạng B tiết kiệm nhiên liệu.", city));
+        CarItem cityCar = stock(trimCity, "VIN-CIT-", 560.0, 10, 2023, "Trắng", CarStatus.AVAILABLE);
 
-        Car macanCar = carRepository.save(car("Porsche Macan S", "VIN-POR-001", 4300.0, 2, 2024, "Đỏ",
-                CarStatus.AVAILABLE, "Macan S, SUV thể thao hiệu năng cao.", macan));
-        Car p911Car = carRepository.save(car("Porsche 911 Carrera", "VIN-POR-002", 8000.0, 1, 2024, "Vàng",
-                CarStatus.RESERVED, "911 Carrera, xe thể thao huyền thoại.", p911));
+        Car trimRanger = carRepository.save(car("Ford Ranger Wildtrak", 1100.0,
+                "Bán tải Wildtrak 2.0L Bi-Turbo, 4x4.", ranger));
+        CarItem rangerCar = stock(trimRanger, "VIN-RAN-", 1100.0, 4, 2023, "Cam", CarStatus.AVAILABLE);
 
-        Car vf8Car = carRepository.save(car("VinFast VF 8 Plus", "VIN-VIN-001", 1100.0, 6, 2024, "Xanh",
-                CarStatus.AVAILABLE, "VF 8 bản Plus, SUV điện thông minh.", vf8));
-        Car vf9Car = carRepository.save(car("VinFast VF 9 Plus", "VIN-VIN-002", 1500.0, 4, 2024, "Trắng",
-                CarStatus.AVAILABLE, "VF 9 bản Plus, SUV điện 7 chỗ.", vf9));
+        Car trimEverest = carRepository.save(car("Ford Everest Titanium", 1300.0,
+                "SUV 7 chỗ Titanium, động cơ dầu 2.0L.", everest));
+        CarItem everestCar = stock(trimEverest, "VIN-EVE-", 1300.0, 3, 2024, "Đen", CarStatus.RESERVED);
+
+        Car trimC300 = carRepository.save(car("Mercedes-Benz C300 AMG", 1900.0,
+                "C300 AMG Line, động cơ 2.0L tăng áp.", cClass));
+        CarItem c300 = stock(trimC300, "VIN-MERC-", 1900.0, 3, 2024, "Trắng", CarStatus.AVAILABLE);
+
+        Car trimE300 = carRepository.save(car("Mercedes-Benz E300 AMG", 2600.0,
+                "E300 AMG, nội thất cao cấp, MBUX.", eClass));
+        CarItem e300 = stock(trimE300, "VIN-MERE-", 2600.0, 2, 2024, "Đen", CarStatus.AVAILABLE);
+
+        Car trimGlc = carRepository.save(car("Mercedes-Benz GLC 300 4MATIC", 2200.0,
+                "GLC 300 4MATIC, SUV sang đô thị.", glc));
+        CarItem glc300 = stock(trimGlc, "VIN-MERG-", 2200.0, 4, 2024, "Xám", CarStatus.AVAILABLE);
+
+        Car trimBmw3 = carRepository.save(car("BMW 320i Sport Line", 1800.0,
+                "320i Sport Line, động cơ 2.0L TwinPower.", bmw3));
+        CarItem bmw320i = stock(trimBmw3, "VIN-BMW3-", 1800.0, 3, 2024, "Xanh đen", CarStatus.AVAILABLE);
+
+        Car trimBmw5 = carRepository.save(car("BMW 520i M Sport", 2500.0,
+                "520i M Sport, sedan sang cỡ lớn.", bmw5));
+        CarItem bmw520i = stock(trimBmw5, "VIN-BMW5-", 2500.0, 2, 2024, "Đen", CarStatus.AVAILABLE);
+
+        Car trimBmwX5 = carRepository.save(car("BMW X5 xDrive40i", 4200.0,
+                "X5 xDrive40i, SUV sang cỡ lớn.", bmwX5));
+        CarItem bmwx5Car = stock(trimBmwX5, "VIN-BMWX-", 4200.0, 2, 2024, "Trắng", CarStatus.MAINTENANCE);
+
+        Car trimA4 = carRepository.save(car("Audi A4 40 TFSI", 1700.0,
+                "A4 40 TFSI, thiết kế tối giản sang trọng.", a4));
+        CarItem a4Car = stock(trimA4, "VIN-AUD4-", 1700.0, 3, 2023, "Trắng", CarStatus.AVAILABLE);
+
+        Car trimQ5 = carRepository.save(car("Audi Q5 45 TFSI quattro", 2300.0,
+                "Q5 quattro, SUV sang cỡ trung.", q5));
+        CarItem q5Car = stock(trimQ5, "VIN-AUD5-", 2300.0, 2, 2024, "Đen", CarStatus.AVAILABLE);
+
+        Car trimEs = carRepository.save(car("Lexus ES 250", 2700.0,
+                "ES 250 êm ái, nội thất tinh tế.", es));
+        CarItem es250 = stock(trimEs, "VIN-LEXE-", 2700.0, 2, 2024, "Trắng", CarStatus.AVAILABLE);
+
+        Car trimRx = carRepository.save(car("Lexus RX 350", 3500.0,
+                "RX 350 SUV sang cỡ lớn.", rx));
+        CarItem rx350 = stock(trimRx, "VIN-LEXR-", 3500.0, 1, 2024, "Đen", CarStatus.SOLD);
+
+        Car trimMacan = carRepository.save(car("Porsche Macan S", 4300.0,
+                "Macan S, SUV thể thao hiệu năng cao.", macan));
+        CarItem macanCar = stock(trimMacan, "VIN-POR-", 4300.0, 2, 2024, "Đỏ", CarStatus.AVAILABLE);
+
+        Car trimP911 = carRepository.save(car("Porsche 911 Carrera", 8000.0,
+                "911 Carrera, xe thể thao huyền thoại.", p911));
+        CarItem p911Car = stock(trimP911, "VIN-POR9-", 8000.0, 1, 2024, "Vàng", CarStatus.RESERVED);
+
+        Car trimVf8 = carRepository.save(car("VinFast VF 8 Plus", 1100.0,
+                "VF 8 bản Plus, SUV điện thông minh.", vf8));
+        CarItem vf8Car = stock(trimVf8, "VIN-VF8-", 1100.0, 6, 2024, "Xanh", CarStatus.AVAILABLE);
+
+        Car trimVf9 = carRepository.save(car("VinFast VF 9 Plus", 1500.0,
+                "VF 9 bản Plus, SUV điện 7 chỗ.", vf9));
+        CarItem vf9Car = stock(trimVf9, "VIN-VF9-", 1500.0, 4, 2024, "Trắng", CarStatus.AVAILABLE);
 
         // ---------- Khách hàng ----------
         Customer c1 = customerRepository.save(customer("Nguyễn Văn An", "an.nguyen@example.com",
@@ -349,6 +394,17 @@ public class DataSeeder implements CommandLineRunner {
                 OrderStatus.COMPLETED, c1, e2, List.of(item(e300, 1))));
         SalesOrder o14 = salesOrderRepository.save(order("ORD-2026-0014", dt(2026, 10, 15, 16, 0),
                 OrderStatus.PENDING, c2, e3, List.of(item(p911Car, 1))));
+
+        // Đánh dấu SOLD cho những chiếc đã nằm trong đơn (trừ đơn đã huỷ)
+        for (SalesOrder o : List.of(o1, o2, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14)) {
+            for (OrderItem oi : o.getItems()) {
+                CarItem ci = oi.getCarItem();
+                if (ci != null && ci.getStatus() == CarStatus.AVAILABLE) {
+                    ci.setStatus(CarStatus.SOLD);
+                    carItemRepository.save(ci);
+                }
+            }
+        }
 
         // ---------- Thanh toán ----------
         paymentRepository.save(payment(o1, o1.getTotalAmount(), PaymentMethod.BANK_TRANSFER, PaymentStatus.PAID, dt(2026, 1, 16, 10, 0)));
@@ -406,8 +462,11 @@ public class DataSeeder implements CommandLineRunner {
         seedUser("user", "user", "user@cardealer.vn", Role.USER);
         seedUser("employee", "employee", "employee@cardealer.vn", Role.EMPLOYEE);
 
-        log.info("Đã seed SQL: {} hãng, {} dòng xe, {} xe, {} khách hàng, {} nhân viên, {} đơn hàng, {} lịch lái thử",
-                brandRepository.findAll().size(), carModelRepository.count(), carRepository.count(),
+        // Gắn tài khoản "user" với hồ sơ khách c1 để thử ngay API /api/customers/me
+        linkCustomerToUser(c1, "user");
+
+        log.info("Đã seed SQL: {} hãng, {} dòng xe, {} chiếc xe, {} khách hàng, {} nhân viên, {} đơn hàng, {} lịch lái thử",
+                brandRepository.findAll().size(), carModelRepository.count(), carItemRepository.count(),
                 customerRepository.count(), employeeRepository.count(), salesOrderRepository.count(),
                 testDriveAppointmentRepository.count());
     }
@@ -612,6 +671,17 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
+    // Gắn hồ sơ khách với tài khoản đăng nhập (nếu chưa gắn) — phục vụ /api/customers/me
+    private void linkCustomerToUser(Customer customer, String username) {
+        if (customer == null || customer.getUser() != null) {
+            return;
+        }
+        userRepository.findByUsername(username).ifPresent(user -> {
+            customer.setUser(user);
+            customerRepository.save(customer);
+        });
+    }
+
     private Brand brand(String name, String country, String description) {
         Brand brand = new Brand();
         brand.setName(name);
@@ -629,19 +699,49 @@ public class DataSeeder implements CommandLineRunner {
         return model;
     }
 
-    private Car car(String name, String vin, Double price, Integer quantity, Integer year,
-                    String color, CarStatus status, String description, CarModel model) {
+    private Car car(String name, Double basePrice, String description, CarModel model) {
         Car car = new Car();
         car.setName(name);
-        car.setVin(vin);
-        car.setPrice(price);
-        car.setQuantity(quantity);
-        car.setYear(year);
-        car.setColor(color);
-        car.setStatus(status);
+        car.setBasePrice(basePrice);
         car.setDescription(description);
         car.setModel(model);
         return car;
+    }
+
+    // Tạo một chiếc xe vật lý (car_item)
+    private CarItem carItem(Car car, String vin, Double price, Integer year, String color,
+                            CarCondition condition, CarStatus status, Integer mileageKm) {
+        CarItem item = new CarItem();
+        item.setCar(car);
+        item.setVin(vin);
+        item.setPrice(price);
+        item.setYear(year);
+        item.setColor(color);
+        item.setCondition(condition);
+        item.setStatus(status);
+        item.setMileageKm(mileageKm);
+        return item;
+    }
+
+    // Tạo `count` chiếc cho một dòng xe rồi trả về CHIẾC ĐẦU TIÊN.
+    // Mỗi chiếc thứ 3 là xe cũ (giá thấp hơn) để minh hoạ giá khác nhau theo tình trạng.
+    private CarItem stock(Car car, String vinPrefix, double price, int count, int year,
+                          String color, CarStatus firstStatus) {
+        CarItem first = null;
+        for (int i = 1; i <= count; i++) {
+            CarCondition condition = (i % 3 == 0) ? CarCondition.USED : CarCondition.NEW;
+            double itemPrice = condition == CarCondition.USED
+                    ? Math.round(price * 0.85)
+                    : price;
+            CarItem item = carItem(car, vinPrefix + String.format("%02d", i), itemPrice, year, color,
+                    condition, i == 1 ? firstStatus : CarStatus.AVAILABLE,
+                    condition == CarCondition.USED ? 20000 + i * 5000 : null);
+            CarItem saved = carItemRepository.save(item);
+            if (first == null) {
+                first = saved;
+            }
+        }
+        return first;
     }
 
     private Customer customer(String fullName, String email, String phone, String address, String nationalId) {
@@ -681,11 +781,12 @@ public class DataSeeder implements CommandLineRunner {
         return order;
     }
 
-    private OrderItem item(Car car, int quantity) {
+    // Mỗi dòng đơn là một chiếc xe vật lý nên quantity luôn = 1
+    private OrderItem item(CarItem carItem, int quantity) {
         OrderItem item = new OrderItem();
-        item.setCar(car);
-        item.setQuantity(quantity);
-        item.setUnitPrice(car.getPrice());
+        item.setCarItem(carItem);
+        item.setQuantity(1);
+        item.setUnitPrice(carItem.getPrice());
         return item;
     }
 
@@ -719,13 +820,13 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private TestDriveAppointment appointment(LocalDateTime scheduledAt, AppointmentStatus status, String note,
-                                             Customer customer, Car car, Employee employee) {
+                                             Customer customer, CarItem carItem, Employee employee) {
         TestDriveAppointment appointment = new TestDriveAppointment();
         appointment.setScheduledAt(scheduledAt);
         appointment.setStatus(status);
         appointment.setNote(note);
         appointment.setCustomer(customer);
-        appointment.setCar(car);
+        appointment.setCarItem(carItem);
         appointment.setEmployee(employee);
         return appointment;
     }

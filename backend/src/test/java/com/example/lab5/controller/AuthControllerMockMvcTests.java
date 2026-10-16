@@ -141,19 +141,50 @@ class AuthControllerMockMvcTests {
 
     @Test
     void registerUserReturnsCreated() throws Exception {
+        // Đăng ký công khai: KHÔNG gửi `role` — backend phải tự gán USER
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {
                               "username": "newuser",
                               "password": "password123",
-                              "email": "newuser@cardealer.vn",
-                              "role": "USER"
+                              "email": "newuser@cardealer.vn"
                             }
                             """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.username").value("newuser"))
+                .andExpect(jsonPath("$.role").value("USER"))
+                .andExpect(jsonPath("$.enabled").value(true));
+    }
+
+    @Test
+    void registerIgnoresClientRoleAndStaysUser() throws Exception {
+        // Chống leo quyền: client gửi role=ADMIN vẫn chỉ được tạo tài khoản USER
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "username": "hacker",
+                              "password": "password123",
+                              "email": "hacker@cardealer.vn",
+                              "role": "ADMIN"
+                            }
+                            """))
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.role").value("USER"));
+    }
+
+    @Test
+    void registerMissingPasswordReturnsBadRequest() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "username": "nopassword",
+                              "email": "nopassword@cardealer.vn"
+                            }
+                            """))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -164,8 +195,7 @@ class AuthControllerMockMvcTests {
                             {
                               "username": "admin",
                               "password": "password123",
-                              "email": "dup@cardealer.vn",
-                              "role": "USER"
+                              "email": "dup@cardealer.vn"
                             }
                             """))
                 .andExpect(status().isBadRequest());

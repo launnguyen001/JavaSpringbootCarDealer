@@ -119,6 +119,21 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
     }
 
+    // Lỗi xác thực ném từ tầng service (đăng nhập sai, tài khoản bị khoá) → 401 kèm thông báo rõ ràng.
+    // Trước đây nhóm lỗi này rơi vào /error nên bị Security mask thành 401 chung chung.
+    // UsernameNotFoundException và BadCredentialsException đều kế thừa AuthenticationException.
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthentication(
+            org.springframework.security.core.AuthenticationException exception,
+            HttpServletRequest request
+    ) {
+        String message = exception.getMessage();
+        if (message == null || message.isBlank()) {
+            message = "Tên đăng nhập hoặc mật khẩu không đúng";
+        }
+        return buildResponse(HttpStatus.UNAUTHORIZED, message, request);
+    }
+
     private ResponseEntity<ErrorResponse> buildResponse(
             HttpStatus status,
             String message,

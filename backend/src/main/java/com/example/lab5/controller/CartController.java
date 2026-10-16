@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-// Redis: giỏ cấu hình xe
+// Redis: giỏ cấu hình xe (khoá là id chiếc xe vật lý)
 @RestController
 @RequestMapping("/api/cart")
 public class CartController {
@@ -25,10 +25,10 @@ public class CartController {
     @PostMapping("/items")
     public List<CartItem> addItem(
             @RequestParam String sessionId,
-            @RequestParam Long carId,
+            @RequestParam Long carItemId,
             @RequestParam Integer quantity
     ) {
-        return cartService.addItem(sessionId, carId, quantity);
+        return cartService.addItem(sessionId, carItemId, quantity);
     }
 
     @GetMapping
@@ -39,9 +39,9 @@ public class CartController {
     @DeleteMapping("/items")
     public List<CartItem> removeItem(
             @RequestParam String sessionId,
-            @RequestParam Long carId
+            @RequestParam Long carItemId
     ) {
-        return cartService.removeItem(sessionId, carId);
+        return cartService.removeItem(sessionId, carItemId);
     }
 
     @DeleteMapping

@@ -2,13 +2,13 @@ package com.example.lab5.service.Impl;
 
 import com.example.lab5.dto.TestDriveAppointmentRequest;
 import com.example.lab5.entity.AppointmentStatus;
-import com.example.lab5.entity.Car;
+import com.example.lab5.entity.CarItem;
 import com.example.lab5.entity.Customer;
 import com.example.lab5.entity.Employee;
 import com.example.lab5.entity.TestDriveAppointment;
 import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
-import com.example.lab5.repository.CarRepository;
+import com.example.lab5.repository.CarItemRepository;
 import com.example.lab5.repository.CustomerRepository;
 import com.example.lab5.repository.EmployeeRepository;
 import com.example.lab5.repository.TestDriveAppointmentRepository;
@@ -23,18 +23,18 @@ public class TestDriveAppointmentServiceImpl implements TestDriveAppointmentServ
 
     private final TestDriveAppointmentRepository appointmentRepository;
     private final CustomerRepository customerRepository;
-    private final CarRepository carRepository;
+    private final CarItemRepository carItemRepository;
     private final EmployeeRepository employeeRepository;
 
     public TestDriveAppointmentServiceImpl(
             TestDriveAppointmentRepository appointmentRepository,
             CustomerRepository customerRepository,
-            CarRepository carRepository,
+            CarItemRepository carItemRepository,
             EmployeeRepository employeeRepository
     ) {
         this.appointmentRepository = appointmentRepository;
         this.customerRepository = customerRepository;
-        this.carRepository = carRepository;
+        this.carItemRepository = carItemRepository;
         this.employeeRepository = employeeRepository;
     }
 
@@ -47,16 +47,14 @@ public class TestDriveAppointmentServiceImpl implements TestDriveAppointmentServ
         if (request.customerId() == null) {
             throw new BadRequestException("Khách hàng không được để trống");
         }
-        if (request.carId() == null) {
+        if (request.carItemId() == null) {
             throw new BadRequestException("Xe không được để trống");
         }
 
         Customer customer = customerRepository.findById(request.customerId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Không tìm thấy khách hàng có id = " + request.customerId()));
-        Car car = carRepository.findById(request.carId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Không tìm thấy xe có id = " + request.carId()));
+        CarItem carItem = findCarItem(request.carItemId());
 
         Employee employee = null;
         if (request.employeeId() != null) {
@@ -69,7 +67,7 @@ public class TestDriveAppointmentServiceImpl implements TestDriveAppointmentServ
         appointment.setScheduledAt(request.scheduledAt());
         appointment.setNote(request.note());
         appointment.setCustomer(customer);
-        appointment.setCar(car);
+        appointment.setCarItem(carItem);
         appointment.setEmployee(employee);
         appointment.setStatus(request.status() == null ? AppointmentStatus.SCHEDULED : request.status());
         return appointmentRepository.save(appointment);
@@ -122,14 +120,12 @@ public class TestDriveAppointmentServiceImpl implements TestDriveAppointmentServ
         if (request == null || request.scheduledAt() == null) {
             throw new BadRequestException("Thời gian hẹn không được để trống");
         }
-        if (request.carId() == null) {
+        if (request.carItemId() == null) {
             throw new BadRequestException("Xe không được để trống");
         }
         TestDriveAppointment appointment = getAppointmentById(id);
 
-        Car car = carRepository.findById(request.carId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Không tìm thấy xe có id = " + request.carId()));
+        CarItem carItem = findCarItem(request.carItemId());
         Employee employee = null;
         if (request.employeeId() != null) {
             employee = employeeRepository.findById(request.employeeId())
@@ -139,7 +135,7 @@ public class TestDriveAppointmentServiceImpl implements TestDriveAppointmentServ
 
         appointment.setScheduledAt(request.scheduledAt());
         appointment.setNote(request.note());
-        appointment.setCar(car);
+        appointment.setCarItem(carItem);
         appointment.setEmployee(employee);
         if (request.status() != null) {
             appointment.setStatus(request.status());
@@ -152,5 +148,11 @@ public class TestDriveAppointmentServiceImpl implements TestDriveAppointmentServ
     public void delete(Long id) {
         getAppointmentById(id);
         appointmentRepository.deleteById(id);
+    }
+
+    private CarItem findCarItem(Long carItemId) {
+        return carItemRepository.findById(carItemId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy xe có id = " + carItemId));
     }
 }

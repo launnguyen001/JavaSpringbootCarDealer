@@ -89,8 +89,7 @@ class CarModelControllerMockMvcTests extends AbstractAdminMockMvcTest {
     void deleteModelBlockedWhenStillHasCars() throws Exception {
         Car car = new Car();
         car.setName("Civic 1.5");
-        car.setPrice(100.0);
-        car.setQuantity(1);
+        car.setBasePrice(100.0);
         car.setModel(entityManager.find(CarModel.class, modelId));
         entityManager.persist(car);
         entityManager.flush();

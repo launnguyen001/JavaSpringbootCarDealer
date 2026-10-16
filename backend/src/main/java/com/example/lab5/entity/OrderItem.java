@@ -26,6 +26,8 @@ public class OrderItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Mỗi dòng đơn là MỘT chiếc xe vật lý nên quantity luôn = 1.
+    // Giữ cột lại để các câu SQL báo cáo hiện có (SUM(oi.quantity)) không phải đổi.
     @Column(nullable = false)
     private Integer quantity;
 
@@ -38,9 +40,10 @@ public class OrderItem {
     @EqualsAndHashCode.Exclude
     private SalesOrder order;
 
+    // Trỏ tới chiếc xe cụ thể (car_items) thay vì dòng xe (cars)
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "car_id", nullable = false)
+    @JoinColumn(name = "car_item_id", nullable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private Car car;
+    private CarItem carItem;
 }

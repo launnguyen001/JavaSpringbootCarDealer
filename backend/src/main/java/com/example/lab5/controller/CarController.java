@@ -1,10 +1,13 @@
 package com.example.lab5.controller;
 
+import com.example.lab5.dto.CarItemResponse;
 import com.example.lab5.dto.CarRequest;
 import com.example.lab5.dto.CarResponse;
 import com.example.lab5.entity.Car;
+import com.example.lab5.mapper.CarItemMapper;
 import com.example.lab5.mapper.CarMapper;
 import com.example.lab5.service.CarCatalogService;
+import com.example.lab5.service.CarItemService;
 import com.example.lab5.service.CarService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -26,26 +29,38 @@ import java.util.List;
 public class CarController {
 
     private final CarService carService;
+    private final CarItemService carItemService;
     private final CarCatalogService carCatalogService;
     private final CarMapper carMapper;
+    private final CarItemMapper carItemMapper;
 
     public CarController(
             CarService carService,
+            CarItemService carItemService,
             CarCatalogService carCatalogService,
-            CarMapper carMapper
+            CarMapper carMapper,
+            CarItemMapper carItemMapper
     ) {
         this.carService = carService;
+        this.carItemService = carItemService;
         this.carCatalogService = carCatalogService;
         this.carMapper = carMapper;
+        this.carItemMapper = carItemMapper;
     }
 
-    // Chức năng 1: Xem danh sách xe
+    // Chức năng 1: Xem danh sách dòng xe (kèm số liệu tổng hợp theo từng chiếc)
     @GetMapping
     public List<CarResponse> getAllCars() {
         return toResponses(carService.getAllCars());
     }
 
-    // Chức năng 2: Thêm xe
+    // Danh sách các chiếc xe vật lý của một dòng xe
+    @GetMapping("/{id}/items")
+    public List<CarItemResponse> getCarItems(@PathVariable Long id) {
+        return carItemService.getByCar(id).stream().map(carItemMapper::toResponse).toList();
+    }
+
+    // Chức năng 2: Thêm dòng xe
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CarResponse addCar(@Valid @RequestBody CarRequest request) {
@@ -57,13 +72,13 @@ public class CarController {
         return carCatalogService.getCarDetail(id);
     }
 
-    // Chức năng: Cập nhật xe
+    // Chức năng: Cập nhật dòng xe
     @PutMapping("/{id}")
     public CarResponse updateCar(@PathVariable Long id, @Valid @RequestBody CarRequest request) {
         return carMapper.toResponse(carService.update(id, carMapper.toEntity(request)));
     }
 
-    // Chức năng: Xoá xe
+    // Chức năng: Xoá dòng xe
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCar(@PathVariable Long id) {

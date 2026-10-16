@@ -1,17 +1,19 @@
 package com.example.lab5.service.Impl;
 
 import com.example.lab5.dto.OrderItemRequest;
+import com.example.lab5.dto.OrderOptionResponse;
 import com.example.lab5.dto.SalesOrderRequest;
-import com.example.lab5.entity.Car;
+import com.example.lab5.entity.CarItem;
 import com.example.lab5.entity.CarStatus;
 import com.example.lab5.entity.Customer;
 import com.example.lab5.entity.Employee;
 import com.example.lab5.entity.OrderItem;
 import com.example.lab5.entity.OrderStatus;
+import com.example.lab5.entity.Payment;
 import com.example.lab5.entity.SalesOrder;
 import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
-import com.example.lab5.repository.CarRepository;
+import com.example.lab5.repository.CarItemRepository;
 import com.example.lab5.repository.ContractRepository;
 import com.example.lab5.repository.CustomerRepository;
 import com.example.lab5.repository.EmployeeRepository;
@@ -24,7 +26,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -33,7 +40,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final SalesOrderRepository salesOrderRepository;
     private final CustomerRepository customerRepository;
     private final EmployeeRepository employeeRepository;
-    private final CarRepository carRepository;
+    private final CarItemRepository carItemRepository;
     private final OrderItemRepository orderItemRepository;
     private final PaymentRepository paymentRepository;
     private final ContractRepository contractRepository;
@@ -43,7 +50,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             SalesOrderRepository salesOrderRepository,
             CustomerRepository customerRepository,
             EmployeeRepository employeeRepository,
-            CarRepository carRepository,
+            CarItemRepository carItemRepository,
             OrderItemRepository orderItemRepository,
             PaymentRepository paymentRepository,
             ContractRepository contractRepository,
@@ -52,7 +59,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         this.salesOrderRepository = salesOrderRepository;
         this.customerRepository = customerRepository;
         this.employeeRepository = employeeRepository;
-        this.carRepository = carRepository;
+        this.carItemRepository = carItemRepository;
         this.orderItemRepository = orderItemRepository;
         this.paymentRepository = paymentRepository;
         this.contractRepository = contractRepository;
@@ -104,6 +111,50 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<OrderOptionResponse> getOrderOptions(String target) {
+        String normalized = target == null ? "" : target.trim().toLowerCase(Locale.ROOT);
+
+        List<SalesOrder> orders = switch (normalized) {
+            case "invoice" -> salesOrderRepository.findOptionsForInvoice();
+            case "contract" -> salesOrderRepository.findOptionsForContract();
+            case "payment" -> salesOrderRepository.findActiveOrderOptions();
+            default -> throw new BadRequestException(
+                    "Loại danh sách đơn hàng không hợp lệ: " + target
+                            + " (chỉ nhận invoice, contract hoặc payment)");
+        };
+
+        Set<Long> invoicedOrderIds = new HashSet<>(invoiceRepository.findAllOrderIds());
+        Set<Long> contractedOrderIds = new HashSet<>(contractRepository.findAllOrderIds());
+
+        Map<Long, Double> paidByOrder = new HashMap<>();
+        for (Payment payment : paymentRepository.findAll()) {
+            if (payment.getOrder() == null) {
+                continue;
+            }
+            double amount = payment.getAmount() == null ? 0.0 : payment.getAmount();
+            paidByOrder.merge(payment.getOrder().getId(), amount, Double::sum);
+        }
+
+        return orders.stream().map(order -> {
+            double total = order.getTotalAmount() == null ? 0.0 : order.getTotalAmount();
+            double paid = paidByOrder.getOrDefault(order.getId(), 0.0);
+            return new OrderOptionResponse(
+                    order.getId(),
+                    order.getOrderCode(),
+                    order.getOrderDate(),
+                    order.getStatus(),
+                    order.getCustomer() == null ? null : order.getCustomer().getFullName(),
+                    total,
+                    paid,
+                    Math.max(total - paid, 0.0),
+                    contractedOrderIds.contains(order.getId()),
+                    invoicedOrderIds.contains(order.getId())
+            );
+        }).toList();
+    }
+
+    @Override
     @Transactional
     public SalesOrder updateStatus(Long id, OrderStatus status) {
         if (status == null) {
@@ -135,7 +186,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
 
         order.setEmployee(resolveEmployee(request.employeeId()));
 
-        // Trả lại tồn kho của các dòng cũ trước khi thay bằng danh sách mới
+        // Trả lại trạng thái của các xe cũ trước khi thay bằng danh sách mới
         restoreStock(order);
         order.getItems().clear();
 
@@ -178,16 +229,14 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         SalesOrder order = getOrderById(orderId);
         assertOrderEditable(order);
 
-        Car car = carRepository.findById(request.carId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Không tìm thấy xe có id = " + request.carId()));
-        deductStock(car, request.quantity());
+        CarItem carItem = findAvailableItem(request.carItemId());
+        markItemSold(carItem);
 
         OrderItem item = new OrderItem();
         item.setOrder(order);
-        item.setCar(car);
-        item.setQuantity(request.quantity());
-        item.setUnitPrice(car.getPrice());
+        item.setCarItem(carItem);
+        item.setQuantity(1);
+        item.setUnitPrice(carItem.getPrice());
         order.getItems().add(item);
         recalculateTotal(order);
 
@@ -205,16 +254,14 @@ public class SalesOrderServiceImpl implements SalesOrderService {
 
         OrderItem item = findItem(order, itemId);
 
-        // Trả lại tồn kho cũ rồi trừ theo số lượng/xe mới
-        restoreCarStock(item.getCar(), item.getQuantity());
-        Car car = carRepository.findById(request.carId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Không tìm thấy xe có id = " + request.carId()));
-        deductStock(car, request.quantity());
+        // Trả lại trạng thái xe cũ rồi đánh dấu chiếc xe mới
+        restoreItemStatus(item.getCarItem());
+        CarItem carItem = findAvailableItem(request.carItemId());
+        markItemSold(carItem);
 
-        item.setCar(car);
-        item.setQuantity(request.quantity());
-        item.setUnitPrice(car.getPrice());
+        item.setCarItem(carItem);
+        item.setQuantity(1);
+        item.setUnitPrice(carItem.getPrice());
         recalculateTotal(order);
 
         salesOrderRepository.save(order);
@@ -229,7 +276,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         assertOrderEditable(order);
 
         OrderItem item = findItem(order, itemId);
-        restoreCarStock(item.getCar(), item.getQuantity());
+        restoreItemStatus(item.getCarItem());
         order.getItems().remove(item);
         recalculateTotal(order);
         salesOrderRepository.save(order);
@@ -243,46 +290,60 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                         "Không tìm thấy dòng xe có id = " + itemId + " trong đơn hàng"));
     }
 
-    // Thêm một dòng xe vào đơn: kiểm tra + trừ tồn kho, trả về thành tiền của dòng
+    // Thêm một chiếc xe vào đơn: kiểm tra còn bán được không + đánh dấu đã bán
     private double addItemToOrder(SalesOrder order, OrderItemRequest itemRequest) {
-        Car car = carRepository.findById(itemRequest.carId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Không tìm thấy xe có id = " + itemRequest.carId()));
-        deductStock(car, itemRequest.quantity());
+        CarItem carItem = findAvailableItem(itemRequest.carItemId());
+        markItemSold(carItem);
 
         OrderItem item = new OrderItem();
         item.setOrder(order);
-        item.setCar(car);
-        item.setQuantity(itemRequest.quantity());
-        item.setUnitPrice(car.getPrice());
+        item.setCarItem(carItem);
+        item.setQuantity(1);
+        item.setUnitPrice(carItem.getPrice());
         order.getItems().add(item);
 
-        return car.getPrice() * itemRequest.quantity();
+        return carItem.getPrice();
     }
 
-    private void deductStock(Car car, int quantity) {
-        if (car.getQuantity() == null || car.getQuantity() < quantity) {
-            throw new BadRequestException("Xe '" + car.getName() + "' không đủ số lượng trong kho");
+    private CarItem findAvailableItem(Long carItemId) {
+        CarItem carItem = carItemRepository.findById(carItemId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Không tìm thấy xe có id = " + carItemId));
+        if (carItem.getStatus() != CarStatus.AVAILABLE) {
+            throw new BadRequestException("Xe '" + describe(carItem)
+                    + "' không còn ở trạng thái có thể bán (hiện tại: " + carItem.getStatus() + ")");
         }
-        car.setQuantity(car.getQuantity() - quantity);
-        if (car.getQuantity() == 0) {
-            car.setStatus(CarStatus.SOLD);
-        }
-        carRepository.save(car);
+        return carItem;
+    }
+
+    // Mỗi dòng đơn là một chiếc xe -> đánh dấu chiếc đó là SOLD
+    private void markItemSold(CarItem carItem) {
+        carItem.setStatus(CarStatus.SOLD);
+        carItemRepository.save(carItem);
     }
 
     private void restoreStock(SalesOrder order) {
         for (OrderItem item : order.getItems()) {
-            restoreCarStock(item.getCar(), item.getQuantity());
+            restoreItemStatus(item.getCarItem());
         }
     }
 
-    private void restoreCarStock(Car car, int quantity) {
-        car.setQuantity(car.getQuantity() + quantity);
-        if (car.getStatus() == CarStatus.SOLD) {
-            car.setStatus(CarStatus.AVAILABLE);
+    private void restoreItemStatus(CarItem carItem) {
+        if (carItem == null) {
+            return;
         }
-        carRepository.save(car);
+        if (carItem.getStatus() == CarStatus.SOLD) {
+            carItem.setStatus(CarStatus.AVAILABLE);
+            carItemRepository.save(carItem);
+        }
+    }
+
+    private String describe(CarItem carItem) {
+        String carName = carItem.getCar() == null ? null : carItem.getCar().getName();
+        if (carName == null) {
+            return carItem.getVin() == null ? ("#" + carItem.getId()) : carItem.getVin();
+        }
+        return carItem.getVin() == null ? carName : (carName + " - " + carItem.getVin());
     }
 
     private void recalculateTotal(SalesOrder order) {
@@ -328,11 +389,12 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     }
 
     private void validateItem(OrderItemRequest item) {
-        if (item == null || item.carId() == null) {
+        if (item == null || item.carItemId() == null) {
             throw new BadRequestException("Xe không được để trống");
         }
-        if (item.quantity() == null || item.quantity() <= 0) {
-            throw new BadRequestException("Số lượng xe phải lớn hơn 0");
+        // Mỗi dòng là một chiếc xe: số lượng bỏ trống hoặc bằng 1
+        if (item.quantity() != null && item.quantity() != 1) {
+            throw new BadRequestException("Mỗi dòng đơn là một chiếc xe nên số lượng phải bằng 1");
         }
     }
 }

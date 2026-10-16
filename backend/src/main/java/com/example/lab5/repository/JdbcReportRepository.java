@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 // Báo cáo/thống kê dùng SQL thuần (JdbcTemplate) - theo mẫu JdbcCategoryRepository
+// Lưu ý: sau khi tách bảng, số liệu tồn kho/"xe" đếm theo car_items (từng chiếc vật lý).
 @Repository
 public class JdbcReportRepository {
 
@@ -36,7 +37,8 @@ public class JdbcReportRepository {
                        SUM(oi.quantity) AS total_sold,
                        SUM(oi.quantity * oi.unit_price) AS revenue
                 FROM order_items oi
-                JOIN cars c ON c.id = oi.car_id
+                JOIN car_items ci ON ci.id = oi.car_item_id
+                JOIN cars c ON c.id = ci.car_id
                 GROUP BY c.id, c.name
                 ORDER BY total_sold DESC, c.id
                 LIMIT ?
@@ -53,11 +55,13 @@ public class JdbcReportRepository {
         String sql = """
                 SELECT b.id AS brand_id,
                        b.name AS brand_name,
-                       COUNT(c.id) AS total_cars,
-                       COALESCE(SUM(c.quantity), 0) AS total_quantity
+                       COUNT(DISTINCT c.id) AS total_cars,
+                       COUNT(ci.id) AS total_quantity,
+                       COALESCE(SUM(CASE WHEN ci.status = 'AVAILABLE' THEN 1 ELSE 0 END), 0) AS available_items
                 FROM brands b
                 LEFT JOIN car_models m ON m.brand_id = b.id
                 LEFT JOIN cars c ON c.model_id = m.id
+                LEFT JOIN car_items ci ON ci.car_id = c.id
                 GROUP BY b.id, b.name
                 ORDER BY b.id
                 """;
@@ -65,7 +69,8 @@ public class JdbcReportRepository {
                 rs.getLong("brand_id"),
                 rs.getString("brand_name"),
                 rs.getLong("total_cars"),
-                rs.getLong("total_quantity")
+                rs.getLong("total_quantity"),
+                rs.getLong("available_items")
         ));
     }
 
@@ -97,33 +102,37 @@ public class JdbcReportRepository {
 
     // ===================== DASHBOARD & DRILLDOWN =====================
 
-    // D1: tổng hợp chỉ số cho dashboard
+    // D1: tổng hợp chỉ số cho dashboard (đếm theo từng chiếc xe vật lý)
     public DashboardSummary findDashboardSummary() {
-        long totalCars = count("SELECT COUNT(*) FROM cars");
-        long available = countStatus("AVAILABLE");
-        long reserved = countStatus("RESERVED");
-        long sold = countStatus("SOLD");
-        long maintenance = countStatus("MAINTENANCE");
+        long totalCars = count("SELECT COUNT(*) FROM car_items");
+        long available = countItemStatus("AVAILABLE");
+        long reserved = countItemStatus("RESERVED");
+        long sold = countItemStatus("SOLD");
+        long maintenance = countItemStatus("MAINTENANCE");
+        long newItems = count("SELECT COUNT(*) FROM car_items WHERE car_condition = 'NEW'");
+        long usedItems = count("SELECT COUNT(*) FROM car_items WHERE car_condition = 'USED'");
         long customers = count("SELECT COUNT(*) FROM customers");
         long employees = count("SELECT COUNT(*) FROM employees");
         long orders = count("SELECT COUNT(*) FROM sales_orders");
         long scheduledTestDrives = count("SELECT COUNT(*) FROM test_drive_appointments WHERE status = 'SCHEDULED'");
         double revenue = value("SELECT COALESCE(SUM(total_amount), 0) FROM sales_orders WHERE status <> 'CANCELLED'");
 
-        return new DashboardSummary(totalCars, available, reserved, sold, maintenance,
+        return new DashboardSummary(totalCars, available, reserved, sold, maintenance, newItems, usedItems,
                 customers, employees, orders, scheduledTestDrives, revenue);
     }
 
-    // D2: các dòng xe (model) thuộc 1 hãng + tồn kho
+    // D2: các dòng xe (model) thuộc 1 hãng + tồn kho (số dòng xe và số chiếc)
     public List<InventoryByModel> findModelsByBrand(Long brandId) {
         String sql = """
                 SELECT m.id AS model_id,
                        m.name AS model_name,
                        m.body_type,
-                       COUNT(c.id) AS total_cars,
-                       COALESCE(SUM(c.quantity), 0) AS total_quantity
+                       COUNT(DISTINCT c.id) AS total_cars,
+                       COUNT(ci.id) AS total_quantity,
+                       COALESCE(SUM(CASE WHEN ci.status = 'AVAILABLE' THEN 1 ELSE 0 END), 0) AS available_items
                 FROM car_models m
                 LEFT JOIN cars c ON c.model_id = m.id
+                LEFT JOIN car_items ci ON ci.car_id = c.id
                 WHERE m.brand_id = ?
                 GROUP BY m.id, m.name, m.body_type
                 ORDER BY m.id
@@ -133,31 +142,42 @@ public class JdbcReportRepository {
                 rs.getString("model_name"),
                 rs.getString("body_type"),
                 rs.getLong("total_cars"),
-                rs.getLong("total_quantity")
+                rs.getLong("total_quantity"),
+                rs.getLong("available_items")
         ), brandId);
     }
 
-    // D3: các xe cụ thể thuộc 1 dòng xe
+    // D3: các chiếc xe cụ thể thuộc 1 dòng xe
     public List<CarInventoryItem> findCarsByModel(Long modelId) {
         String sql = """
-                SELECT c.id, c.name, c.vin, c.color, c.model_year, c.status, c.quantity, c.price
-                FROM cars c
+                SELECT ci.id AS car_id,
+                       c.name AS car_name,
+                       ci.vin,
+                       ci.color,
+                       ci.model_year,
+                       ci.status,
+                       ci.car_condition,
+                       ci.mileage_km,
+                       ci.price
+                FROM car_items ci
+                JOIN cars c ON c.id = ci.car_id
                 WHERE c.model_id = ?
-                ORDER BY c.id
+                ORDER BY ci.id
                 """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> new CarInventoryItem(
-                rs.getLong("id"),
-                rs.getString("name"),
+                rs.getLong("car_id"),
+                rs.getString("car_name"),
                 rs.getString("vin"),
                 rs.getString("color"),
                 (Integer) rs.getObject("model_year"),
                 rs.getString("status"),
-                (Integer) rs.getObject("quantity"),
+                rs.getString("car_condition"),
+                (Integer) rs.getObject("mileage_km"),
                 rs.getDouble("price")
         ), modelId);
     }
 
-    // D4: các dòng đơn chứa 1 xe (drilldown từ top-selling-cars)
+    // D4: các dòng đơn chứa 1 dòng xe (drilldown từ top-selling-cars)
     public List<CarSalesOrderLine> findOrdersByCar(Long carId) {
         String sql = """
                 SELECT o.id AS order_id,
@@ -169,9 +189,10 @@ public class JdbcReportRepository {
                        oi.unit_price,
                        (oi.quantity * oi.unit_price) AS line_total
                 FROM order_items oi
+                JOIN car_items ci ON ci.id = oi.car_item_id
                 JOIN sales_orders o ON o.id = oi.order_id
                 LEFT JOIN customers cu ON cu.id = o.customer_id
-                WHERE oi.car_id = ?
+                WHERE ci.car_id = ?
                 ORDER BY o.order_date DESC, o.id DESC
                 """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> new CarSalesOrderLine(
@@ -239,8 +260,8 @@ public class JdbcReportRepository {
         return result == null ? 0L : result;
     }
 
-    private long countStatus(String status) {
-        return count("SELECT COUNT(*) FROM cars WHERE status = ?", status);
+    private long countItemStatus(String status) {
+        return count("SELECT COUNT(*) FROM car_items WHERE status = ?", status);
     }
 
     private double value(String sql, Object... args) {

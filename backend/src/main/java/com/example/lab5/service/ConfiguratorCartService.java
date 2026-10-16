@@ -10,7 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-// Redis: giỏ cấu hình xe theo phiên (dữ liệu tạm, có TTL) - lưu bằng Redis Hash
+// Redis: giỏ cấu hình xe theo phiên (dữ liệu tạm, có TTL) - lưu bằng Redis Hash.
+// Khoá của hash là id chiếc xe vật lý (car_items).
 @Service
 public class ConfiguratorCartService {
 
@@ -23,10 +24,10 @@ public class ConfiguratorCartService {
         this.redisTemplate = redisTemplate;
     }
 
-    public List<CartItem> addItem(String sessionId, Long carId, Integer quantity) {
-        validate(sessionId, carId, quantity);
+    public List<CartItem> addItem(String sessionId, Long carItemId, Integer quantity) {
+        validate(sessionId, carItemId, quantity);
         String key = KEY_PREFIX + sessionId;
-        redisTemplate.opsForHash().put(key, carId.toString(), quantity.toString());
+        redisTemplate.opsForHash().put(key, carItemId.toString(), quantity.toString());
         redisTemplate.expire(key, TTL);
         return getCart(sessionId);
     }
@@ -46,11 +47,11 @@ public class ConfiguratorCartService {
         return items;
     }
 
-    public List<CartItem> removeItem(String sessionId, Long carId) {
-        if (carId == null) {
+    public List<CartItem> removeItem(String sessionId, Long carItemId) {
+        if (carItemId == null) {
             throw new BadRequestException("Xe không được để trống");
         }
-        redisTemplate.opsForHash().delete(KEY_PREFIX + sessionId, carId.toString());
+        redisTemplate.opsForHash().delete(KEY_PREFIX + sessionId, carItemId.toString());
         return getCart(sessionId);
     }
 
@@ -58,11 +59,11 @@ public class ConfiguratorCartService {
         redisTemplate.delete(KEY_PREFIX + sessionId);
     }
 
-    private void validate(String sessionId, Long carId, Integer quantity) {
+    private void validate(String sessionId, Long carItemId, Integer quantity) {
         if (sessionId == null || sessionId.isBlank()) {
             throw new BadRequestException("Mã phiên không được để trống");
         }
-        if (carId == null) {
+        if (carItemId == null) {
             throw new BadRequestException("Xe không được để trống");
         }
         if (quantity == null || quantity <= 0) {

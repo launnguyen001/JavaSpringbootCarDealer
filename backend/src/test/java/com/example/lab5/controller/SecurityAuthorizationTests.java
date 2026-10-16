@@ -56,7 +56,7 @@ class SecurityAuthorizationTests extends AbstractAdminMockMvcTest {
 
     private String carJson() {
         return """
-                {"name":"Civic","price":200.0,"quantity":3,"modelId":%d}
+                {"name":"Civic","basePrice":200.0,"modelId":%d}
                 """.formatted(modelId);
     }
 

@@ -2,7 +2,10 @@ package com.example.lab5.service;
 
 import com.example.lab5.entity.Brand;
 import com.example.lab5.entity.Car;
+import com.example.lab5.entity.CarCondition;
+import com.example.lab5.entity.CarItem;
 import com.example.lab5.entity.CarModel;
+import com.example.lab5.entity.CarStatus;
 import com.example.lab5.entity.Customer;
 import com.example.lab5.entity.Employee;
 import com.example.lab5.entity.SalesOrder;
@@ -61,13 +64,12 @@ class ServiceCrudTests {
 
     @Test
     void carUpdateChangesStoredFields() {
-        Car car = persistCar(5);
+        Car car = persistCarWithItems(5);
 
         Car form = new Car();
         form.setName("Camry 2.5");
-        form.setPrice(250.0);
-        form.setQuantity(9);
-        form.setColor("Đỏ");
+        form.setDescription("Bản nâng cấp");
+        form.setBasePrice(250.0);
         CarModel reference = new CarModel();
         reference.setId(car.getModel().getId());
         form.setModel(reference);
@@ -76,9 +78,8 @@ class ServiceCrudTests {
 
         assertThat(updated.getId()).isEqualTo(car.getId());
         assertThat(updated.getName()).isEqualTo("Camry 2.5");
-        assertThat(updated.getPrice()).isEqualTo(250.0);
-        assertThat(updated.getQuantity()).isEqualTo(9);
-        assertThat(updated.getColor()).isEqualTo("Đỏ");
+        assertThat(updated.getBasePrice()).isEqualTo(250.0);
+        assertThat(updated.getDescription()).isEqualTo("Bản nâng cấp");
     }
 
     @Test
@@ -115,12 +116,13 @@ class ServiceCrudTests {
 
     @Test
     void deleteCarBlockedWhenHasTestDrive() {
-        Car car = persistCar(3);
+        Car car = persistCarWithItems(3);
+        CarItem carItem = firstItemOf(car.getId());
 
         TestDriveAppointment appointment = new TestDriveAppointment();
         appointment.setScheduledAt(LocalDateTime.now().plusDays(1));
         appointment.setCustomer(persistCustomer("Khách lái thử"));
-        appointment.setCar(car);
+        appointment.setCarItem(carItem);
         entityManager.persist(appointment);
         entityManager.flush();
 
@@ -142,11 +144,12 @@ class ServiceCrudTests {
     @Test
     void salesOrderDeleteBlockedWhenNotCancelled() {
         Customer customer = persistCustomer("Khách có đơn chưa huỷ");
-        Car car = persistCar(5);
+        Car car = persistCarWithItems(5);
+        CarItem carItem = firstItemOf(car.getId());
         SalesOrder order = salesOrderService.create(new com.example.lab5.dto.SalesOrderRequest(
                 customer.getId(),
                 null,
-                java.util.List.of(new com.example.lab5.dto.OrderItemRequest(car.getId(), 1))
+                java.util.List.of(new com.example.lab5.dto.OrderItemRequest(carItem.getId(), 1))
         ));
 
         assertThatThrownBy(() -> salesOrderService.delete(order.getId()))
@@ -161,7 +164,8 @@ class ServiceCrudTests {
         return customer;
     }
 
-    private Car persistCar(int quantity) {
+    // Tạo một dòng xe kèm `itemCount` chiếc vật lý
+    private Car persistCarWithItems(int itemCount) {
         Brand brand = new Brand();
         brand.setName("Toyota-" + System.nanoTime());
         entityManager.persist(brand);
@@ -173,11 +177,28 @@ class ServiceCrudTests {
 
         Car car = new Car();
         car.setName("Camry 2.0");
-        car.setPrice(100.0);
-        car.setQuantity(quantity);
+        car.setBasePrice(100.0);
         car.setModel(model);
         entityManager.persist(car);
+
+        for (int i = 1; i <= itemCount; i++) {
+            CarItem item = new CarItem();
+            item.setCar(car);
+            item.setVin("VIN-" + System.nanoTime() + "-" + i);
+            item.setCondition(CarCondition.NEW);
+            item.setPrice(100.0);
+            item.setStatus(CarStatus.AVAILABLE);
+            entityManager.persist(item);
+        }
         entityManager.flush();
         return car;
+    }
+
+    private CarItem firstItemOf(Long carId) {
+        return entityManager
+                .createQuery("SELECT i FROM CarItem i WHERE i.car.id = :carId ORDER BY i.id", CarItem.class)
+                .setParameter("carId", carId)
+                .setMaxResults(1)
+                .getSingleResult();
     }
 }

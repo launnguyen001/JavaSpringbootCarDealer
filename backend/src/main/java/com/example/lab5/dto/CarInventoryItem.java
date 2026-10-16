@@ -1,5 +1,6 @@
 package com.example.lab5.dto;
 
+/** Một chiếc xe vật lý trong báo cáo tồn kho (drilldown theo dòng xe). */
 public record CarInventoryItem(
         Long carId,
         String carName,
@@ -7,7 +8,8 @@ public record CarInventoryItem(
         String color,
         Integer year,
         String status,
-        Integer quantity,
+        String condition,
+        Integer mileageKm,
         Double price
 ) {
 }

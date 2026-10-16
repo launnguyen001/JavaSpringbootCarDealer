@@ -7,6 +7,8 @@ import com.example.lab5.mapper.CustomerMapper;
 import com.example.lab5.service.CustomerService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,6 +38,24 @@ public class CustomerController {
     @ResponseStatus(HttpStatus.CREATED)
     public CustomerResponse addCustomer(@Valid @RequestBody CustomerRequest request) {
         return customerMapper.toResponse(customerService.create(customerMapper.toEntity(request)));
+    }
+
+    // ---------- Hồ sơ của chính người dùng đang đăng nhập ----------
+    // (đặt trước "/{id}" để "/me" không bị hiểu là id)
+
+    @GetMapping("/me")
+    public CustomerResponse getMyProfile(@AuthenticationPrincipal UserDetails userDetails) {
+        return customerMapper.toResponse(customerService.getMyProfile(userDetails.getUsername()));
+    }
+
+    @PutMapping("/me")
+    public CustomerResponse updateMyProfile(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody CustomerRequest request
+    ) {
+        return customerMapper.toResponse(
+                customerService.updateMyProfile(userDetails.getUsername(), customerMapper.toEntity(request))
+        );
     }
 
     @GetMapping

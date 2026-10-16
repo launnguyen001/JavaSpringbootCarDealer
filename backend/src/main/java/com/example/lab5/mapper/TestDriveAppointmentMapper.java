@@ -8,6 +8,13 @@ import org.springframework.stereotype.Component;
 public class TestDriveAppointmentMapper {
 
     public TestDriveAppointmentResponse toResponse(TestDriveAppointment appointment) {
+        Long carItemId = appointment.getCarItem() == null ? null : appointment.getCarItem().getId();
+        Long carId = null;
+        String carName = null;
+        if (appointment.getCarItem() != null && appointment.getCarItem().getCar() != null) {
+            carId = appointment.getCarItem().getCar().getId();
+            carName = appointment.getCarItem().getCar().getName();
+        }
         return new TestDriveAppointmentResponse(
                 appointment.getId(),
                 appointment.getScheduledAt(),
@@ -15,8 +22,10 @@ public class TestDriveAppointmentMapper {
                 appointment.getNote(),
                 appointment.getCustomer() == null ? null : appointment.getCustomer().getId(),
                 appointment.getCustomer() == null ? null : appointment.getCustomer().getFullName(),
-                appointment.getCar() == null ? null : appointment.getCar().getId(),
-                appointment.getCar() == null ? null : appointment.getCar().getName(),
+                carItemId,
+                carId,
+                carName,
+                appointment.getCarItem() == null ? null : appointment.getCarItem().getVin(),
                 appointment.getEmployee() == null ? null : appointment.getEmployee().getId(),
                 appointment.getEmployee() == null ? null : appointment.getEmployee().getFullName()
         );

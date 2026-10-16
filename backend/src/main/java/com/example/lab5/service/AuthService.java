@@ -9,7 +9,8 @@ public interface AuthService {
 
     void logout();
 
-    UserResponse register(String username, String password, String email, String role);
+    // Đăng ký công khai: luôn tạo tài khoản role USER (không nhận role từ client)
+    UserResponse register(String username, String password, String email);
 
     UserResponse getCurrentUser();
 }

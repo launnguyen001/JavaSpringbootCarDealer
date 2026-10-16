@@ -46,11 +46,12 @@ public class TestDriveAppointment {
     @EqualsAndHashCode.Exclude
     private Customer customer;
 
+    // Lái thử chọn một chiếc xe cụ thể (car_items)
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "car_id", nullable = false)
+    @JoinColumn(name = "car_item_id", nullable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private Car car;
+    private CarItem carItem;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")

@@ -40,8 +40,7 @@ class CarControllerMockMvcTests extends AbstractAdminMockMvcTest {
 
         Car car = new Car();
         car.setName("Camry 2.0");
-        car.setPrice(100.0);
-        car.setQuantity(5);
+        car.setBasePrice(100.0);
         car.setModel(model);
         entityManager.persist(car);
         entityManager.flush();
@@ -60,8 +59,10 @@ class CarControllerMockMvcTests extends AbstractAdminMockMvcTest {
         mockMvc.perform(get("/api/cars/{id}", carId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Camry 2.0"))
+                .andExpect(jsonPath("$.basePrice").value(100.0))
                 .andExpect(jsonPath("$.modelName").value("Camry"))
-                .andExpect(jsonPath("$.brandName").value("Toyota"));
+                .andExpect(jsonPath("$.brandName").value("Toyota"))
+                .andExpect(jsonPath("$.items").isArray());
     }
 
     @Test
@@ -82,8 +83,7 @@ class CarControllerMockMvcTests extends AbstractAdminMockMvcTest {
         String json = """
                 {
                   "name": "Civic 1.5",
-                  "price": 200.0,
-                  "quantity": 3,
+                  "basePrice": 200.0,
                   "modelId": %d
                 }
                 """.formatted(modelId);
@@ -93,6 +93,7 @@ class CarControllerMockMvcTests extends AbstractAdminMockMvcTest {
                         .content(json)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Civic 1.5"))
+                .andExpect(jsonPath("$.basePrice").value(200.0))
                 .andExpect(jsonPath("$.modelId").value(modelId));
     }
 
@@ -101,9 +102,8 @@ class CarControllerMockMvcTests extends AbstractAdminMockMvcTest {
         String json = """
                 {
                   "name": "Camry 2.5",
-                  "price": 150.0,
-                  "quantity": 2,
-                  "color": "Trắng",
+                  "description": "Bản 2.5Q",
+                  "basePrice": 150.0,
                   "modelId": %d
                 }
                 """.formatted(modelId);
@@ -114,8 +114,7 @@ class CarControllerMockMvcTests extends AbstractAdminMockMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(carId))
                 .andExpect(jsonPath("$.name").value("Camry 2.5"))
-                .andExpect(jsonPath("$.price").value(150.0))
-                .andExpect(jsonPath("$.quantity").value(2));
+                .andExpect(jsonPath("$.basePrice").value(150.0));
     }
 
     @Test
@@ -123,8 +122,7 @@ class CarControllerMockMvcTests extends AbstractAdminMockMvcTest {
         String json = """
                 {
                   "name": "Không tồn tại",
-                  "price": 100.0,
-                  "quantity": 1,
+                  "basePrice": 100.0,
                   "modelId": %d
                 }
                 """.formatted(modelId);
@@ -151,8 +149,22 @@ class CarControllerMockMvcTests extends AbstractAdminMockMvcTest {
     void addCarReturnsBadRequestWhenNameMissing() throws Exception {
         String json = """
                 {
-                  "price": 200.0,
-                  "quantity": 3,
+                  "basePrice": 200.0,
+                  "modelId": %d
+                }
+                """.formatted(modelId);
+
+        mockMvc.perform(asAdmin(post("/api/cars")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void addCarReturnsBadRequestWhenBasePriceMissing() throws Exception {
+        String json = """
+                {
+                  "name": "Thiếu giá",
                   "modelId": %d
                 }
                 """.formatted(modelId);

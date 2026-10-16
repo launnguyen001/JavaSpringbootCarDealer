@@ -2,6 +2,8 @@ package com.example.lab5.controller;
 
 import com.example.lab5.entity.Brand;
 import com.example.lab5.entity.Car;
+import com.example.lab5.entity.CarCondition;
+import com.example.lab5.entity.CarItem;
 import com.example.lab5.entity.CarModel;
 import com.example.lab5.entity.CarStatus;
 import com.example.lab5.entity.Customer;
@@ -48,14 +50,19 @@ class ReportControllerMockMvcTests extends AbstractAdminMockMvcTest {
 
         Car car = new Car();
         car.setName("Camry 2.5");
-        car.setPrice(1000.0);
-        car.setQuantity(5);
-        car.setVin("VIN-DASH-0001");
-        car.setYear(2020);
-        car.setColor("Black");
-        car.setStatus(CarStatus.AVAILABLE);
+        car.setBasePrice(1000.0);
         car.setModel(model);
         entityManager.persist(car);
+
+        CarItem carItem = new CarItem();
+        carItem.setCar(car);
+        carItem.setVin("VIN-DASH-0001");
+        carItem.setYear(2020);
+        carItem.setColor("Black");
+        carItem.setCondition(CarCondition.NEW);
+        carItem.setPrice(1000.0);
+        carItem.setStatus(CarStatus.AVAILABLE);
+        entityManager.persist(carItem);
 
         Customer customer = new Customer();
         customer.setFullName("Nguyễn Văn A");
@@ -74,7 +81,7 @@ class ReportControllerMockMvcTests extends AbstractAdminMockMvcTest {
         item.setQuantity(1);
         item.setUnitPrice(1000.0);
         item.setOrder(order);
-        item.setCar(car);
+        item.setCarItem(carItem);
         entityManager.persist(item);
 
         entityManager.flush();

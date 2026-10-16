@@ -2,6 +2,7 @@ package com.example.lab5.controller;
 
 import com.example.lab5.dto.OrderItemRequest;
 import com.example.lab5.dto.OrderItemResponse;
+import com.example.lab5.dto.OrderOptionResponse;
 import com.example.lab5.dto.SalesOrderRequest;
 import com.example.lab5.dto.SalesOrderResponse;
 import com.example.lab5.entity.OrderStatus;
@@ -50,6 +51,15 @@ public class SalesOrderController {
     @GetMapping("/{id}")
     public SalesOrderResponse getOrderById(@PathVariable Long id) {
         return salesOrderMapper.toResponse(salesOrderService.getOrderById(id));
+    }
+
+    /**
+     * Danh sách đơn hàng đủ điều kiện gắn chứng từ, dùng cho dropdown ở form admin.
+     * target = invoice | contract | payment
+     */
+    @GetMapping("/options")
+    public List<OrderOptionResponse> getOrderOptions(@RequestParam String target) {
+        return salesOrderService.getOrderOptions(target);
     }
 
     @GetMapping("/customer/{customerId}")

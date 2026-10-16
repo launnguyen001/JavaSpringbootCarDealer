@@ -5,6 +5,7 @@ import com.example.lab5.dto.UserResponse;
 import com.example.lab5.entity.Role;
 import com.example.lab5.entity.User;
 import com.example.lab5.config.JwtUtils;
+import com.example.lab5.mapper.UserMapper;
 import com.example.lab5.repository.UserRepository;
 import com.example.lab5.service.AuthService;
 import com.example.lab5.service.UserDetailsServiceImpl;
@@ -22,17 +23,20 @@ public class AuthServiceImpl implements AuthService {
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
+    private final UserMapper userMapper;
 
     public AuthServiceImpl(
             UserRepository userRepository,
             UserDetailsServiceImpl userDetailsService,
             JwtUtils jwtUtils,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            UserMapper userMapper
     ) {
         this.userRepository = userRepository;
         this.userDetailsService = userDetailsService;
         this.jwtUtils = jwtUtils;
         this.passwordEncoder = passwordEncoder;
+        this.userMapper = userMapper;
     }
 
     @Override
@@ -61,24 +65,27 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public UserResponse register(String username, String password, String email, String role) {
+    public UserResponse register(String username, String password, String email) {
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("Tên đăng nhập đã tồn tại");
         }
-        if (!isValidRole(role)) {
-            throw new IllegalArgumentException("Vai trò không hợp lệ: " + role);
+        String normalizedEmail = (email == null || email.isBlank()) ? null : email.trim();
+        if (normalizedEmail != null && userRepository.existsByEmail(normalizedEmail)) {
+            throw new IllegalArgumentException("Email đã được sử dụng");
         }
 
         User user = new User();
         user.setUsername(username);
-        user.setEmail(email);
+        user.setEmail(normalizedEmail);
         user.setPassword(passwordEncoder.encode(password));
-        user.setRole(Role.valueOf(role));
+        // Đăng ký công khai LUÔN là USER — không đọc role từ client (tránh leo quyền lên ADMIN).
+        // Muốn đổi vai trò phải qua API admin (UserService.updateRole).
+        user.setRole(Role.USER);
         user.setEnabled(true);
         user.setCreatedAt(java.time.LocalDateTime.now());
 
         User saved = userRepository.save(user);
-        return toResponse(saved);
+        return userMapper.toResponse(saved);
     }
 
     @Override
@@ -90,25 +97,6 @@ public class AuthServiceImpl implements AuthService {
         String username = ((UserDetails) principal).getUsername();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
-        return toResponse(user);
-    }
-
-    private UserResponse toResponse(User user) {
-        return new UserResponse(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getRole().name(),
-                user.isEnabled()
-        );
-    }
-
-    private boolean isValidRole(String role) {
-        try {
-            Role.valueOf(role);
-            return true;
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
+        return userMapper.toResponse(user);
     }
 }

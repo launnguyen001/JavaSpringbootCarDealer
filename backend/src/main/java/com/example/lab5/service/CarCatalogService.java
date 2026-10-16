@@ -23,11 +23,12 @@ public class CarCatalogService {
         this.carMapper = carMapper;
     }
 
+    // Chi tiết dòng xe: kèm danh sách TỪNG CHIẾC (car_items) đang có
     @Cacheable(cacheNames = "carDetail", key = "#id")
     public CarResponse getCarDetail(Long id) {
         Car car = carRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy xe có id = " + id));
-        return carMapper.toResponse(car);
+        return carMapper.toDetailResponse(car);
     }
 
     @Cacheable(cacheNames = "carSearch", key = "#name.toLowerCase()")

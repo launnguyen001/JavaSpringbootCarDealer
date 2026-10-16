@@ -9,5 +9,8 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
 
     List<OrderItem> findByOrder_IdOrderByIdAsc(Long orderId);
 
-    boolean existsByCar_Id(Long carId);
+    boolean existsByCarItem_Id(Long carItemId);
+
+    // Có giao dịch nào gắn với bất kỳ chiếc xe nào của dòng xe này không
+    boolean existsByCarItem_Car_Id(Long carId);
 }

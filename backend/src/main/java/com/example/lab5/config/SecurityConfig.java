@@ -51,6 +51,11 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // ---- Trang lỗi mặc định của Spring phải công khai ----
+                        // Nếu không, mọi lỗi 500 (ví dụ NPE) sẽ bị chuyển sang /error rồi bị chặn
+                        // và bị mask thành 401 "Chưa xác thực hoặc phiên làm việc đã hết hạn".
+                        .requestMatchers("/error").permitAll()
+
                         // ---- Tài liệu API ----
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
@@ -61,6 +66,7 @@ public class SecurityConfig {
                         // ---- Đọc catalog công khai (GET) ----
                         .requestMatchers(HttpMethod.GET,
                                 "/api/cars", "/api/cars/**",
+                                "/api/car-items", "/api/car-items/**",
                                 "/api/brands", "/api/brands/**",
                                 "/api/car-models", "/api/car-models/**",
                                 "/api/car-reviews", "/api/car-reviews/**",
@@ -72,6 +78,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/cars", "/api/cars/**").hasRole(ADMIN)
                         .requestMatchers(HttpMethod.PUT, "/api/cars", "/api/cars/**").hasRole(ADMIN)
                         .requestMatchers(HttpMethod.DELETE, "/api/cars", "/api/cars/**").hasRole(ADMIN)
+                        .requestMatchers(HttpMethod.PATCH, "/api/cars", "/api/cars/**").hasRole(ADMIN)
+                        // Từng chiếc xe vật lý: đọc công khai, ghi chỉ ADMIN
+                        .requestMatchers(HttpMethod.POST, "/api/car-items", "/api/car-items/**").hasRole(ADMIN)
+                        .requestMatchers(HttpMethod.PUT, "/api/car-items", "/api/car-items/**").hasRole(ADMIN)
+                        .requestMatchers(HttpMethod.PATCH, "/api/car-items", "/api/car-items/**").hasRole(ADMIN)
+                        .requestMatchers(HttpMethod.DELETE, "/api/car-items", "/api/car-items/**").hasRole(ADMIN)
                         .requestMatchers(HttpMethod.POST, "/api/brands", "/api/brands/**").hasRole(ADMIN)
                         .requestMatchers(HttpMethod.PUT, "/api/brands", "/api/brands/**").hasRole(ADMIN)
                         .requestMatchers(HttpMethod.DELETE, "/api/brands", "/api/brands/**").hasRole(ADMIN)
@@ -90,6 +102,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole(ADMIN)
 
                         // ---- Người dùng tự phục vụ (mọi role đã đăng nhập) ----
+                        // Phải đặt TRƯỚC rule staff của "/api/customers/**" bên dưới
+                        .requestMatchers(HttpMethod.GET, "/api/customers/me").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/customers/me").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/customers").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/car-reviews").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/car-reviews/*/replies").authenticated()
