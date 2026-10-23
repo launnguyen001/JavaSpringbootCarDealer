@@ -6,6 +6,7 @@ import java.util.List;
 public record CarMediaResponse(
         String id,
         Long carId,
+        String carName,
         String thumbnail,
         List<String> images,
         List<String> videos,

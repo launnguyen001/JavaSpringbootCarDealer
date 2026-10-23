@@ -83,7 +83,7 @@ class AuthControllerMockMvcTests {
 
     @Test
     void loginSuccessReturnsToken() throws Exception {
-        String body = loginAndExtractToken("admin", "admin");
+        loginAndExtractToken("admin", "admin");
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

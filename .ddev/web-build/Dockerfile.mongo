@@ -1,0 +1,36 @@
+#ddev-generated
+RUN <<'EOF'
+set -eu -o pipefail
+
+FALLBACK_VERSION=8.3
+FALLBACK_KEY=8.0
+PACKAGES=(mongodb-mongosh mongodb-database-tools)
+
+# Check which published release ships every package for this architecture, newest first
+VERSION=""
+for CANDIDATE in $(curl -fsSL "https://s3.amazonaws.com/repo.mongodb.org?list-type=2&prefix=apt/ubuntu/dists/noble/mongodb-org/&delimiter=/" \
+  | grep -oP '[0-9]+\.[0-9]+(?=/</Prefix>)' | sort -rV || true); do
+  INDEX="$(curl -fsSL "http://repo.mongodb.org/apt/ubuntu/dists/noble/mongodb-org/${CANDIDATE}/multiverse/binary-${TARGETARCH:-}/Packages")" || continue
+  for PACKAGE in "${PACKAGES[@]}"; do grep -qx "Package: ${PACKAGE}" <<<"${INDEX}" || continue 2; done
+  VERSION="${CANDIDATE}"; break
+done
+[ -n "${VERSION}" ] || { echo "Found no release shipping ${PACKAGES[*]}, using ${FALLBACK_VERSION}" >&2; VERSION="${FALLBACK_VERSION}"; }
+
+# Key names do not track releases: 8.x is signed with server-8.0, 9.x with server-9
+KEY="$(curl -fsSL "https://s3.amazonaws.com/pgp.mongodb.com" \
+  | grep -oP "server-\K${VERSION%%.*}(\.[0-9]+)?(?=\.asc<)" | sort -V | tail -1)" \
+  || { echo "Found no key for MongoDB ${VERSION}, using ${FALLBACK_VERSION}" >&2; VERSION="${FALLBACK_VERSION}"; KEY="${FALLBACK_KEY}"; }
+
+curl -fsSL "https://pgp.mongodb.com/server-${KEY}.asc" | gpg --dearmor >/usr/share/keyrings/mongodb-server.gpg
+
+cat >/etc/apt/sources.list.d/mongodb-server.sources <<EOT
+Types: deb
+URIs: http://repo.mongodb.org/apt/ubuntu
+Suites: noble/mongodb-org/${VERSION}
+Components: multiverse
+Signed-By: /usr/share/keyrings/mongodb-server.gpg
+EOT
+
+apt-get update || true
+apt-get install -y "${PACKAGES[@]}"
+EOF

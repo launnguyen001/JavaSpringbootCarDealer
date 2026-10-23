@@ -30,10 +30,11 @@ public class CarSpecificationMapper {
         return spec;
     }
 
-    public CarSpecificationResponse toResponse(CarSpecification spec) {
+    public CarSpecificationResponse toResponse(CarSpecification spec, String carName) {
         return new CarSpecificationResponse(
                 spec.getId(),
                 spec.getCarId(),
+                carName,
                 spec.getEngine(),
                 spec.getTransmission(),
                 spec.getFuelType(),

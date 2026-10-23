@@ -21,4 +21,7 @@ public interface CarReviewService {
     CarReview addReply(String reviewId, String author, String content);
 
     CarReviewSummary getSummary(Long carId);
+
+    /** Lấy tên xe từ SQL theo id (dùng hiển thị ở giao diện quản trị). */
+    String getCarName(Long carId);
 }

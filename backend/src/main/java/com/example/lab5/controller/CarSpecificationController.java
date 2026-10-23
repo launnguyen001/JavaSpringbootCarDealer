@@ -1,5 +1,6 @@
 package com.example.lab5.controller;
 
+import com.example.lab5.document.CarSpecification;
 import com.example.lab5.dto.CarSpecificationRequest;
 import com.example.lab5.dto.CarSpecificationResponse;
 import com.example.lab5.mapper.CarSpecificationMapper;
@@ -30,17 +31,20 @@ public class CarSpecificationController {
 
     @PutMapping
     public CarSpecificationResponse save(@Valid @RequestBody CarSpecificationRequest request) {
-        return mapper.toResponse(service.save(request));
+        CarSpecification saved = service.save(request);
+        return mapper.toResponse(saved, service.getCarName(saved.getCarId()));
     }
 
     @GetMapping
     public List<CarSpecificationResponse> getAll() {
-        return service.getAll().stream().map(mapper::toResponse).toList();
+        return service.getAll().stream()
+                .map(s -> mapper.toResponse(s, service.getCarName(s.getCarId())))
+                .toList();
     }
 
     @GetMapping("/{carId}")
     public CarSpecificationResponse getByCarId(@PathVariable Long carId) {
-        return mapper.toResponse(service.getByCarId(carId));
+        return mapper.toResponse(service.getByCarId(carId), service.getCarName(carId));
     }
 
     @DeleteMapping("/{carId}")

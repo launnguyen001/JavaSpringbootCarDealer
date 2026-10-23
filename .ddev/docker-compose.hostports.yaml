@@ -1,0 +1,12 @@
+# Custom override (hand-maintained, NOT #ddev-generated):
+# publish Redis & MongoDB to the host so a Spring Boot app running on the
+# host machine (backend/) can connect to localhost:6379 / localhost:27017
+# exactly as configured in backend/src/main/resources/application.properties.
+# MariaDB already gets a host port via `host_db_port: "3306"` in config.yaml.
+services:
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+  mongo:
+    ports:
+      - "127.0.0.1:27017:27017"

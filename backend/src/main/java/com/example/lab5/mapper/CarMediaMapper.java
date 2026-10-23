@@ -24,10 +24,11 @@ public class CarMediaMapper {
         return media;
     }
 
-    public CarMediaResponse toResponse(CarMedia media) {
+    public CarMediaResponse toResponse(CarMedia media, String carName) {
         return new CarMediaResponse(
                 media.getId(),
                 media.getCarId(),
+                carName,
                 media.getThumbnail(),
                 media.getImages(),
                 media.getVideos(),

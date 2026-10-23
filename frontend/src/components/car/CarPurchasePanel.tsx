@@ -20,7 +20,27 @@ interface Props {
 
 const CONDITION_LABEL: Record<string, string> = { NEW: 'Mới', USED: 'Đã dùng' };
 
-export default function CarPurchasePanel({ carId, carName }: Props) {
+/** Dropdown chọn chiếc xe cụ thể (đặt đầu card). */
+export function ItemPicker() {
+  const { available, selected, setSelectedId } = useSelectedItem();
+  if (available.length === 0) return null;
+
+  return (
+    <Field label="Chọn xe cụ thể">
+      <Select value={selected?.id ?? ''} onChange={(e) => setSelectedId(Number(e.target.value))}>
+        {available.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.vin ?? `#${item.id}`} • {CONDITION_LABEL[item.condition] ?? item.condition}
+            {item.color ? ` • ${item.color}` : ''} • {formatVnd(item.price)}
+          </option>
+        ))}
+      </Select>
+    </Field>
+  );
+}
+
+/** Nút đặt mua + đăng ký lái thử (đặt cuối card, dưới tổng tiền). */
+export function PurchaseActions({ carId, carName }: Props) {
   const { isAuthenticated } = useAuth();
   const router = useRouter();
   const toast = useToast();
@@ -29,7 +49,7 @@ export default function CarPurchasePanel({ carId, carName }: Props) {
   const [profileId, setProfileId] = useState<number | null>(null);
 
   // Lựa chọn chiếc xe được chia sẻ với khối giá/thông số ở trang chi tiết.
-  const { available, selected, setSelectedId } = useSelectedItem();
+  const { available, selected } = useSelectedItem();
   const hasItems = available.length > 0;
 
   const addToCart = async () => {
@@ -69,19 +89,6 @@ export default function CarPurchasePanel({ carId, carName }: Props) {
 
   return (
     <>
-      {hasItems && (
-        <Field label="Chọn xe cụ thể" className="mb-4">
-          <Select value={selected?.id ?? ''} onChange={(e) => setSelectedId(Number(e.target.value))}>
-            {available.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.vin ?? `#${item.id}`} • {CONDITION_LABEL[item.condition] ?? item.condition}
-                {item.color ? ` • ${item.color}` : ''} • {formatVnd(item.price)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      )}
-
       <Button
         variant="primary"
         size="lg"
@@ -115,6 +122,18 @@ export default function CarPurchasePanel({ carId, carName }: Props) {
           />
         )}
       </Modal>
+    </>
+  );
+}
+
+/** Giữ lại để tương thích ngược với chỗ nào còn import default. */
+export default function CarPurchasePanel(props: Props) {
+  return (
+    <>
+      <div className="mb-4">
+        <ItemPicker />
+      </div>
+      <PurchaseActions {...props} />
     </>
   );
 }

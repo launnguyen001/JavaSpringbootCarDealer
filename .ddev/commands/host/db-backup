@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+## Description: Sao lưu toàn bộ dữ liệu chính: MariaDB (ngoclaudb) + MongoDB (cardealer) vào .ddev/backups/
+## Usage: db-backup
+## Example: ddev db-backup
+
+set -euo pipefail
+
+BACKUP_DIR="${DDEV_APPROOT}/.ddev/backups"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+DB_NAME="ngoclaudb"
+MONGO_DB="cardealer"
+MONGO_USER="db"
+MONGO_PASS="db"
+
+mkdir -p "${BACKUP_DIR}"
+
+MARIA_FILE="${BACKUP_DIR}/mariadb-${DB_NAME}-${STAMP}.sql"
+MONGO_FILE="${BACKUP_DIR}/mongodb-${MONGO_DB}-${STAMP}.archive.gz"
+
+echo "==> MariaDB (${DB_NAME}) -> ${MARIA_FILE}"
+docker exec "ddev-${DDEV_SITENAME}-db" sh -c \
+  "exec mariadb-dump -uroot -proot --single-transaction --routines --events --databases ${DB_NAME}" \
+  > "${MARIA_FILE}"
+
+echo "==> MongoDB (${MONGO_DB}) -> ${MONGO_FILE}"
+docker exec "ddev-${DDEV_SITENAME}-mongo" sh -c \
+  "exec mongodump --username ${MONGO_USER} --password ${MONGO_PASS} --authenticationDatabase admin \
+   --db ${MONGO_DB} --archive --gzip" \
+  > "${MONGO_FILE}"
+
+echo
+echo "Đã sao lưu:"
+ls -lh "${MARIA_FILE}" "${MONGO_FILE}"

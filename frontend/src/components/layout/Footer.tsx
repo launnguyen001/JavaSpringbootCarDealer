@@ -13,8 +13,8 @@ export default function Footer() {
             <div>
               <h4 className="text-white font-medium text-sm mb-4 uppercase tracking-widest">Danh mục</h4>
               <ul className="space-y-2 text-[#9ca3af] text-sm">
-                <li><a href="/" className="hover:text-[#c58e00] transition-colors">Hãng xe</a></li>
-                <li><a href="/cars" className="hover:text-[#c58e00] transition-colors">Danh sách xe</a></li>
+                {/* <li><a href="/" className="hover:text-[#c58e00] transition-colors">Hãng xe</a></li>
+                <li><a href="/cars" className="hover:text-[#c58e00] transition-colors">Danh sách xe</a></li> */}
                 <li><a href="#" className="hover:text-[#c58e00] transition-colors">Lịch lái thử</a></li>
               </ul>
             </div>

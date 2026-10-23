@@ -6,6 +6,7 @@ import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
 import com.example.lab5.mapper.CarSpecificationMapper;
 import com.example.lab5.mongorepository.CarSpecificationRepository;
+import com.example.lab5.repository.CarRepository;
 import com.example.lab5.service.CarSpecificationService;
 import org.springframework.stereotype.Service;
 
@@ -17,13 +18,27 @@ public class CarSpecificationServiceImpl implements CarSpecificationService {
 
     private final CarSpecificationRepository repository;
     private final CarSpecificationMapper mapper;
+    private final CarRepository carRepository;
 
     public CarSpecificationServiceImpl(
             CarSpecificationRepository repository,
-            CarSpecificationMapper mapper
+            CarSpecificationMapper mapper,
+            CarRepository carRepository
     ) {
         this.repository = repository;
         this.mapper = mapper;
+        this.carRepository = carRepository;
+    }
+
+    /**
+     * Lấy tên xe từ SQL (carRepository). Nếu xe không tồn tại hoặc không đọc được thì trả null.
+     */
+    public String getCarName(Long carId) {
+        try {
+            return carRepository.findById(carId).map(car -> car.getName()).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override

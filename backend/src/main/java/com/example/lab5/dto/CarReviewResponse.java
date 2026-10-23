@@ -6,6 +6,7 @@ import java.util.List;
 public record CarReviewResponse(
         String id,
         Long carId,
+        String carName,
         Long customerId,
         String customerName,
         Integer rating,

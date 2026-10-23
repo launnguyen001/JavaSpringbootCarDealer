@@ -1,14 +1,16 @@
 'use client';
 
-import ResourceManager from '@/components/admin/ResourceManager';
+import { useEffect, useState } from 'react';
+import ResourceManager, { type FieldConfig } from '@/components/admin/ResourceManager';
 import {
   listCarSpecs,
   upsertCarSpecs,
   deleteCarSpecs,
+  listCars,
   type CarSpecificationRequest,
 } from '@/lib/api';
 import { formatDateTime } from '@/lib/utils/format';
-import type { CarSpecification } from '@/types';
+import type { Car, CarSpecification } from '@/types';
 
 function toArray(value: unknown): string[] {
   if (Array.isArray(value)) return value as string[];
@@ -42,6 +44,32 @@ function toPayload(payload: Record<string, unknown>): CarSpecificationRequest {
 }
 
 export default function AdminSpecsPage() {
+  const [cars, setCars] = useState<Car[]>([]);
+
+  useEffect(() => {
+    listCars().then(setCars).catch(() => setCars([]));
+  }, []);
+
+  const carOptions = cars.map((c) => ({ value: c.id, label: c.name }));
+
+  const fields: FieldConfig[] = [
+    {
+      name: 'carId',
+      label: 'Xe',
+      type: 'select',
+      required: true,
+      placeholder: '— Chọn xe —',
+      options: carOptions,
+    },
+    { name: 'engine', label: 'Động cơ' },
+    { name: 'transmission', label: 'Hộp số' },
+    { name: 'fuelType', label: 'Nhiên liệu' },
+    { name: 'seats', label: 'Số chỗ', type: 'number' },
+    { name: 'dimensions', label: 'Kích thước' },
+    { name: 'weightKg', label: 'Cân nặng (kg)', type: 'number' },
+    { name: 'safetyFeatures', label: 'Tính năng an toàn (phân cách bởi dấu phẩy)' },
+  ];
+
   return (
     <ResourceManager<CarSpecification>
       title="Thông số xe"
@@ -61,18 +89,9 @@ export default function AdminSpecsPage() {
         weightKg: row.weightKg ?? '',
         safetyFeatures: (row.safetyFeatures ?? []).join(', '),
       })}
-      fields={[
-        { name: 'carId', label: 'ID xe', type: 'number', required: true },
-        { name: 'engine', label: 'Động cơ' },
-        { name: 'transmission', label: 'Hộp số' },
-        { name: 'fuelType', label: 'Nhiên liệu' },
-        { name: 'seats', label: 'Số chỗ', type: 'number' },
-        { name: 'dimensions', label: 'Kích thước' },
-        { name: 'weightKg', label: 'Cân nặng (kg)', type: 'number' },
-        { name: 'safetyFeatures', label: 'Tính năng an toàn (phân cách bởi dấu phẩy)' },
-      ]}
+      fields={fields}
       columns={[
-        { key: 'carId', label: 'ID xe' },
+        { key: 'carId', label: 'Xe', render: (r) => r.carName ?? `ID ${r.carId}` },
         { key: 'engine', label: 'Động cơ', render: (r) => r.engine ?? '—' },
         { key: 'transmission', label: 'Hộp số', render: (r) => r.transmission ?? '—' },
         { key: 'fuelType', label: 'Nhiên liệu', render: (r) => r.fuelType ?? '—' },

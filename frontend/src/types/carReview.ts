@@ -7,6 +7,7 @@ export interface Reply {
 export interface CarReview {
   id: string;
   carId: number;
+  carName: string | null;
   customerId: number;
   customerName: string;
   rating: number;

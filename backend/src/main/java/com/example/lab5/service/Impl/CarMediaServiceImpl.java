@@ -6,6 +6,7 @@ import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
 import com.example.lab5.mapper.CarMediaMapper;
 import com.example.lab5.mongorepository.CarMediaRepository;
+import com.example.lab5.repository.CarRepository;
 import com.example.lab5.service.CarMediaService;
 import org.springframework.stereotype.Service;
 
@@ -17,10 +18,23 @@ public class CarMediaServiceImpl implements CarMediaService {
 
     private final CarMediaRepository repository;
     private final CarMediaMapper mapper;
+    private final CarRepository carRepository;
 
-    public CarMediaServiceImpl(CarMediaRepository repository, CarMediaMapper mapper) {
+    public CarMediaServiceImpl(CarMediaRepository repository, CarMediaMapper mapper, CarRepository carRepository) {
         this.repository = repository;
         this.mapper = mapper;
+        this.carRepository = carRepository;
+    }
+
+    /**
+     * Lấy tên xe từ SQL (carRepository). Nếu xe không tồn tại hoặc không đọc được thì trả null.
+     */
+    public String getCarName(Long carId) {
+        try {
+            return carRepository.findById(carId).map(car -> car.getName()).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override

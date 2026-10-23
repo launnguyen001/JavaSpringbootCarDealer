@@ -140,7 +140,7 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         ErrorResponse response = new ErrorResponse(
-                java.time.LocalDateTime.now().toString(),
+                LocalDateTime.now().toString(),
                 status.value(),
                 status.getReasonPhrase(),
                 message,

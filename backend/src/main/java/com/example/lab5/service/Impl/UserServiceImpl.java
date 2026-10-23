@@ -48,7 +48,7 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public List<UserResponse> listAll() {
         return userRepository.findAll().stream()
-                .sorted(Comparator.comparing(User::getId))
+                .sorted(Comparator.comparing(user -> user.getId()))
                 .map(userMapper::toResponse)
                 .toList();
     }
@@ -109,12 +109,13 @@ public class UserServiceImpl implements UserService {
             user.setEmail(normalized);
         }
 
-        boolean passwordChanged = newPassword != null && !newPassword.isBlank();
-        if (passwordChanged) {
+        boolean passwordChanged = false;
+        if (newPassword != null && !newPassword.isBlank()) {
             if (newPassword.length() < 4) {
                 throw new BadRequestException("Mật khẩu cần ít nhất 4 ký tự");
             }
             user.setPassword(passwordEncoder.encode(newPassword));
+            passwordChanged = true;
         }
 
         User saved = userRepository.save(user);

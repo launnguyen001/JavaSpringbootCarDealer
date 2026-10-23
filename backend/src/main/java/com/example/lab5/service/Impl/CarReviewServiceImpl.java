@@ -7,6 +7,7 @@ import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
 import com.example.lab5.mapper.CarReviewMapper;
 import com.example.lab5.mongorepository.CarReviewRepository;
+import com.example.lab5.repository.CarRepository;
 import com.example.lab5.service.CarReviewService;
 import org.springframework.stereotype.Service;
 
@@ -18,10 +19,27 @@ public class CarReviewServiceImpl implements CarReviewService {
 
     private final CarReviewRepository repository;
     private final CarReviewMapper mapper;
+    private final CarRepository carRepository;
 
-    public CarReviewServiceImpl(CarReviewRepository repository, CarReviewMapper mapper) {
+    public CarReviewServiceImpl(
+            CarReviewRepository repository,
+            CarReviewMapper mapper,
+            CarRepository carRepository
+    ) {
         this.repository = repository;
         this.mapper = mapper;
+        this.carRepository = carRepository;
+    }
+
+    /**
+     * Lấy tên xe từ SQL (carRepository). Nếu xe không tồn tại hoặc không đọc được thì trả null.
+     */
+    public String getCarName(Long carId) {
+        try {
+            return carRepository.findById(carId).map(car -> car.getName()).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override
@@ -99,7 +117,7 @@ public class CarReviewServiceImpl implements CarReviewService {
         List<CarReview> reviews = getByCar(carId);
         long total = reviews.size();
         double average = reviews.stream()
-                .mapToInt(CarReview::getRating)
+                .mapToInt(review -> review.getRating())
                 .average()
                 .orElse(0.0);
         double rounded = Math.round(average * 100.0) / 100.0;

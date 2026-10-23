@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+## Description: Phục hồi dữ liệu từ file sao lưu do `ddev db-backup` tạo (MariaDB .sql hoặc MongoDB .archive.gz)
+## Usage: db-restore <duong-dan-file-sao-luu>
+## Example: ddev db-restore .ddev/backups/mariadb-ngoclaudb-20261016-180000.sql
+
+set -euo pipefail
+
+FILE="${1:-}"
+DB_NAME="ngoclaudb"
+MONGO_DB="cardealer"
+MONGO_USER="db"
+MONGO_PASS="db"
+
+if [[ -z "${FILE}" ]]; then
+  echo "Thiếu tham số. Cách dùng: ddev db-restore <file .sql | .archive.gz>" >&2
+  echo "Các bản sao lưu hiện có:" >&2
+  ls -1 "${DDEV_APPROOT}/.ddev/backups" 2>/dev/null >&2 || echo "  (chưa có bản sao lưu nào)" >&2
+  exit 1
+fi
+
+[[ -f "${FILE}" ]] || { echo "Không tìm thấy file: ${FILE}" >&2; exit 1; }
+FILE="$(realpath "${FILE}")"
+
+case "${FILE}" in
+  *.sql)
+    echo "==> Phục hồi MariaDB (${DB_NAME}) từ ${FILE}"
+    echo "    (dữ liệu hiện có của các bảng sẽ bị ghi đè/khôi phục theo dump)"
+    docker exec -i "ddev-${DDEV_SITENAME}-db" sh -c \
+      "exec mariadb -uroot -proot" < "${FILE}"
+    echo "==> Xong. Bảng hiện có:"
+    docker exec "ddev-${DDEV_SITENAME}-db" sh -c \
+      "exec mariadb -uroot -proot -N -e \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}'\""
+    ;;
+  *.archive.gz)
+    echo "==> Phục hồi MongoDB (${MONGO_DB}) từ ${FILE}"
+    docker exec -i "ddev-${DDEV_SITENAME}-mongo" sh -c \
+      "exec mongorestore --username ${MONGO_USER} --password ${MONGO_PASS} --authenticationDatabase admin \
+       --archive --gzip --drop" < "${FILE}"
+    echo "==> Xong."
+    ;;
+  *)
+    echo "Định dạng không hỗ trợ: ${FILE} (chỉ nhận .sql hoặc .archive.gz)" >&2
+    exit 1
+    ;;
+esac

@@ -5,7 +5,7 @@ import { Car } from '@/types/car';
 import PriceTag from '@/components/ui/PriceTag';
 import StatusBadge from '@/components/ui/StatusBadge';
 import RatingStars from '@/components/ui/RatingStars';
-import Image from 'next/image';
+import Image from "next/image";
 
 interface CarCardProps {
   car: Car;
@@ -17,9 +17,11 @@ const CONDITION_LABEL: Record<string, string> = { NEW: 'Mới', USED: 'Đã dùn
 
 export default function CarCard({ car, compact = false }: CarCardProps) {
   const isAvailable = car.status === 'AVAILABLE';
-  const imageSrc = car.modelName?.toLowerCase().includes('camry')
+  // Ảnh từ media (car-media.thumbnail) ưu tiên; nếu chưa có thì dùng fallback Unsplash theo mẫu xe.
+  const fallbackImage = car.modelName?.toLowerCase().includes('camry')
     ? 'https://images.unsplash.com/photo-1607082348822-070a57f97f21?w=800&q=80'
     : 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&q=80';
+  const imageSrc = car.thumbnail ?? fallbackImage;
 
   // Giá hiển thị: khoảng giá theo các chiếc thực tế, nếu chỉ một mức thì lấy mức đó.
   const from = car.priceFrom ?? car.basePrice;
@@ -29,15 +31,14 @@ export default function CarCard({ car, compact = false }: CarCardProps) {
   return (
     <Link href={`/cars/${car.id}`} className="block group h-full">
       <div className="relative overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-sm transition-all duration-300 hover:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] hover:-translate-y-1">
-        <div className={`relative bg-[#f3f4f6] overflow-hidden ${compact ? 'h-32' : 'h-48'}`}>
-          <Image
+        <div className={`relative bg-[#f3f4f6] overflow-hidden ${compact ? 'aspect-[16/10]' : 'aspect-[4/3]'}`}>
+          <img
             src={imageSrc}
             alt={car.name}
-            fill
-            sizes={compact ? '(max-width: 768px) 100vw, 300px' : '(max-width: 768px) 100vw, 250px'}
-            className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
-            priority
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
           />
+
           {!isAvailable && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
               <span className="text-white font-serif font-bold text-sm tracking-widest uppercase">

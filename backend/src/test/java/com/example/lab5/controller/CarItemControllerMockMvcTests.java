@@ -33,7 +33,6 @@ class CarItemControllerMockMvcTests extends AbstractAdminMockMvcTest {
 
     private Long carId;
     private Long itemId;
-    private Long modelId;
 
     @BeforeEach
     void setUp() {
@@ -45,7 +44,7 @@ class CarItemControllerMockMvcTests extends AbstractAdminMockMvcTest {
         model.setName("Camry");
         model.setBrand(brand);
         entityManager.persist(model);
-        modelId = model.getId();
+
 
         Car car = new Car();
         car.setName("Camry 2.0");

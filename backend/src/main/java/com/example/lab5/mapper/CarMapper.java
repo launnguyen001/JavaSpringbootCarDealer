@@ -8,6 +8,7 @@ import com.example.lab5.entity.CarCondition;
 import com.example.lab5.entity.CarItem;
 import com.example.lab5.entity.CarModel;
 import com.example.lab5.entity.CarStatus;
+import com.example.lab5.mongorepository.CarMediaRepository;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -20,9 +21,11 @@ import java.util.Set;
 public class CarMapper {
 
     private final CarItemMapper carItemMapper;
+    private final CarMediaRepository carMediaRepository;
 
-    public CarMapper(CarItemMapper carItemMapper) {
+    public CarMapper(CarItemMapper carItemMapper, CarMediaRepository carMediaRepository) {
         this.carItemMapper = carItemMapper;
+        this.carMediaRepository = carMediaRepository;
     }
 
     public Car toEntity(CarRequest request) {
@@ -98,7 +101,7 @@ public class CarMapper {
         }
 
         List<CarCondition> conditionList = new ArrayList<>(conditions);
-        conditionList.sort(Comparator.comparingInt(Enum::ordinal));
+        conditionList.sort(Comparator.comparingInt((CarCondition condition) -> condition.ordinal()));
 
         List<CarItemResponse> itemResponses = includeItems
                 ? items.stream().map(item -> carItemMapper.toResponse(item, car)).toList()
@@ -114,6 +117,9 @@ public class CarMapper {
                 brandName = car.getModel().getBrand().getName();
             }
         }
+
+        // Ảnh đại diện (thumbnail) từ car-media Mongo; nếu chưa có/không đọc được thì null (dùng fallback ở UI).
+        String thumbnail = fetchThumbnail(car.getId());
 
         return new CarResponse(
                 car.getId(),
@@ -132,8 +138,23 @@ public class CarMapper {
                 modelId,
                 modelName,
                 brandName,
+                thumbnail,
                 itemResponses
         );
+    }
+
+    /**
+     * Đọc thumbnail của xe từ MongoDB car-media. Bọc try-catch vì môi trường test chỉ tạo bean Mongo
+     * mà chưa chắc đã kết nối được — trong trường hợp đó coi như không có media (trả null).
+     */
+    private String fetchThumbnail(Long carId) {
+        try {
+            return carMediaRepository.findByCarId(carId)
+                    .map(media -> media.getThumbnail())
+                    .orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // Trạng thái hiển thị của dòng xe suy ra từ các chiếc thực tế

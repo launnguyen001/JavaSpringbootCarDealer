@@ -1,6 +1,7 @@
 export interface CarSpecification {
   id: string;
   carId: number;
+  carName: string | null;
   engine: string | null;
   transmission: string | null;
   fuelType: string | null;

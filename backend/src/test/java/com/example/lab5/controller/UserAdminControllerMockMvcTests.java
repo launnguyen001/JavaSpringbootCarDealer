@@ -1,7 +1,6 @@
 package com.example.lab5.controller;
 
 import com.example.lab5.entity.Role;
-import com.example.lab5.entity.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 

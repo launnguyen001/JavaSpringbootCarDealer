@@ -1,5 +1,6 @@
 package com.example.lab5.controller;
 
+import com.example.lab5.document.CarMedia;
 import com.example.lab5.dto.CarMediaRequest;
 import com.example.lab5.dto.CarMediaResponse;
 import com.example.lab5.mapper.CarMediaMapper;
@@ -30,17 +31,20 @@ public class CarMediaController {
 
     @PutMapping
     public CarMediaResponse save(@Valid @RequestBody CarMediaRequest request) {
-        return mapper.toResponse(service.save(request));
+        CarMedia saved = service.save(request);
+        return mapper.toResponse(saved, service.getCarName(saved.getCarId()));
     }
 
     @GetMapping
     public List<CarMediaResponse> getAll() {
-        return service.getAll().stream().map(mapper::toResponse).toList();
+        return service.getAll().stream()
+                .map(m -> mapper.toResponse(m, service.getCarName(m.getCarId())))
+                .toList();
     }
 
     @GetMapping("/{carId}")
     public CarMediaResponse getByCarId(@PathVariable Long carId) {
-        return mapper.toResponse(service.getByCarId(carId));
+        return mapper.toResponse(service.getByCarId(carId), service.getCarName(carId));
     }
 
     @DeleteMapping("/{carId}")

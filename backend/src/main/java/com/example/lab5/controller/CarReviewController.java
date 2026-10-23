@@ -37,17 +37,22 @@ public class CarReviewController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CarReviewResponse create(@Valid @RequestBody CarReviewRequest request) {
-        return mapper.toResponse(service.create(request));
+        CarReview saved = service.create(request);
+        return mapper.toResponse(saved, service.getCarName(saved.getCarId()));
     }
 
     @GetMapping
     public List<CarReviewResponse> getAll() {
-        return service.getAll().stream().map(mapper::toResponse).toList();
+        return service.getAll().stream()
+                .map(r -> mapper.toResponse(r, service.getCarName(r.getCarId())))
+                .toList();
     }
 
     @GetMapping("/car/{carId}")
     public List<CarReviewResponse> getByCar(@PathVariable Long carId) {
-        return service.getByCar(carId).stream().map(mapper::toResponse).toList();
+        return service.getByCar(carId).stream()
+                .map(r -> mapper.toResponse(r, service.getCarName(r.getCarId())))
+                .toList();
     }
 
     @PutMapping("/{id}")
@@ -55,7 +60,8 @@ public class CarReviewController {
             @PathVariable String id,
             @Valid @RequestBody CarReviewRequest request
     ) {
-        return mapper.toResponse(service.update(id, request));
+        CarReview updated = service.update(id, request);
+        return mapper.toResponse(updated, service.getCarName(updated.getCarId()));
     }
 
     @DeleteMapping("/{id}")
@@ -76,6 +82,6 @@ public class CarReviewController {
             @RequestParam String content
     ) {
         CarReview review = service.addReply(reviewId, author, content);
-        return mapper.toResponse(review);
+        return mapper.toResponse(review, service.getCarName(review.getCarId()));
     }
 }

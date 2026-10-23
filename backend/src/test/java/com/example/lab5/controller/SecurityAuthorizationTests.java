@@ -3,15 +3,12 @@ package com.example.lab5.controller;
 import com.example.lab5.entity.Brand;
 import com.example.lab5.entity.CarModel;
 import com.example.lab5.entity.Role;
-import com.example.lab5.entity.User;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;

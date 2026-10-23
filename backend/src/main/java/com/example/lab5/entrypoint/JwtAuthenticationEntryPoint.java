@@ -29,7 +29,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
         ErrorResponse error = new ErrorResponse(
-                java.time.LocalDateTime.now().toString(),
+                LocalDateTime.now().toString(),
                 HttpStatus.UNAUTHORIZED.value(),
                 HttpStatus.UNAUTHORIZED.getReasonPhrase(),
                 "Chưa xác thực hoặc phiên làm việc đã hết hạn",

@@ -131,41 +131,50 @@ export default function AdminDashboardPage() {
   const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
   const [detailOrderId, setDetailOrderId] = useState<number | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [s, inv, sc, tc, rbm, invs] = await Promise.all([
-        getDashboardSummary(),
-        getInventoryByBrand(),
-        getOrdersByStatusCount(),
-        getTopSellingCars(5),
-        getRevenueByMonth(),
-        listInvoices().catch(() => [] as Invoice[]),
-      ]);
-      setSummary(s);
-      setInventory(inv);
-      setStatusCounts(sc);
-      setTopCars(tc);
-      setRevenueByMonth(rbm);
-      // Hóa đơn gần đây: sắp xếp theo ngày phát hành giảm dần, lấy 8 bản mới nhất
-      setRecentInvoices(
-        [...invs]
-          .sort(
-            (a, b) =>
-              (b.issuedAt ? Date.parse(b.issuedAt) : 0) - (a.issuedAt ? Date.parse(a.issuedAt) : 0),
-          )
-          .slice(0, 8),
-      );
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const fetchDashboard = useCallback(async () => {
+    const [s, inv, sc, tc, rbm, invs] = await Promise.all([
+      getDashboardSummary(),
+      getInventoryByBrand(),
+      getOrdersByStatusCount(),
+      getTopSellingCars(5),
+      getRevenueByMonth(),
+      listInvoices().catch(() => [] as Invoice[]),
+    ]);
+    return { s, inv, sc, tc, rbm, invs };
+  }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { s, inv, sc, tc, rbm, invs } = await fetchDashboard();
+        if (cancelled) return;
+        setSummary(s);
+        setInventory(inv);
+        setStatusCounts(sc);
+        setTopCars(tc);
+        setRevenueByMonth(rbm);
+        setRecentInvoices(
+          [...invs]
+            .sort(
+              (a, b) =>
+                (b.issuedAt ? Date.parse(b.issuedAt) : 0) -
+                (a.issuedAt ? Date.parse(a.issuedAt) : 0),
+            )
+            .slice(0, 8),
+        );
+      } catch (err) {
+        if (!cancelled) toast.error(getErrorMessage(err));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchDashboard, toast]);
 
   const openStatusDrill = async (status: string) => {
     setDrill({ type: 'status', status });

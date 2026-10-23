@@ -14,4 +14,7 @@ public interface CarMediaService {
     CarMedia getByCarId(Long carId);
 
     void deleteByCarId(Long carId);
+
+    /** Lấy tên xe từ SQL theo id (dùng hiển thị ở giao diện quản trị). */
+    String getCarName(Long carId);
 }

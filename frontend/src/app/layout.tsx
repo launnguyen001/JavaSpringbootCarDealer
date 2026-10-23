@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
+import ConditionalFooter from '@/components/layout/ConditionalFooter';
 import { AuthProvider } from '@/context/AuthContext';
 import { ToastProvider } from '@/components/ui/Toast';
 
@@ -39,7 +39,7 @@ export default function RootLayout({
             <Suspense fallback={<div className="min-h-[600px] flex items-center justify-center" />}>
               <main>{children}</main>
             </Suspense>
-            <Footer />
+            <ConditionalFooter />
           </ToastProvider>
         </AuthProvider>
       </body>

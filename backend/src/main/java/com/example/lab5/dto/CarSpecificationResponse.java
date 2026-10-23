@@ -7,6 +7,7 @@ import java.util.Map;
 public record CarSpecificationResponse(
         String id,
         Long carId,
+        String carName,
         String engine,
         String transmission,
         String fuelType,

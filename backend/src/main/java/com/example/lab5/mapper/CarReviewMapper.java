@@ -27,10 +27,11 @@ public class CarReviewMapper {
         return review;
     }
 
-    public CarReviewResponse toResponse(CarReview review) {
+    public CarReviewResponse toResponse(CarReview review, String carName) {
         return new CarReviewResponse(
                 review.getId(),
                 review.getCarId(),
+                carName,
                 review.getCustomerId(),
                 review.getCustomerName(),
                 review.getRating(),

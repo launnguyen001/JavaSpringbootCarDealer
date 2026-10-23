@@ -125,7 +125,7 @@ class SalesOrderServiceTests {
 
         List<OrderOptionResponse> options = salesOrderService.getOrderOptions("invoice");
 
-        assertThat(options).extracting(OrderOptionResponse::orderId).containsExactly(eligible.getId());
+        assertThat(options).extracting(option -> option.orderId()).containsExactly(eligible.getId());
         OrderOptionResponse option = options.getFirst();
         assertThat(option.customerName()).isEqualTo("Nguyễn Văn A");
         assertThat(option.hasInvoice()).isFalse();
@@ -145,7 +145,7 @@ class SalesOrderServiceTests {
 
         List<OrderOptionResponse> options = salesOrderService.getOrderOptions("contract");
 
-        assertThat(options).extracting(OrderOptionResponse::orderId).containsExactly(eligible.getId());
+        assertThat(options).extracting(option -> option.orderId()).containsExactly(eligible.getId());
         assertThat(options.getFirst().hasContract()).isFalse();
     }
 
@@ -163,7 +163,7 @@ class SalesOrderServiceTests {
 
         List<OrderOptionResponse> options = salesOrderService.getOrderOptions("payment");
 
-        assertThat(options).extracting(OrderOptionResponse::orderId).containsExactly(order.getId());
+        assertThat(options).extracting(option -> option.orderId()).containsExactly(order.getId());
         OrderOptionResponse option = options.getFirst();
         assertThat(option.paidAmount()).isEqualTo(50.0);
         assertThat(option.remainingAmount()).isEqualTo(option.totalAmount() - 50.0);

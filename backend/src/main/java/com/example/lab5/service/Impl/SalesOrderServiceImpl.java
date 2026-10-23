@@ -133,7 +133,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 continue;
             }
             double amount = payment.getAmount() == null ? 0.0 : payment.getAmount();
-            paidByOrder.merge(payment.getOrder().getId(), amount, Double::sum);
+            paidByOrder.merge(payment.getOrder().getId(), amount, (paid, extra) -> paid + extra);
         }
 
         return orders.stream().map(order -> {

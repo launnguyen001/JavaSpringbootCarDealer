@@ -2,7 +2,6 @@ package com.example.lab5.config;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -43,7 +42,7 @@ public class JwtUtils {
                 .claim("roles", roles)
                 .issuedAt(now)
                 .expiration(expiry)
-                .signWith(key, SignatureAlgorithm.HS256)
+                .signWith(key, Jwts.SIG.HS256)
                 .compact();
     }
 
@@ -56,7 +55,7 @@ public class JwtUtils {
         Object roles = claims.get("roles");
         if (roles instanceof List<?>) {
             return ((List<?>) roles).stream()
-                    .map(Object::toString)
+                    .map(role -> String.valueOf(role))
                     .collect(Collectors.toList());
         }
         return List.of();

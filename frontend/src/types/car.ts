@@ -45,5 +45,6 @@ export interface Car {
   modelId: number | null;
   modelName: string | null;
   brandName: string | null;
+  thumbnail: string | null;
   items: CarItem[];
 }

@@ -255,7 +255,7 @@ public class DataSeeder implements CommandLineRunner {
 
         Car trimCamry25 = carRepository.save(car("Toyota Camry 2.5Q", 1200.0,
                 "Camry 2.5Q bản cao cấp, cửa sổ trời, ghế chỉnh điện.", camry));
-        CarItem camry25 = stock(trimCamry25, "VIN-CAM25-", 1200.0, 3, 2024, "Trắng", CarStatus.AVAILABLE);
+        stock(trimCamry25, "VIN-CAM25-", 1200.0, 3, 2024, "Trắng", CarStatus.AVAILABLE);
 
         Car trimCorolla = carRepository.save(car("Toyota Corolla Cross 1.8V", 800.0,
                 "Crossover đô thị, gói an toàn Toyota Safety Sense.", corolla));
@@ -263,7 +263,7 @@ public class DataSeeder implements CommandLineRunner {
 
         Car trimFortuner = carRepository.save(car("Toyota Fortuner 2.4G", 1150.0,
                 "SUV 7 chỗ khung gầm rời, máy dầu 2.4L.", fortuner));
-        CarItem fortunerCar = stock(trimFortuner, "VIN-FOR-", 1150.0, 4, 2024, "Xám", CarStatus.RESERVED);
+        stock(trimFortuner, "VIN-FOR-", 1150.0, 4, 2024, "Xám", CarStatus.RESERVED);
 
         Car trimCivic = carRepository.save(car("Honda Civic 1.5 RS", 780.0,
                 "Civic RS thể thao, động cơ turbo 1.5L.", civic));
@@ -283,7 +283,7 @@ public class DataSeeder implements CommandLineRunner {
 
         Car trimEverest = carRepository.save(car("Ford Everest Titanium", 1300.0,
                 "SUV 7 chỗ Titanium, động cơ dầu 2.0L.", everest));
-        CarItem everestCar = stock(trimEverest, "VIN-EVE-", 1300.0, 3, 2024, "Đen", CarStatus.RESERVED);
+        stock(trimEverest, "VIN-EVE-", 1300.0, 3, 2024, "Đen", CarStatus.RESERVED);
 
         Car trimC300 = carRepository.save(car("Mercedes-Benz C300 AMG", 1900.0,
                 "C300 AMG Line, động cơ 2.0L tăng áp.", cClass));
@@ -307,19 +307,19 @@ public class DataSeeder implements CommandLineRunner {
 
         Car trimBmwX5 = carRepository.save(car("BMW X5 xDrive40i", 4200.0,
                 "X5 xDrive40i, SUV sang cỡ lớn.", bmwX5));
-        CarItem bmwx5Car = stock(trimBmwX5, "VIN-BMWX-", 4200.0, 2, 2024, "Trắng", CarStatus.MAINTENANCE);
+        stock(trimBmwX5, "VIN-BMWX-", 4200.0, 2, 2024, "Trắng", CarStatus.MAINTENANCE);
 
         Car trimA4 = carRepository.save(car("Audi A4 40 TFSI", 1700.0,
                 "A4 40 TFSI, thiết kế tối giản sang trọng.", a4));
-        CarItem a4Car = stock(trimA4, "VIN-AUD4-", 1700.0, 3, 2023, "Trắng", CarStatus.AVAILABLE);
+        stock(trimA4, "VIN-AUD4-", 1700.0, 3, 2023, "Trắng", CarStatus.AVAILABLE);
 
         Car trimQ5 = carRepository.save(car("Audi Q5 45 TFSI quattro", 2300.0,
                 "Q5 quattro, SUV sang cỡ trung.", q5));
-        CarItem q5Car = stock(trimQ5, "VIN-AUD5-", 2300.0, 2, 2024, "Đen", CarStatus.AVAILABLE);
+        stock(trimQ5, "VIN-AUD5-", 2300.0, 2, 2024, "Đen", CarStatus.AVAILABLE);
 
         Car trimEs = carRepository.save(car("Lexus ES 250", 2700.0,
                 "ES 250 êm ái, nội thất tinh tế.", es));
-        CarItem es250 = stock(trimEs, "VIN-LEXE-", 2700.0, 2, 2024, "Trắng", CarStatus.AVAILABLE);
+        stock(trimEs, "VIN-LEXE-", 2700.0, 2, 2024, "Trắng", CarStatus.AVAILABLE);
 
         Car trimRx = carRepository.save(car("Lexus RX 350", 3500.0,
                 "RX 350 SUV sang cỡ lớn.", rx));
@@ -362,7 +362,7 @@ public class DataSeeder implements CommandLineRunner {
                 "0911000002", "Quản lý kinh doanh"));
         Employee e3 = employeeRepository.save(employee("Trương Văn Nam", "nam.truong@cardealer.vn",
                 "0911000003", "Nhân viên kinh doanh"));
-        Employee e4 = employeeRepository.save(employee("Ngô Thị Lan", "lan.ngo@cardealer.vn",
+        employeeRepository.save(employee("Ngô Thị Lan", "lan.ngo@cardealer.vn",
                 "0911000004", "Cố vấn dịch vụ"));
 
         // ---------- Đơn hàng ----------

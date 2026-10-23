@@ -1,13 +1,15 @@
 'use client';
 
-import ResourceManager from '@/components/admin/ResourceManager';
+import { useEffect, useState } from 'react';
+import ResourceManager, { type FieldConfig } from '@/components/admin/ResourceManager';
 import {
   listCarMedia,
   upsertCarMedia,
   deleteCarMedia,
+  listCars,
   type CarMediaRequest,
 } from '@/lib/api';
-import type { CarMedia } from '@/types';
+import type { Car, CarMedia } from '@/types';
 
 function toArray(value: unknown): string[] {
   if (Array.isArray(value)) return value as string[];
@@ -30,6 +32,28 @@ function toPayload(payload: Record<string, unknown>): CarMediaRequest {
 }
 
 export default function AdminMediaPage() {
+  const [cars, setCars] = useState<Car[]>([]);
+
+  useEffect(() => {
+    listCars().then(setCars).catch(() => setCars([]));
+  }, []);
+
+  const carOptions = cars.map((c) => ({ value: c.id, label: c.name }));
+
+  const fields: FieldConfig[] = [
+    {
+      name: 'carId',
+      label: 'Xe',
+      type: 'select',
+      required: true,
+      placeholder: '— Chọn xe —',
+      options: carOptions,
+    },
+    { name: 'thumbnail', label: 'Ảnh đại diện (URL)' },
+    { name: 'images', label: 'Danh sách ảnh (mỗi dòng 1 URL)', type: 'textarea' },
+    { name: 'videos', label: 'Danh sách video (mỗi dòng 1 URL)', type: 'textarea' },
+  ];
+
   return (
     <ResourceManager<CarMedia>
       title="Media xe"
@@ -45,14 +69,9 @@ export default function AdminMediaPage() {
         images: (row.images ?? []).join('\n'),
         videos: (row.videos ?? []).join('\n'),
       })}
-      fields={[
-        { name: 'carId', label: 'ID xe', type: 'number', required: true },
-        { name: 'thumbnail', label: 'Ảnh đại diện (URL)' },
-        { name: 'images', label: 'Danh sách ảnh (mỗi dòng 1 URL)', type: 'textarea' },
-        { name: 'videos', label: 'Danh sách video (mỗi dòng 1 URL)', type: 'textarea' },
-      ]}
+      fields={fields}
       columns={[
-        { key: 'carId', label: 'ID xe' },
+        { key: 'carId', label: 'Xe', render: (r) => r.carName ?? `ID ${r.carId}` },
         {
           key: 'thumbnail',
           label: 'Ảnh đại diện',

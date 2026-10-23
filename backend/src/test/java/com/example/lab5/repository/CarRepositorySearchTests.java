@@ -6,6 +6,7 @@ import com.example.lab5.entity.CarCondition;
 import com.example.lab5.entity.CarItem;
 import com.example.lab5.entity.CarModel;
 import com.example.lab5.entity.CarStatus;
+
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,7 +51,7 @@ class CarRepositorySearchTests {
     @Test
     void searchByNameIgnoresCaseAndMatchesPartOfName() {
         assertThat(carRepository.findByNameContainingIgnoreCaseOrderByIdAsc("CAMRY"))
-                .extracting(Car::getName)
+                .extracting(car -> car.getName())
                 .containsExactly("Camry 2.0", "Camry 2.5");
         assertThat(carRepository.findByNameContainingIgnoreCaseOrderByIdAsc("lexus"))
                 .isEmpty();
@@ -60,10 +61,10 @@ class CarRepositorySearchTests {
     void searchByItemPriceIncludesBothBoundaries() {
         // Xe có ít nhất một chiếc trong khoảng giá [100, 200]
         assertThat(carRepository.findByItemPriceBetween(100.0, 200.0))
-                .extracting(Car::getName)
+                .extracting(car -> car.getName())
                 .containsExactly("Camry 2.0", "Civic 1.5", "Corolla Altis");
         assertThat(carRepository.findByItemPriceBetween(300.0, 300.0))
-                .extracting(Car::getName)
+                .extracting(car -> car.getName())
                 .containsExactly("Corolla Cross");
         assertThat(carRepository.findByItemPriceBetween(500.0, 600.0))
                 .isEmpty();
@@ -72,7 +73,7 @@ class CarRepositorySearchTests {
     @Test
     void searchByMinimumAvailableItemsIncludesBoundary() {
         assertThat(carRepository.findWithItemsStatusAtLeast(CarStatus.AVAILABLE, 5))
-                .extracting(Car::getName)
+                .extracting(car -> car.getName())
                 .containsExactly(
                         "Camry 2.0", "Corolla Cross", "Civic 1.5", "Civic Type R", "Corolla Altis"
                 );
@@ -84,15 +85,15 @@ class CarRepositorySearchTests {
     void advancedSearchByModelJoinsAndAppliesEveryFilter() {
         assertThat(carRepository.searchByModelAndPriceAndQuantity(
                 "camry", 100.0, 200.0, 5, CarStatus.AVAILABLE))
-                .extracting(Car::getName)
+                .extracting(car -> car.getName())
                 .containsExactly("Camry 2.0");
         assertThat(carRepository.searchByModelAndPriceAndQuantity(
                 "corolla", 100.0, 200.0, 5, CarStatus.AVAILABLE))
-                .extracting(Car::getName)
+                .extracting(car -> car.getName())
                 .containsExactly("Corolla Altis");
         assertThat(carRepository.searchByModelAndPriceAndQuantity(
                 "corolla", 200.0, 200.0, 10, CarStatus.AVAILABLE))
-                .extracting(Car::getName)
+                .extracting(car -> car.getName())
                 .containsExactly("Corolla Altis");
         assertThat(carRepository.searchByModelAndPriceAndQuantity(
                 "camry", 100.0, 200.0, 11, CarStatus.AVAILABLE))
@@ -106,15 +107,15 @@ class CarRepositorySearchTests {
     void advancedSearchByBrandJoinsAndAppliesEveryFilter() {
         assertThat(carRepository.searchByBrandAndPriceAndQuantity(
                 "toyota", 0.0, 500.0, 0, CarStatus.AVAILABLE))
-                .extracting(Car::getName)
+                .extracting(car -> car.getName())
                 .containsExactly("Camry 2.0", "Corolla Cross", "Corolla Altis");
         assertThat(carRepository.searchByBrandAndPriceAndQuantity(
                 "honda", 100.0, 200.0, 5, CarStatus.AVAILABLE))
-                .extracting(Car::getName)
+                .extracting(car -> car.getName())
                 .containsExactly("Civic 1.5");
         assertThat(carRepository.searchByBrandAndPriceAndQuantity(
                 "toyota", 100.0, 200.0, 10, CarStatus.AVAILABLE))
-                .extracting(Car::getName)
+                .extracting(car -> car.getName())
                 .containsExactly("Corolla Altis");
     }
 

@@ -31,6 +31,7 @@ public record CarResponse(
         Long modelId,
         String modelName,
         String brandName,
+        String thumbnail,
         List<CarItemResponse> items
 ) {
 }
