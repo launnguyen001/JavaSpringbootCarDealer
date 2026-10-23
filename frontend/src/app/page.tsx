@@ -111,23 +111,31 @@ export default async function Home({ searchParams }: HomeProps) {
           <p className="text-[#9ca3af] text-lg mb-10 max-w-xl mx-auto font-light tracking-wide">
             Để lại thông tin, đội ngũ chuyên gia của chúng tôi sẽ liên hệ sớm nhất.
           </p>
-          <form className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
-            <input
-              type="text"
-              placeholder="Họ tên"
-              className="flex-1 px-6 py-4 rounded-xl border border-[#1f2937] bg-white text-[#0a0a0a] text-sm focus:outline-none focus:ring-2 focus:ring-[#c58e00]"
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              className="flex-1 px-6 py-4 rounded-xl border border-[#1f2937] bg-white text-[#0a0a0a] text-sm focus:outline-none focus:ring-2 focus:ring-[#c58e00]"
-            />
-            <button
-              type="submit"
-              className="px-10 py-4 bg-[#c58e00] text-white font-serif font-bold text-lg tracking-widest uppercase hover:bg-[#8a6d00] transition-colors shadow-lg shadow-[#c58e00]/40"
-            >
-              Gửi đăng ký
-            </button>
+          <form className="mx-auto w-full max-w-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 rounded-xl bg-white/5 backdrop-blur">
+              <input
+                type="text"
+                name="name"
+                placeholder="Họ tên"
+                autoComplete="name"
+                required
+                className="flex-1 min-w-0 h-11 px-4 rounded-xl bg-white text-[#0a0a0a] text-sm placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#c58e00]"
+              />
+              <input
+                type="email"
+                name="email"
+                placeholder="Email"
+                autoComplete="email"
+                required
+                className="flex-1 min-w-0 h-11 px-4 rounded-xl bg-white text-[#0a0a0a] text-sm placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#c58e00]"
+              />
+              <button
+                type="submit"
+                className="h-11 px-6 rounded-xl bg-[#c58e00] text-white text-sm font-semibold tracking-wide whitespace-nowrap transition-colors hover:bg-[#a87800] focus:outline-none focus:ring-2 focus:ring-[#c58e00]/60 focus:ring-offset-2 focus:ring-offset-[#0a0a0a]"
+              >
+                Gửi đăng ký
+              </button>
+            </div>
           </form>
         </div>
       </section>
