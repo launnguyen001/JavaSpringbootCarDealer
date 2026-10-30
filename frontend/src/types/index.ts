@@ -35,6 +35,7 @@ export type {
   ChatMessageRequest,
   ChatRoomRequest,
   ChatMessagePage,
+  ChatUser,
 } from './chat';
 export type {
   DashboardSummary,
