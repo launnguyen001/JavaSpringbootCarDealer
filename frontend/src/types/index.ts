@@ -36,6 +36,8 @@ export type {
   ChatRoomRequest,
   ChatMessagePage,
   ChatUser,
+  ChatRealtimeEvent,
+  ChatReadState,
 } from './chat';
 export type {
   DashboardSummary,
