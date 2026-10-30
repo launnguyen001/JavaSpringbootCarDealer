@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
-import { Field, Input, Select } from '@/components/ui/Field';
+import { Field, Select } from '@/components/ui/Field';
 import DataTable, { type Column } from '@/components/ui/DataTable';
 import StatusPill from '@/components/ui/StatusPill';
 import OrderDetailModal from '@/components/admin/OrderDetailModal';
@@ -241,21 +241,25 @@ export default function AdminOrdersPage() {
         }
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="ID khách hàng" required>
-            <Input
-              type="number"
-              value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              placeholder="VD: 1"
-            />
+          <Field label="Khách hàng" required>
+            <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+              <option value="">— Chọn khách hàng —</option>
+              {customers.map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.fullName}{customer.phone ? ` · ${customer.phone}` : ''}{customer.email ? ` · ${customer.email}` : ''}
+                </option>
+              ))}
+            </Select>
           </Field>
-          <Field label="ID nhân viên phụ trách">
-            <Input
-              type="number"
-              value={employeeId}
-              onChange={(e) => setEmployeeId(e.target.value)}
-              placeholder="Có thể bỏ trống"
-            />
+          <Field label="Nhân viên phụ trách">
+            <Select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
+              <option value="">— Chưa phân công —</option>
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.fullName}{employee.position ? ` · ${employee.position}` : ''}
+                </option>
+              ))}
+            </Select>
           </Field>
         </div>
 
