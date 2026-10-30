@@ -50,3 +50,10 @@ export interface ChatMessagePage {
   first: boolean;
   last: boolean;
 }
+
+/** Người dùng có thể bắt đầu cuộc trò chuyện mới. */
+export interface ChatUser {
+  id: number;
+  username: string;
+  role: 'ADMIN' | 'EMPLOYEE' | 'USER';
+}
