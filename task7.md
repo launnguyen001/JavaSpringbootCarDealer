@@ -10,7 +10,12 @@
 > - Đảm bảo phân quyền an toàn: yêu cầu đăng nhập khi gửi phản hồi, tự động nhận diện danh xưng tác giả (khách hàng hoặc đại lý).
 > - Giữ vững tiêu chuẩn chất lượng: `npx tsc --noEmit` sạch 0 lỗi, `npm run build` xanh, giao diện chuẩn Design System Car Dealer (gam màu `#0a0a0a` & vàng hoàng gia `#c58e00`/`#f59e0b`).
 >
-> **Trạng thái: LÊN KẾ HOẠCH (PLANNING)**
+> **Trạng thái: HOÀN TẤT TRIỂN KHAI (IMPLEMENTED)**
+> - Đã tạo `frontend/src/components/admin/ReviewReplyModal.tsx` để quản trị viên / nhân viên xem lịch sử và gửi phản hồi đại lý.
+> - Đã cập nhật `frontend/src/app/admin/reviews/page.tsx` thêm cột số lượng phản hồi và nút thao tác "Phản hồi".
+> - Đã tạo `frontend/src/components/car/ReviewItem.tsx` hiển thị phản hồi lồng lề (kèm tên, ngày giờ, badge đại lý) và form trả lời trực tiếp cho người dùng.
+> - Đã cập nhật `frontend/src/app/cars/[id]/page.tsx` sử dụng `ReviewItem`.
+> - Kiểm tra TypeScript (`npx tsc --noEmit`): 0 lỗi.
 
 ---
 

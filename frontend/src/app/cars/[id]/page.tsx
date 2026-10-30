@@ -15,6 +15,7 @@
 // import { SelectedItemProvider } from '@/components/car/SelectedItemContext';
 // import { SelectedItemTotal, SelectedItemSpecs } from '@/components/car/SelectedItemSummary';
 // import ReviewForm from '@/components/car/ReviewForm';
+// import ReviewItem from '@/components/car/ReviewItem';
 // import Link from 'next/link';
 // import type { CarSpecification, CarReview } from '@/types';
 
@@ -308,6 +309,7 @@ import CarGallery from '@/components/car/CarGallery';
 import { SelectedItemProvider } from '@/components/car/SelectedItemContext';
 import { SelectedItemTotal, SelectedItemSpecs } from '@/components/car/SelectedItemSummary';
 import ReviewForm from '@/components/car/ReviewForm';
+import ReviewItem from '@/components/car/ReviewItem';
 import Link from 'next/link';
 import type { CarSpecification, CarReview } from '@/types';
 
@@ -515,35 +517,7 @@ export default async function CarDetailPage({ params }: CarDetailPageProps) {
         ) : (
           <div className="space-y-6">
             {carReviews.map((review) => (
-              <div key={review.id} className="border-b border-[#e5e7eb] pb-6 last:border-0">
-                <div className="flex items-start gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-full bg-[#f3f4f6] flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-medium text-[#0a0a0a]">
-                      {review.customerName.charAt(0)}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-[#0a0a0a]">{review.customerName}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <RatingStars rating={review.rating} size={14} />
-                      <span className="text-xs text-[#6b7280]">{formatDate(review.createdAt)}</span>
-                    </div>
-                  </div>
-                </div>
-                {review.title && (
-                  <h4 className="text-sm font-semibold text-[#0a0a0a] mb-1">{review.title}</h4>
-                )}
-                <p className="text-[#4b5563] text-sm leading-relaxed">{review.content}</p>
-                {(review.replies?.length ?? 0) > 0 && (
-                  <div className="mt-3 pl-8 border-l-2 border-[#e5e7eb] space-y-2">
-                    {review.replies!.map((reply) => (
-                      <div key={reply.createdAt} className="text-[#4b5563] text-sm leading-relaxed">
-                        <span className="font-medium text-[#6b7280]">Trả lời:</span> {reply.content}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <ReviewItem key={review.id} review={review} carId={car.id} />
             ))}
           </div>
         )}
