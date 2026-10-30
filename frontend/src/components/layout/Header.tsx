@@ -12,6 +12,10 @@ import {
 } from '@/lib/api';
 import type { AppNotification } from '@/types';
 import { formatDateTime } from '@/lib/utils/format';
+import { getUnreadCounts } from '@/lib/api/chat';
+import { getToken } from '@/lib/auth/token';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 export default function Header() {
   const [open, setOpen] = useState(false);
@@ -19,6 +23,7 @@ export default function Header() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unread, setUnread] = useState(0);
+  const [chatUnread, setChatUnread] = useState(0);
   const [notifLoading, setNotifLoading] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -44,6 +49,35 @@ export default function Header() {
       active = false;
       window.clearInterval(timer);
     };
+  }, [user]);
+
+  // Tổng số tin nhắn chưa đọc hiển thị ngay trên Header.
+  useEffect(() => {
+    if (!user) { setChatUnread(0); return; }
+    let active = true;
+    const refreshChatUnread = () => {
+      getUnreadCounts().then((counts) => {
+        if (active) setChatUnread(Object.values(counts).reduce((sum, count) => sum + count, 0));
+      }).catch(() => {});
+    };
+    refreshChatUnread();
+    const token = getToken();
+    let client: Client | null = null;
+    if (token) {
+      client = new Client({
+        webSocketFactory: () => new SockJS('/ws'),
+        connectHeaders: { Authorization: `Bearer ${token}` },
+        reconnectDelay: 5000,
+        heartbeatIncoming: 10000,
+        heartbeatOutgoing: 10000,
+        onConnect: () => {
+          client?.subscribe(`/topic/user/${user.id}/chat-notifications`, refreshChatUnread);
+        },
+      });
+      void client.activate();
+    }
+    const timer = window.setInterval(refreshChatUnread, 60000);
+    return () => { active = false; window.clearInterval(timer); void client?.deactivate(); };
   }, [user]);
 
   const toggleNotifications = async () => {
@@ -127,6 +161,7 @@ export default function Header() {
     setNotifOpen(false);
     setNotifications([]);
     setUnread(0);
+    setChatUnread(0);
     router.push('/');
     router.refresh();
   };
@@ -168,6 +203,7 @@ export default function Header() {
                 className={navLinkClass('/chat')}
               >
                 Tin nhắn
+                {chatUnread > 0 && <span className="absolute -top-2 -right-4 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ef4444] text-white text-[10px] font-bold flex items-center justify-center">{chatUnread > 99 ? '99+' : chatUnread}</span>}
               </Link>
             )}
             <a href="#" className="relative py-1 transition-colors hover:text-[#c58e00]">
@@ -422,7 +458,9 @@ export default function Header() {
                   aria-current={isActive('/chat') ? 'page' : undefined}
                   className={mobileLinkClass('/chat')}
                 >
-                  Tin nhắn
+                  <span className="flex items-center justify-between">Tin nhắn
+                    {chatUnread > 0 && <span className="min-w-5 h-5 px-1 rounded-full bg-[#ef4444] text-white text-[10px] font-bold flex items-center justify-center">{chatUnread > 99 ? '99+' : chatUnread}</span>}
+                  </span>
                 </Link>
               )}
 
