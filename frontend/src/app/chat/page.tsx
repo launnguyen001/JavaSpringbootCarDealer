@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import * as chatApi from '@/lib/api/chat';
@@ -21,88 +21,150 @@ export default function ChatPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showRoomList, setShowRoomList] = useState(true);
+  const messageRequestId = useRef(0);
 
-  // Redirect nếu chưa đăng nhập
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/login');
-    }
+    if (!authLoading && !isAuthenticated) router.replace('/login');
   }, [authLoading, isAuthenticated, router]);
 
-  // Load danh sách phòng chat
   useEffect(() => {
     if (!isAuthenticated) return;
+
+    let active = true;
     setLoadingRooms(true);
     chatApi
       .getRooms()
-      .then(setRooms)
-      .catch(console.error)
-      .finally(() => setLoadingRooms(false));
+      .then((data) => {
+        if (active) setRooms(data);
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          console.error('Không thể tải danh sách phòng chat:', err);
+          setError('Không thể tải danh sách cuộc trò chuyện. Vui lòng thử tải lại.');
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingRooms(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [isAuthenticated]);
 
-  // Load tin nhắn khi chọn phòng
+  // Mỗi lần đổi phòng tạo một request generation mới để response cũ
+  // không ghi đè tin nhắn của phòng vừa chọn.
   useEffect(() => {
+    const requestId = ++messageRequestId.current;
+
     if (!selectedRoom) {
       setMessages([]);
+      setHasMore(false);
+      setPage(0);
+      setLoadingMessages(false);
       return;
     }
-    setLoadingMessages(true);
+
+    setMessages([]);
     setPage(0);
+    setHasMore(false);
+    setError(null);
+    setLoadingMessages(true);
+
     chatApi
       .getMessages(selectedRoom.id, 0)
       .then((res) => {
-        // API trả về mới nhất trước, cần đảo lại cho hiển thị
+        if (messageRequestId.current !== requestId) return;
+        // Backend trả newest-first; UI hiển thị oldest-first.
         setMessages([...res.content].reverse());
         setHasMore(!res.last);
       })
-      .catch(console.error)
-      .finally(() => setLoadingMessages(false));
+      .catch((err: unknown) => {
+        if (messageRequestId.current !== requestId) return;
+        console.error('Không thể tải lịch sử chat:', err);
+        setError('Không thể tải lịch sử tin nhắn. Vui lòng thử lại.');
+      })
+      .finally(() => {
+        if (messageRequestId.current === requestId) setLoadingMessages(false);
+      });
+
+    return () => {
+      // Invalidate response nếu người dùng chuyển phòng trước khi request hoàn tất.
+      if (messageRequestId.current === requestId) messageRequestId.current += 1;
+    };
   }, [selectedRoom]);
 
-  // Tải thêm tin nhắn cũ
   const loadMore = useCallback(() => {
-    if (!selectedRoom || loadingMessages) return;
+    if (!selectedRoom || loadingMessages || !hasMore) return;
+
+    const requestId = messageRequestId.current;
     const nextPage = page + 1;
     setLoadingMessages(true);
+
     chatApi
       .getMessages(selectedRoom.id, nextPage)
       .then((res) => {
+        if (messageRequestId.current !== requestId) return;
         setMessages((prev) => [...[...res.content].reverse(), ...prev]);
         setHasMore(!res.last);
         setPage(nextPage);
       })
-      .catch(console.error)
-      .finally(() => setLoadingMessages(false));
-  }, [selectedRoom, page, loadingMessages]);
-
-  // Callback khi nhận tin nhắn realtime
-  const handleNewMessage = useCallback(
-    (msg: ChatMessage) => {
-      setMessages((prev) => {
-        // Tránh duplicate (nếu tin nhắn do chính mình gửi)
-        if (prev.some((m) => m.id === msg.id)) return prev;
-        return [...prev, msg];
+      .catch((err: unknown) => {
+        if (messageRequestId.current !== requestId) return;
+        console.error('Không thể tải thêm tin nhắn:', err);
+        setError('Không thể tải thêm tin nhắn cũ.');
+      })
+      .finally(() => {
+        if (messageRequestId.current === requestId) setLoadingMessages(false);
       });
-    },
-    [],
-  );
+  }, [selectedRoom, page, loadingMessages, hasMore]);
 
-  // Callback khi nhận notification từ phòng khác
-  const handleNotification = useCallback(
-    (msg: ChatMessage) => {
-      // Cập nhật preview trong room list
-      setRooms((prev) =>
-        prev.map((room) =>
+  const handleNewMessage = useCallback((msg: ChatMessage) => {
+    setMessages((prev) => {
+      if (prev.some((item) => item.id === msg.id)) return prev;
+      return [...prev, msg];
+    });
+    setRooms((prev) =>
+      prev
+        .map((room) =>
           room.id === msg.roomId
-            ? { ...room, lastMessageContent: msg.content, lastMessageAt: msg.createdAt }
+            ? {
+                ...room,
+                lastMessageContent: msg.content,
+                lastMessageAt: msg.createdAt,
+              }
             : room,
-        ),
-      );
-    },
-    [],
-  );
+        )
+        .sort((a, b) => {
+          const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+          const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+          return bTime - aTime;
+        }),
+    );
+  }, []);
 
-  // WebSocket hook
+  const handleNotification = useCallback((msg: ChatMessage) => {
+    setRooms((prev) =>
+      prev
+        .map((room) =>
+          room.id === msg.roomId
+            ? {
+                ...room,
+                lastMessageContent: msg.content,
+                lastMessageAt: msg.createdAt,
+              }
+            : room,
+        )
+        .sort((a, b) => {
+          const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+          const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+          return bTime - aTime;
+        }),
+    );
+  }, []);
+
   const { connected, sendMessage } = useChatWebSocket({
     roomId: selectedRoom?.id ?? null,
     userId: user?.id ?? null,
@@ -111,16 +173,22 @@ export default function ChatPage() {
   });
 
   function handleSend(content: string) {
-    sendMessage(content);
+    const sent = sendMessage(content);
+    if (!sent) {
+      setError('Tin nhắn chưa được gửi vì kết nối bị gián đoạn. Anh thử gửi lại nhé.');
+    } else {
+      setError(null);
+    }
   }
 
   function handleSelectRoom(room: ChatRoom) {
     setSelectedRoom(room);
+    setShowRoomList(false);
   }
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-[#c58e00] border-t-transparent rounded-full" />
       </div>
     );
@@ -129,9 +197,13 @@ export default function ChatPage() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex bg-white">
-      {/* Sidebar: Danh sách phòng chat */}
-      <div className="w-80 border-r border-gray-200 flex flex-col shrink-0">
+    <div className="h-[calc(100dvh-4rem)] min-h-[420px] flex overflow-hidden bg-white">
+      {/* Danh sách phòng: ẩn trên mobile khi đang mở một cuộc trò chuyện. */}
+      <aside
+        className={`w-full md:w-80 md:flex border-r border-gray-200 flex-col shrink-0 ${
+          showRoomList ? 'flex' : 'hidden'
+        }`}
+      >
         {loadingRooms ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="animate-spin w-6 h-6 border-2 border-[#c58e00] border-t-transparent rounded-full" />
@@ -144,42 +216,52 @@ export default function ChatPage() {
             onSelectRoom={handleSelectRoom}
           />
         )}
-      </div>
+      </aside>
 
-      {/* Main: Chat area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Khu vực hội thoại */}
+      <main className={`flex-1 min-w-0 flex-col ${showRoomList ? 'hidden md:flex' : 'flex'}`}>
         {selectedRoom ? (
           <>
-            {/* Header phòng chat */}
-            <div className="px-6 py-3 border-b border-gray-200 flex items-center justify-between bg-white">
-              <div>
-                <h3 className="font-semibold text-gray-900">
-                  {selectedRoom.name ||
-                    selectedRoom.participantUsernames
-                      .filter((u) => u !== user?.username)
-                      .join(', ') ||
-                    'Chat'}
-                </h3>
-                <p className="text-xs text-gray-400">
-                  {connected ? (
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-                      Đang kết nối
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
-                      Đang kết nối lại...
-                    </span>
-                  )}
-                </p>
+            <header className="px-3 sm:px-6 py-3 border-b border-gray-200 flex items-center justify-between bg-white shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setShowRoomList(true)}
+                  className="md:hidden p-2 -ml-2 rounded-lg text-gray-600 hover:bg-gray-100"
+                  aria-label="Quay lại danh sách cuộc trò chuyện"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m15 18-6-6 6-6" />
+                  </svg>
+                </button>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-gray-900 truncate">
+                    {selectedRoom.name ||
+                      selectedRoom.participantUsernames
+                        .filter((name) => name !== user?.username)
+                        .join(', ') ||
+                      'Chat'}
+                  </h3>
+                  <p className="text-xs text-gray-400 flex items-center gap-1">
+                    <span className={`w-2 h-2 rounded-full inline-block ${connected ? 'bg-green-500' : 'bg-amber-500'}`} />
+                    {connected ? 'Đang kết nối' : 'Đang kết nối lại…'}
+                  </p>
+                </div>
               </div>
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-gray-400 shrink-0 ml-2">
                 {selectedRoom.participantUsernames.length} thành viên
               </div>
-            </div>
+            </header>
 
-            {/* Danh sách tin nhắn */}
+            {error && (
+              <div role="alert" className="px-4 py-2 text-sm text-red-700 bg-red-50 border-b border-red-100">
+                {error}
+                <button type="button" onClick={() => setError(null)} className="ml-3 underline">
+                  Đóng
+                </button>
+              </div>
+            )}
+
             <ChatMessageList
               messages={messages}
               currentUserId={user!.id}
@@ -187,13 +269,10 @@ export default function ChatPage() {
               onLoadMore={loadMore}
               hasMore={hasMore}
             />
-
-            {/* Input gửi tin nhắn */}
             <ChatInput onSend={handleSend} disabled={!connected} />
           </>
         ) : (
-          /* Empty state */
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-400 px-6 text-center">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
@@ -212,7 +291,7 @@ export default function ChatPage() {
             <p className="text-sm mt-1">Chọn một phòng chat bên trái để bắt đầu</p>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }
