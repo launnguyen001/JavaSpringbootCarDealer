@@ -9,7 +9,7 @@ import ChatRoomList from '@/components/chat/ChatRoomList';
 import ChatMessageList from '@/components/chat/ChatMessageList';
 import ChatInput from '@/components/chat/ChatInput';
 import NewChatDialog from '@/components/chat/NewChatDialog';
-import type { ChatRoom, ChatMessage, ChatUser } from '@/types';
+import type { ChatRoom, ChatMessage, ChatUser, ChatRealtimeEvent, ChatReadState } from '@/types';
 
 export default function ChatPage() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
@@ -18,6 +18,10 @@ export default function ChatPage() {
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [readStates, setReadStates] = useState<ChatReadState[]>([]);
+  const [typingUsers, setTypingUsers] = useState<Record<number, string>>({});
+  const typingTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const lastMarkedRef = useRef<string | null>(null);
   const [loadingRooms, setLoadingRooms] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [page, setPage] = useState(0);
@@ -37,10 +41,9 @@ export default function ChatPage() {
 
     let active = true;
     setLoadingRooms(true);
-    chatApi
-      .getRooms()
-      .then((data) => {
-        if (active) setRooms(data);
+    Promise.all([chatApi.getRooms(), chatApi.getUnreadCounts()])
+      .then(([data, unread]) => {
+        if (active) setRooms(data.map((room) => ({ ...room, unreadCount: unread[room.id] ?? 0 })));
       })
       .catch((err: unknown) => {
         if (active) {
@@ -71,6 +74,9 @@ export default function ChatPage() {
     }
 
     setMessages([]);
+    setReadStates([]);
+    setTypingUsers({});
+    lastMarkedRef.current = null;
     setPage(0);
     setHasMore(false);
     setError(null);
@@ -92,6 +98,10 @@ export default function ChatPage() {
       .finally(() => {
         if (messageRequestId.current === requestId) setLoadingMessages(false);
       });
+
+    void chatApi.getReadStates(selectedRoom.id).then((states) => {
+      if (messageRequestId.current === requestId) setReadStates(states);
+    }).catch((err: unknown) => console.error('Không thể tải read receipt:', err));
 
     return () => {
       // Invalidate response nếu người dùng chuyển phòng trước khi request hoàn tất.
@@ -137,6 +147,7 @@ export default function ChatPage() {
                 ...room,
                 lastMessageContent: msg.content,
                 lastMessageAt: msg.createdAt,
+                unreadCount: room.id === selectedRoom?.id ? 0 : (room.unreadCount ?? 0) + 1,
               }
             : room,
         )
@@ -172,7 +183,7 @@ export default function ChatPage() {
     void chatApi.getRooms().then(setRooms).catch((err: unknown) => {
       console.error('Không thể đồng bộ danh sách phòng chat:', err);
     });
-  }, []);
+  }, [selectedRoom?.id]);
 
   const handleRealtimeEvent = useCallback((event: ChatRealtimeEvent) => {
     if (event.type === 'READ') {
