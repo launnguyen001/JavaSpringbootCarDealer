@@ -55,6 +55,8 @@ public class ChatStateWebSocketController {
         state.setLastReadMessageId(message.getId());
         state.setLastReadAt(message.getCreatedAt());
         readStates.save(state);
+        // Báo Header đồng bộ lại tổng unread ngay khi người dùng đọc tin nhắn.
+        broker.convertAndSend("/topic/user/" + userId + "/chat-unread", true);
         User user = users.findById(userId).orElseThrow();
         broker.convertAndSend("/topic/chat/" + room.getId() + "/events",
                 new ChatRealtimeEvent("READ", room.getId(), userId, user.getUsername(),
