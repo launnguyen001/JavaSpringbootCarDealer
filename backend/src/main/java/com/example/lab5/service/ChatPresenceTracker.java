@@ -68,9 +68,7 @@ public class ChatPresenceTracker {
     }
 
     public Set<Long> onlineUserIds() {
-        return ConcurrentHashMap.newKeySet(sessionsByUser.keySet().size()) {{
-            addAll(sessionsByUser.keySet());
-        }};
+        return Set.copyOf(sessionsByUser.keySet());
     }
 
     private void publish(Long userId, boolean online) {
