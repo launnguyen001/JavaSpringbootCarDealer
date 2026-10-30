@@ -161,6 +161,15 @@ export default function Header() {
                 {item.label}
               </Link>
             ))}
+            {user && (
+              <Link
+                href="/chat"
+                aria-current={isActive('/chat') ? 'page' : undefined}
+                className={navLinkClass('/chat')}
+              >
+                Tin nhắn
+              </Link>
+            )}
             <a href="#" className="relative py-1 transition-colors hover:text-[#c58e00]">
               Liên hệ
             </a>
@@ -406,6 +415,17 @@ export default function Header() {
               >
                 Giỏ hàng
               </Link>
+              {user && (
+                <Link
+                  href="/chat"
+                  onClick={() => setOpen(false)}
+                  aria-current={isActive('/chat') ? 'page' : undefined}
+                  className={mobileLinkClass('/chat')}
+                >
+                  Tin nhắn
+                </Link>
+              )}
+
               {user ? (
                 <>
                   <Link
