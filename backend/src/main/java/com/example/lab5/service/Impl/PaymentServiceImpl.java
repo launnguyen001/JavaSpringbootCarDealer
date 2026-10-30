@@ -12,75 +12,67 @@ import com.example.lab5.repository.PaymentRepository;
 import com.example.lab5.repository.SalesOrderRepository;
 import com.example.lab5.service.OrderStateService;
 import com.example.lab5.service.PaymentService;
-import com.example.lab5.statemachine.PaymentStateMachine;
 import com.example.lab5.util.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.List;
 
+/** Payment là giao dịch đã thu; công nợ được suy ra từ tổng giao dịch thành công. */
 @Service
 public class PaymentServiceImpl implements PaymentService {
-
+    private static final double EPSILON = 0.0001d;
     private final PaymentRepository paymentRepository;
     private final SalesOrderRepository salesOrderRepository;
     private final OrderStateService orderStateService;
-    private final PaymentStateMachine paymentStateMachine;
     private final NotificationEventFactory notificationEvents;
 
-    public PaymentServiceImpl(
-            PaymentRepository paymentRepository,
-            SalesOrderRepository salesOrderRepository,
-            OrderStateService orderStateService,
-            PaymentStateMachine paymentStateMachine,
-            NotificationEventFactory notificationEvents
-    ) {
+    public PaymentServiceImpl(PaymentRepository paymentRepository, SalesOrderRepository salesOrderRepository,
+                              OrderStateService orderStateService, NotificationEventFactory notificationEvents) {
         this.paymentRepository = paymentRepository;
         this.salesOrderRepository = salesOrderRepository;
         this.orderStateService = orderStateService;
-        this.paymentStateMachine = paymentStateMachine;
         this.notificationEvents = notificationEvents;
     }
 
     @Override
     @Transactional
     public Payment create(PaymentRequest request) {
-        if (request == null || request.orderId() == null) {
-            throw new BadRequestException("Đơn hàng không được để trống");
-        }
-        if (request.amount() == null || request.amount() <= 0) {
+        if (request == null || request.orderId() == null) throw new BadRequestException("Đơn hàng không được để trống");
+        if (request.amount() == null || !Double.isFinite(request.amount()) || request.amount() <= 0)
             throw new BadRequestException("Số tiền thanh toán phải lớn hơn 0");
-        }
-        if (request.method() == null) {
-            throw new BadRequestException("Phương thức thanh toán không được để trống");
-        }
+        if (request.method() == null) throw new BadRequestException("Phương thức thanh toán không được để trống");
 
-        SalesOrder order = salesOrderRepository.findById(request.orderId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Không tìm thấy đơn hàng có id = " + request.orderId()));
+        SalesOrder order = salesOrderRepository.findByIdForUpdate(request.orderId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng có id = " + request.orderId()));
+        if (order.getStatus() == OrderStatus.CANCELLED) throw new BadRequestException("Không thể thu tiền đơn hàng đã hủy");
+        if (order.getStatus() == OrderStatus.COMPLETED) throw new BadRequestException("Đơn hàng đã hoàn tất thanh toán");
+        if (order.getTotalAmount() == null || order.getTotalAmount() <= 0)
+            throw new BadRequestException("Đơn hàng không có giá trị hợp lệ để thu tiền");
+
+        double paid = paymentRepository.sumPaidAmountByOrderId(order.getId());
+        double remaining = Math.max(order.getTotalAmount() - paid, 0d);
+        if (request.amount() - remaining > EPSILON)
+            throw new BadRequestException("Số tiền vượt quá công nợ còn lại: " + remaining);
 
         Payment payment = new Payment();
         payment.setOrder(order);
         payment.setAmount(request.amount());
         payment.setMethod(request.method());
-        payment.setStatus(request.status() == null ? PaymentStatus.PAID : request.status());
-        if (payment.getStatus() == PaymentStatus.PAID) {
-            payment.setPaidAt(LocalDateTime.now());
-            orderStateService.transition(order, OrderStatus.COMPLETED,
-                    SecurityUtils.currentUsername(), "Thanh toán đủ");
-        }
+        // Giữ cột status để tương thích dữ liệu hiện hữu; mỗi record là khoản tiền đã thu thành công.
+        payment.setStatus(PaymentStatus.PAID);
+        payment.setPaidAt(LocalDateTime.now());
         Payment saved = paymentRepository.save(payment);
-        if (saved.getStatus() == PaymentStatus.PAID) {
-            notificationEvents.paymentPaid(saved);
+
+        if (paid + saved.getAmount() + EPSILON >= order.getTotalAmount()) {
+            orderStateService.transition(order, OrderStatus.COMPLETED,
+                    SecurityUtils.currentUsername(), "Đã thu đủ tiền theo các giao dịch");
         }
+        notificationEvents.paymentPaid(saved);
         return saved;
     }
 
-    @Override
-    public List<Payment> getAllPayments() {
-        return paymentRepository.findAll();
-    }
+    @Override public List<Payment> getAllPayments() { return paymentRepository.findAll(); }
 
     @Override
     public Payment getPaymentById(Long id) {
@@ -90,52 +82,21 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public List<Payment> getByOrder(Long orderId) {
-        if (orderId == null) {
-            throw new BadRequestException("Đơn hàng không được để trống");
-        }
+        if (orderId == null) throw new BadRequestException("Đơn hàng không được để trống");
         return paymentRepository.findByOrder_IdOrderByIdAsc(orderId);
     }
 
     @Override
     @Transactional
     public Payment update(Long id, PaymentRequest request) {
-        if (request == null) {
-            throw new BadRequestException("Dữ liệu thanh toán không được để trống");
-        }
-        if (request.amount() == null || request.amount() <= 0) {
-            throw new BadRequestException("Số tiền thanh toán phải lớn hơn 0");
-        }
-        if (request.method() == null) {
-            throw new BadRequestException("Phương thức thanh toán không được để trống");
-        }
-
-        Payment payment = getPaymentById(id);
-        PaymentStatus currentStatus = payment.getStatus();
-        PaymentStatus status = request.status() == null ? currentStatus : request.status();
-        // Chỉ cho phép chuyển trạng thái thanh toán theo đúng luồng (không quay lại UNPAID sau PAID…)
-        paymentStateMachine.assertCanTransition(currentStatus, status);
-
-        payment.setAmount(request.amount());
-        payment.setMethod(request.method());
-        payment.setStatus(status);
-
-        boolean justPaid = status == PaymentStatus.PAID && currentStatus != PaymentStatus.PAID;
-        if (justPaid) {
-            payment.setPaidAt(LocalDateTime.now());
-            orderStateService.transition(payment.getOrder(), OrderStatus.COMPLETED,
-                    SecurityUtils.currentUsername(), "Thanh toán đủ");
-        }
-        Payment saved = paymentRepository.save(payment);
-        if (justPaid) {
-            notificationEvents.paymentPaid(saved);
-        }
-        return saved;
+        getPaymentById(id);
+        throw new BadRequestException("Không thể sửa giao dịch đã ghi nhận. Hãy dùng nghiệp vụ hoàn tiền/điều chỉnh riêng.");
     }
 
     @Override
     @Transactional
     public void delete(Long id) {
         getPaymentById(id);
-        paymentRepository.deleteById(id);
+        throw new BadRequestException("Không thể xóa giao dịch đã ghi nhận để bảo toàn lịch sử kế toán.");
     }
 }
