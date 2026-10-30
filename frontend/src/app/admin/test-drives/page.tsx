@@ -14,7 +14,7 @@ import {
   listEmployees,
 } from '@/lib/api';
 import { formatDateTime } from '@/lib/utils/format';
-import type { CarItem, Customer, Employee, TestDrive } from '@/types';
+import type { CarItem, TestDrive } from '@/types';
 
 const statusOptions = [
   { value: 'SCHEDULED', label: 'Đã lên lịch' },
