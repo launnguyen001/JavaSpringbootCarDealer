@@ -246,6 +246,7 @@ export default function ChatPage() {
   }
 
   function handleSelectRoom(room: ChatRoom) {
+    sendTyping(false);
     setSelectedRoom(room);
     setShowRoomList(false);
   }
@@ -255,7 +256,7 @@ export default function ChatPage() {
     setError(null);
     try {
       const room = await chatApi.getOrCreatePrivateRoom(target.id);
-      setRooms((prev) => [room, ...prev.filter((item) => item.id !== room.id)]);
+      setRooms((prev) => [{ ...room, unreadCount: 0 }, ...prev.filter((item) => item.id !== room.id)]);
       setSelectedRoom(room);
       setShowNewChat(false);
       setShowRoomList(false);
