@@ -10,6 +10,7 @@ import com.example.lab5.entity.Employee;
 import com.example.lab5.entity.OrderItem;
 import com.example.lab5.entity.OrderStatus;
 import com.example.lab5.entity.Payment;
+import com.example.lab5.entity.PaymentStatus;
 import com.example.lab5.entity.SalesOrder;
 import com.example.lab5.event.NotificationEventFactory;
 import com.example.lab5.exception.BadRequestException;
@@ -142,7 +143,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
 
         Map<Long, Double> paidByOrder = new HashMap<>();
         for (Payment payment : paymentRepository.findAll()) {
-            if (payment.getOrder() == null) {
+            if (payment.getOrder() == null || payment.getStatus() != PaymentStatus.PAID) {
                 continue;
             }
             double amount = payment.getAmount() == null ? 0.0 : payment.getAmount();
@@ -164,7 +165,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                     contractedOrderIds.contains(order.getId()),
                     invoicedOrderIds.contains(order.getId())
             );
-        }).toList();
+        }).filter(option -> !normalized.equals("payment") || option.remainingAmount() > 0.0001d)
+          .toList();
     }
 
     @Override
