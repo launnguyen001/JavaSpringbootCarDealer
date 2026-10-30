@@ -59,6 +59,9 @@ public class SecurityConfig {
                         // ---- Tài liệu API ----
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
+                        // ---- WebSocket endpoint (SockJS) ----
+                        .requestMatchers("/ws/**").permitAll()
+
                         // ---- Auth công khai ----
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register", "/api/auth/logout").permitAll()
                         .requestMatchers("/api/auth/me").authenticated()
@@ -114,6 +117,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/test-drives").authenticated()
                         .requestMatchers("/api/cart/**").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()
+                        .requestMatchers("/api/chat/**").authenticated()
                         // Xem đơn / lịch lái thử của chính mình (theo customerId)
                         .requestMatchers(HttpMethod.GET, "/api/orders/customer/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/test-drives/customer/**").authenticated()

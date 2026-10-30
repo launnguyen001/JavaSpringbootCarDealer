@@ -28,6 +28,15 @@ export type { Invoice, InvoiceRequest } from './invoice';
 export type { ActivityLog } from './activityLog';
 export type { NotificationType, AppNotification } from './notification';
 export type {
+  ChatRoomType,
+  ChatMessageType,
+  ChatRoom,
+  ChatMessage,
+  ChatMessageRequest,
+  ChatRoomRequest,
+  ChatMessagePage,
+} from './chat';
+export type {
   DashboardSummary,
   RevenueSummary,
   OrderStatusCount,
