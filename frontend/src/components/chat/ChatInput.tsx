@@ -6,6 +6,7 @@ interface ChatInputProps {
   onSend: (content: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  onTyping?: (typing: boolean) => void;
 }
 
 /** Ô nhập tin nhắn chat với gửi bằng Enter. */
@@ -13,6 +14,7 @@ export default function ChatInput({
   onSend,
   disabled,
   placeholder = 'Nhập tin nhắn...',
+  onTyping,
 }: ChatInputProps) {
   const [text, setText] = useState('');
 
@@ -21,6 +23,7 @@ export default function ChatInput({
     const trimmed = text.trim();
     if (!trimmed || disabled) return;
     onSend(trimmed);
+    onTyping?.(false);
     setText('');
   }
 
@@ -36,7 +39,12 @@ export default function ChatInput({
     <form onSubmit={handleSubmit} className="flex items-end gap-2 p-3 border-t border-gray-200 bg-white">
       <textarea
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          const value = e.target.value;
+          setText(value);
+          onTyping?.(Boolean(value.trim()));
+        }}
+        onBlur={() => onTyping?.(false)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
