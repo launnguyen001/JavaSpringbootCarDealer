@@ -180,9 +180,7 @@ export default function ChatPage() {
 
     // Người nhận có thể chưa có phòng này trong danh sách (tin nhắn đầu tiên).
     // Đồng bộ lại danh sách từ REST để phòng mới xuất hiện mà không cần reload.
-    void chatApi.getRooms().then(setRooms).catch((err: unknown) => {
-      console.error('Không thể đồng bộ danh sách phòng chat:', err);
-    });
+    void Promise.all([chatApi.getRooms(), chatApi.getUnreadCounts()]).then(([data, unread]) => setRooms(data.map((room) => ({ ...room, unreadCount: room.id === selectedRoom?.id ? 0 : (unread[room.id] ?? 0) })))).catch((err: unknown) => console.error('Không thể đồng bộ danh sách phòng chat:', err));
   }, [selectedRoom?.id]);
 
   const handleRealtimeEvent = useCallback((event: ChatRealtimeEvent) => {
