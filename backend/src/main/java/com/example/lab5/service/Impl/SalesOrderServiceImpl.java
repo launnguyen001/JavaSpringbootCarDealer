@@ -384,6 +384,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             throw new BadRequestException(
                     "Chỉ sửa được đơn hàng ở trạng thái PENDING hoặc CONFIRMED");
         }
+        if (paymentRepository.existsByOrder_Id(order.getId())) {
+            throw new BadRequestException(
+                    "Không thể sửa nội dung đơn hàng sau khi đã ghi nhận thanh toán. Hãy xử lý điều chỉnh công nợ riêng.");
+        }
     }
 
     private String generateOrderCode() {
