@@ -10,9 +10,11 @@ import {
   deleteTestDrive,
   listCars,
   listCarItems,
+  listCustomers,
+  listEmployees,
 } from '@/lib/api';
 import { formatDateTime } from '@/lib/utils/format';
-import type { CarItem, TestDrive } from '@/types';
+import type { CarItem, Customer, Employee, TestDrive } from '@/types';
 
 const statusOptions = [
   { value: 'SCHEDULED', label: 'Đã lên lịch' },
@@ -23,11 +25,15 @@ const statusOptions = [
 
 export default function AdminTestDrivesPage() {
   // Danh sách tất cả chiếc xe để chọn khi tạo/sửa lịch lái thử.
+  const [customerOptions, setCustomerOptions] = useState<{ value: number; label: string }[]>([]);
+  const [employeeOptions, setEmployeeOptions] = useState<{ value: number; label: string }[]>([]);
   const [carItemOptions, setCarItemOptions] = useState<
     { value: number; label: string }[]
   >([]);
 
   useEffect(() => {
+    listCustomers().then((rows) => setCustomerOptions(rows.map((c) => ({ value: c.id, label: `${c.fullName}${c.phone ? ` · ${c.phone}` : ''}` })))).catch(() => setCustomerOptions([]));
+    listEmployees().then((rows) => setEmployeeOptions(rows.map((e) => ({ value: e.id, label: `${e.fullName}${e.position ? ` · ${e.position}` : ''}` })))).catch(() => setEmployeeOptions([]));
     listCars()
       .then(async (cars) => {
         const lists = await Promise.all(cars.map((c) => listCarItems(c.id).catch(() => [])));
@@ -45,7 +51,7 @@ export default function AdminTestDrivesPage() {
   const fields: FieldConfig[] = [
     { name: 'scheduledAt', label: 'Thời gian hẹn', type: 'datetime', required: true },
     { name: 'status', label: 'Trạng thái', type: 'select', options: statusOptions },
-    { name: 'customerId', label: 'ID khách hàng', type: 'number', required: true },
+    { name: 'customerId', label: 'Khách hàng', type: 'select', required: true, placeholder: '— Chọn khách hàng —', options: customerOptions },
     {
       name: 'carItemId',
       label: 'Xe (chiếc cụ thể)',
@@ -53,7 +59,7 @@ export default function AdminTestDrivesPage() {
       required: true,
       options: carItemOptions,
     },
-    { name: 'employeeId', label: 'ID nhân viên phụ trách', type: 'number' },
+    { name: 'employeeId', label: 'Nhân viên phụ trách', type: 'select', placeholder: '— Chưa phân công —', options: employeeOptions },
     { name: 'note', label: 'Ghi chú', type: 'textarea' },
   ];
 
