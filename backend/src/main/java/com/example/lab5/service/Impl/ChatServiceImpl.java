@@ -53,20 +53,20 @@ public class ChatServiceImpl implements ChatService {
             throw new IllegalArgumentException("Không thể tạo phòng chat với chính mình");
         }
 
-        // Tìm phòng PRIVATE đã tồn tại giữa 2 user
+        // Chỉ cho phép bắt đầu chat với tài khoản đang hoạt động.
+        User otherUser = userRepository.findById(otherUserId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Người dùng với ID " + otherUserId + " không tồn tại"));
+        if (!otherUser.isEnabled()) {
+            throw new IllegalArgumentException("Tài khoản này hiện không thể nhận tin nhắn");
+        }
+
+        // Tái sử dụng phòng PRIVATE đã tồn tại giữa hai người.
         return chatRoomRepository
                 .findByTypeAndParticipantIdsContainingAndParticipantIdsContaining(
                         ChatRoom.ChatRoomType.PRIVATE, currentUserId, otherUserId)
-                .map(room -> toResponse(room))
+                .map(this::toResponse)
                 .orElseGet(() -> {
-                    // Kiểm tra user tồn tại
-                    User otherUser = userRepository.findById(otherUserId)
-                            .orElseThrow(() -> new IllegalArgumentException(
-                                    "Người dùng với ID " + otherUserId + " không tồn tại"));
-                    if (!otherUser.isEnabled()) {
-                        throw new IllegalArgumentException("Tài khoản này hiện không thể nhận tin nhắn");
-                    }
-
                     ChatRoom room = ChatRoom.builder()
                             .type(ChatRoom.ChatRoomType.PRIVATE)
                             .participantIds(List.of(currentUserId, otherUserId))
