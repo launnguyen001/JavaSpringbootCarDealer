@@ -12,6 +12,9 @@ public interface ChatMessageRepository extends MongoRepository<ChatMessage, Stri
     /** Lấy lịch sử tin nhắn theo phòng, phân trang, mới nhất trước. */
     Page<ChatMessage> findByRoomIdOrderByCreatedAtDesc(String roomId, Pageable pageable);
 
+    /** Đếm tin nhắn chưa đọc từ người khác sau read cursor. */
+    long countByRoomIdAndSenderIdNotAndCreatedAtAfter(String roomId, Long senderId, java.time.Instant after);
+
     /** Đếm tin nhắn trong phòng (cho thống kê). */
     long countByRoomId(String roomId);
 }
