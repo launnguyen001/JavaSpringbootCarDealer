@@ -13,6 +13,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     boolean existsByOrder_Id(Long orderId);
 
-    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.order.id = :orderId AND p.status = com.example.lab5.entity.PaymentStatus.PAID")
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.order.id = :orderId AND p.status IN (com.example.lab5.entity.PaymentStatus.PAID, com.example.lab5.entity.PaymentStatus.PARTIAL)")
     double sumPaidAmountByOrderId(@Param("orderId") Long orderId);
 }
