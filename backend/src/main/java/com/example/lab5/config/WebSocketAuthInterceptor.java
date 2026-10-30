@@ -7,6 +7,7 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -37,21 +38,24 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
             String token = extractToken(accessor);
-            if (token != null) {
-                try {
-                    String username = jwtUtils.extractUsername(token);
-                    if (username != null) {
-                        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                        if (jwtUtils.validateToken(token, userDetails)) {
-                            UsernamePasswordAuthenticationToken authToken =
-                                    new UsernamePasswordAuthenticationToken(
-                                            userDetails, null, userDetails.getAuthorities());
-                            accessor.setUser(authToken);
-                        }
-                    }
-                } catch (Exception ex) {
-                    // Token không hợp lệ → không set user, sẽ bị từ chối bởi security
+            if (token == null || token.isBlank()) {
+                throw new AccessDeniedException("WebSocket yêu cầu JWT authentication");
+            }
+            try {
+                String username = jwtUtils.extractUsername(token);
+                if (username == null) throw new AccessDeniedException("JWT không hợp lệ");
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                if (!jwtUtils.validateToken(token, userDetails)) {
+                    throw new AccessDeniedException("JWT hết hạn hoặc không hợp lệ");
                 }
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails, null, userDetails.getAuthorities());
+                accessor.setUser(authToken);
+            } catch (AccessDeniedException ex) {
+                throw ex;
+            } catch (Exception ex) {
+                throw new AccessDeniedException("Không thể xác thực WebSocket", ex);
             }
         }
 
