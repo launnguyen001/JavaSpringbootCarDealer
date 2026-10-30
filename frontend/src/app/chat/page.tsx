@@ -147,7 +147,7 @@ export default function ChatPage() {
                 ...room,
                 lastMessageContent: msg.content,
                 lastMessageAt: msg.createdAt,
-                unreadCount: room.id === selectedRoom?.id ? 0 : (room.unreadCount ?? 0) + 1,
+                unreadCount: 0,
               }
             : room,
         )
