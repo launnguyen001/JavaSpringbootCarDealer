@@ -3,9 +3,7 @@ package com.example.lab5.repository;
 import com.example.lab5.entity.OrderStatus;
 import com.example.lab5.entity.SalesOrder;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.query.Param;
-import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
@@ -15,8 +13,8 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
 
     Optional<SalesOrder> findByOrderCode(String orderCode);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT o FROM SalesOrder o WHERE o.id = :id")
+    /** MariaDB hỗ trợ FOR UPDATE nhưng không hỗ trợ biến thể FOR UPDATE OF alias do Hibernate sinh ra. */
+    @Query(value = "SELECT * FROM sales_orders WHERE id = :id FOR UPDATE", nativeQuery = true)
     Optional<SalesOrder> findByIdForUpdate(@Param("id") Long id);
 
     List<SalesOrder> findByCustomer_IdOrderByOrderDateDesc(Long customerId);
