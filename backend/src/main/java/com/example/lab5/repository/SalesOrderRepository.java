@@ -17,11 +17,12 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
     @Query(value = "SELECT * FROM sales_orders WHERE id = :id FOR UPDATE", nativeQuery = true)
     Optional<SalesOrder> findByIdForUpdate(@Param("id") Long id);
 
-    List<SalesOrder> findByCustomer_IdOrderByOrderDateDesc(Long customerId);
+    List<SalesOrder> findByCustomer_IdOrderByOrderDateDescIdDesc(Long customerId);
 
-    List<SalesOrder> findByStatusOrderByOrderDateDesc(OrderStatus status);
+    List<SalesOrder> findByStatusOrderByOrderDateDescIdDesc(OrderStatus status);
 
-    List<SalesOrder> findAllByOrderByOrderDateDesc();
+    /** Đơn hàng mới tạo gần nhất đứng đầu; id DESC xử lý trường hợp trùng thời điểm. */
+    List<SalesOrder> findAllByOrderByOrderDateDescIdDesc();
 
     boolean existsByCustomer_Id(Long customerId);
 
@@ -35,7 +36,7 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
             JOIN FETCH o.customer
             WHERE o.status <> com.example.lab5.entity.OrderStatus.CANCELLED
               AND NOT EXISTS (SELECT i.id FROM Invoice i WHERE i.order = o)
-            ORDER BY o.orderDate DESC
+            ORDER BY o.orderDate DESC, o.id DESC
             """)
     List<SalesOrder> findOptionsForInvoice();
 
@@ -45,7 +46,7 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
             JOIN FETCH o.customer
             WHERE o.status <> com.example.lab5.entity.OrderStatus.CANCELLED
               AND NOT EXISTS (SELECT c.id FROM Contract c WHERE c.order = o)
-            ORDER BY o.orderDate DESC
+            ORDER BY o.orderDate DESC, o.id DESC
             """)
     List<SalesOrder> findOptionsForContract();
 
@@ -54,7 +55,7 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
             SELECT o FROM SalesOrder o
             JOIN FETCH o.customer
             WHERE o.status <> com.example.lab5.entity.OrderStatus.CANCELLED
-            ORDER BY o.orderDate DESC
+            ORDER BY o.orderDate DESC, o.id DESC
             """)
     List<SalesOrder> findActiveOrderOptions();
 }
