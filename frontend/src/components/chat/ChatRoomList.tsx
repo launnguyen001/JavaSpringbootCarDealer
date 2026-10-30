@@ -6,6 +6,7 @@ interface ChatRoomListProps {
   rooms: ChatRoom[];
   selectedRoomId: string | null;
   currentUserId: number;
+  onlineUserIds: number[];
   onSelectRoom: (room: ChatRoom) => void;
   onNewConversation: () => void;
 }
@@ -15,6 +16,7 @@ export default function ChatRoomList({
   rooms,
   selectedRoomId,
   currentUserId,
+  onlineUserIds,
   onSelectRoom,
   onNewConversation,
 }: ChatRoomListProps) {
@@ -75,8 +77,9 @@ export default function ChatRoomList({
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
-                  {/* Avatar placeholder */}
-                  <div className="w-10 h-10 rounded-full bg-[#c58e00]/20 flex items-center justify-center shrink-0">
+                  {/* Avatar + online presence */}
+                  <div className="relative shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-[#c58e00]/20 flex items-center justify-center">
                     <span className="text-sm font-semibold text-[#c58e00]">
                       {room.type === 'GROUP' ? (
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -87,6 +90,10 @@ export default function ChatRoomList({
                         getRoomDisplayName(room).charAt(0).toUpperCase()
                       )}
                     </span>
+                    </div>
+                    {room.type === 'PRIVATE' && onlineUserIds.includes(room.participantIds.find((id) => id !== currentUserId) ?? -1) && (
+                      <span title="Đang hoạt động" className="absolute right-0 bottom-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
+                    )}
                   </div>
 
                   <div className="min-w-0">
