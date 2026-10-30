@@ -72,7 +72,7 @@ public class PaymentServiceImpl implements PaymentService {
         return saved;
     }
 
-    @Override public List<Payment> getAllPayments() { return paymentRepository.findAll(); }
+    @Override public List<Payment> getAllPayments() { return paymentRepository.findAllByOrderByPaidAtDescIdDesc(); }
 
     @Override
     public Payment getPaymentById(Long id) {
@@ -83,7 +83,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public List<Payment> getByOrder(Long orderId) {
         if (orderId == null) throw new BadRequestException("Đơn hàng không được để trống");
-        return paymentRepository.findByOrder_IdOrderByIdAsc(orderId);
+        return paymentRepository.findByOrder_IdOrderByPaidAtDescIdDesc(orderId);
     }
 
     @Override
