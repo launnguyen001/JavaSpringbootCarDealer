@@ -143,7 +143,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
 
         Map<Long, Double> paidByOrder = new HashMap<>();
         for (Payment payment : paymentRepository.findAll()) {
-            if (payment.getOrder() == null || payment.getStatus() != PaymentStatus.PAID) {
+            if (payment.getOrder() == null || (payment.getStatus() != PaymentStatus.PAID && payment.getStatus() != PaymentStatus.PARTIAL)) {
                 continue;
             }
             double amount = payment.getAmount() == null ? 0.0 : payment.getAmount();
