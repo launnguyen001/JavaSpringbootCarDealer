@@ -60,9 +60,12 @@ public class ChatServiceImpl implements ChatService {
                 .map(room -> toResponse(room))
                 .orElseGet(() -> {
                     // Kiểm tra user tồn tại
-                    userRepository.findById(otherUserId)
+                    User otherUser = userRepository.findById(otherUserId)
                             .orElseThrow(() -> new IllegalArgumentException(
                                     "Người dùng với ID " + otherUserId + " không tồn tại"));
+                    if (!otherUser.isEnabled()) {
+                        throw new IllegalArgumentException("Tài khoản này hiện không thể nhận tin nhắn");
+                    }
 
                     ChatRoom room = ChatRoom.builder()
                             .type(ChatRoom.ChatRoomType.PRIVATE)
