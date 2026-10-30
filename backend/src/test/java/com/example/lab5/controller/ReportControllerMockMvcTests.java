@@ -15,11 +15,14 @@ import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -157,5 +160,40 @@ class ReportControllerMockMvcTests extends AbstractAdminMockMvcTest {
     void reportsWithoutTokenReturnsUnauthorized() throws Exception {
         mockMvc.perform(get("/api/reports/dashboard-summary"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void exportDashboardSummaryAsXlsxReturnsExcelAttachment() throws Exception {
+        mockMvc.perform(asAdmin(get("/api/reports/export")
+                        .param("type", "dashboard-summary")
+                        .param("format", "xlsx")))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")))
+                .andExpect(header().string("Content-Disposition",
+                        Matchers.containsString("attachment")))
+                .andExpect(header().string("Content-Disposition",
+                        Matchers.containsString("bao-cao-dashboard-summary-")));
+    }
+
+    @Test
+    void exportRevenueSummaryAsCsvReturnsUtf8Csv() throws Exception {
+        mockMvc.perform(asAdmin(get("/api/reports/export")
+                        .param("type", "revenue-summary")
+                        .param("format", "csv")))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(
+                        MediaType.parseMediaType("text/csv;charset=UTF-8")))
+                .andExpect(header().string("Content-Disposition",
+                        Matchers.containsString("bao-cao-revenue-summary-")))
+                .andExpect(content().string(Matchers.containsString("Tổng doanh thu")));
+    }
+
+    @Test
+    void exportInvalidTypeReturnsBadRequest() throws Exception {
+        mockMvc.perform(asAdmin(get("/api/reports/export")
+                        .param("type", "unknown")
+                        .param("format", "xlsx")))
+                .andExpect(status().isBadRequest());
     }
 }

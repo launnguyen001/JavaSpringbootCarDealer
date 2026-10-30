@@ -7,6 +7,7 @@ import type {
   OrderOptionTarget,
   OrderRequest,
   OrderStatus,
+  OrderStatusHistory,
 } from '@/types';
 
 export async function listOrders(): Promise<Order[]> {
@@ -52,6 +53,21 @@ export async function updateOrderStatus(id: number, status: OrderStatus): Promis
 
 export async function cancelOrder(id: number): Promise<Order> {
   return apiRequest<Order>(`/orders/${id}/cancel`, { method: 'POST', auth: true });
+}
+
+/** Lịch sử chuyển trạng thái của đơn (chủ đơn hoặc staff). */
+export async function getOrderStatusHistory(orderId: number): Promise<OrderStatusHistory[]> {
+  return apiRequest<OrderStatusHistory[]>(`/orders/${orderId}/history`, { auth: true });
+}
+
+/** Các trạng thái được phép chuyển tới từ trạng thái hiện tại của đơn. */
+export async function getAllowedOrderTransitions(orderId: number): Promise<OrderStatus[]> {
+  return apiRequest<OrderStatus[]>(`/orders/${orderId}/allowed-transitions`, { auth: true });
+}
+
+/** Toàn bộ cấu hình state machine (chỉ admin) — dùng để render dropdown trạng thái. */
+export async function getOrderStateMachine(): Promise<Record<OrderStatus, OrderStatus[]>> {
+  return apiRequest<Record<OrderStatus, OrderStatus[]>>('/orders/state-machine', { auth: true });
 }
 
 // ---- Order items ----

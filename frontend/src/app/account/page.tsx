@@ -18,10 +18,13 @@ import {
   updateMe,
   getOrdersByCustomer,
   getTestDrivesByCustomer,
+  listNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
 } from '@/lib/api';
-import type { Customer, Order, TestDrive } from '@/types';
+import type { AppNotification, Customer, Order, TestDrive } from '@/types';
 
-type Tab = 'orders' | 'test-drives' | 'profile' | 'account';
+type Tab = 'orders' | 'test-drives' | 'notifications' | 'profile' | 'account';
 
 const orderColumns: Column<Order>[] = [
   { key: 'orderCode', label: 'Mã đơn' },
@@ -60,6 +63,7 @@ export default function AccountPage() {
   const [profile, setProfile] = useState<Customer | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [testDrives, setTestDrives] = useState<TestDrive[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -74,6 +78,8 @@ export default function AccountPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      setNotifications(await listNotifications().catch(() => [] as AppNotification[]));
+
       // Hồ sơ khách hàng gắn với tài khoản đang đăng nhập.
       let current: Customer | null = null;
       try {
@@ -132,6 +138,26 @@ export default function AccountPage() {
       toast.error(getErrorMessage(err));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const readNotification = async (notification: AppNotification) => {
+    if (notification.read) return;
+    try {
+      const updated = await markNotificationRead(notification.id);
+      setNotifications((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  };
+
+  const readAllNotifications = async () => {
+    try {
+      await markAllNotificationsRead();
+      setNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
+      toast.success('Đã đánh dấu tất cả là đã đọc');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     }
   };
 
@@ -206,6 +232,7 @@ export default function AccountPage() {
           [
             ['orders', `Đơn hàng (${orders.length})`],
             ['test-drives', `Lịch lái thử (${testDrives.length})`],
+            ['notifications', `Thông báo (${notifications.filter((n) => !n.read).length})`],
             ['profile', 'Hồ sơ khách hàng'],
             ['account', 'Tài khoản'],
           ] as [Tab, string][]
@@ -260,6 +287,58 @@ export default function AccountPage() {
               setAddress={setAddress}
               email={user?.email ?? ''}
             />
+          )}
+        </div>
+      )}
+
+      {tab === 'notifications' && (
+        <div className="max-w-3xl">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-[#6b7280]">
+              Thông báo về đơn hàng, thanh toán, hợp đồng, hóa đơn và lịch lái thử.
+            </p>
+            {notifications.some((n) => !n.read) && (
+              <Button size="sm" variant="outline" onClick={readAllNotifications}>
+                Đọc tất cả
+              </Button>
+            )}
+          </div>
+
+          {notifications.length === 0 ? (
+            <div className="rounded-2xl border border-[#e5e7eb] bg-white py-16 text-center text-sm text-[#9ca3af]">
+              Bạn chưa có thông báo nào.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {notifications.map((notification) => (
+                <button
+                  key={notification.id}
+                  onClick={() => readNotification(notification)}
+                  className={`w-full text-left rounded-2xl border p-4 transition-colors ${
+                    notification.read
+                      ? 'border-[#e5e7eb] bg-white'
+                      : 'border-[#c58e00]/40 bg-[#fffbeb] hover:bg-[#fef3c7]'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[#0a0a0a]">
+                        {notification.title}
+                      </p>
+                      <p className="mt-1 text-sm text-[#4b5563] leading-relaxed">
+                        {notification.message}
+                      </p>
+                    </div>
+                    {!notification.read && (
+                      <span className="mt-1 h-2 w-2 rounded-full bg-[#c58e00] shrink-0" />
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs text-[#9ca3af]">
+                    {notification.type} • {formatDateTime(notification.createdAt)}
+                  </p>
+                </button>
+              ))}
+            </div>
           )}
         </div>
       )}

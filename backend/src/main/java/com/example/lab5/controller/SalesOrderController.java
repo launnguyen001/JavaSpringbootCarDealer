@@ -3,14 +3,19 @@ package com.example.lab5.controller;
 import com.example.lab5.dto.OrderItemRequest;
 import com.example.lab5.dto.OrderItemResponse;
 import com.example.lab5.dto.OrderOptionResponse;
+import com.example.lab5.dto.OrderStatusHistoryResponse;
 import com.example.lab5.dto.SalesOrderRequest;
 import com.example.lab5.dto.SalesOrderResponse;
 import com.example.lab5.entity.OrderStatus;
 import com.example.lab5.entity.SalesOrder;
 import com.example.lab5.mapper.SalesOrderMapper;
+import com.example.lab5.service.OrderStateService;
 import com.example.lab5.service.SalesOrderService;
+import com.example.lab5.util.SecurityUtils;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -24,6 +29,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -31,10 +38,16 @@ public class SalesOrderController {
 
     private final SalesOrderService salesOrderService;
     private final SalesOrderMapper salesOrderMapper;
+    private final OrderStateService orderStateService;
 
-    public SalesOrderController(SalesOrderService salesOrderService, SalesOrderMapper salesOrderMapper) {
+    public SalesOrderController(
+            SalesOrderService salesOrderService,
+            SalesOrderMapper salesOrderMapper,
+            OrderStateService orderStateService
+    ) {
         this.salesOrderService = salesOrderService;
         this.salesOrderMapper = salesOrderMapper;
+        this.orderStateService = orderStateService;
     }
 
     @PostMapping
@@ -73,6 +86,30 @@ public class SalesOrderController {
             @RequestParam OrderStatus status
     ) {
         return salesOrderMapper.toResponse(salesOrderService.updateStatus(id, status));
+    }
+
+    /** Lịch sử chuyển trạng thái — chủ đơn hoặc nhân viên/admin đều xem được. */
+    @GetMapping("/{id}/history")
+    public List<OrderStatusHistoryResponse> getStatusHistory(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        return orderStateService.getHistory(id, userDetails.getUsername(), SecurityUtils.isStaff());
+    }
+
+    /** Các trạng thái được phép chuyển tới từ trạng thái hiện tại của đơn. */
+    @GetMapping("/{id}/allowed-transitions")
+    public Set<OrderStatus> getAllowedTransitions(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        return orderStateService.allowedNext(id, userDetails.getUsername(), SecurityUtils.isStaff());
+    }
+
+    /** Toàn bộ cấu hình state machine của đơn hàng (dùng cho admin/UI). */
+    @GetMapping("/state-machine")
+    public Map<OrderStatus, Set<OrderStatus>> getStateMachine() {
+        return orderStateService.transitions();
     }
 
     @PostMapping("/{id}/cancel")

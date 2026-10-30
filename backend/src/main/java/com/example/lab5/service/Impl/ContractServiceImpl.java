@@ -3,6 +3,7 @@ package com.example.lab5.service.Impl;
 import com.example.lab5.dto.ContractRequest;
 import com.example.lab5.entity.Contract;
 import com.example.lab5.entity.SalesOrder;
+import com.example.lab5.event.NotificationEventFactory;
 import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
 import com.example.lab5.repository.ContractRepository;
@@ -19,10 +20,16 @@ public class ContractServiceImpl implements ContractService {
 
     private final ContractRepository contractRepository;
     private final SalesOrderRepository salesOrderRepository;
+    private final NotificationEventFactory notificationEvents;
 
-    public ContractServiceImpl(ContractRepository contractRepository, SalesOrderRepository salesOrderRepository) {
+    public ContractServiceImpl(
+            ContractRepository contractRepository,
+            SalesOrderRepository salesOrderRepository,
+            NotificationEventFactory notificationEvents
+    ) {
         this.contractRepository = contractRepository;
         this.salesOrderRepository = salesOrderRepository;
+        this.notificationEvents = notificationEvents;
     }
 
     @Override
@@ -47,7 +54,9 @@ public class ContractServiceImpl implements ContractService {
         contract.setContractNumber(request.contractNumber().trim());
         contract.setContent(request.content());
         contract.setSignedAt(request.signedAt() == null ? LocalDateTime.now() : request.signedAt());
-        return contractRepository.save(contract);
+        Contract saved = contractRepository.save(contract);
+        notificationEvents.contractCreated(saved);
+        return saved;
     }
 
     @Override

@@ -73,5 +73,7 @@ export * from './contracts';
 export * from './invoices';
 export * from './activityLogs';
 export * from './reports';
+export * from './notifications';
+export { downloadFile } from './downloads';
 
 export { ApiError, fetchJson, fetchOptional, apiRequest } from './http';

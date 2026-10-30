@@ -3,6 +3,7 @@ package com.example.lab5.service.Impl;
 import com.example.lab5.dto.InvoiceRequest;
 import com.example.lab5.entity.Invoice;
 import com.example.lab5.entity.SalesOrder;
+import com.example.lab5.event.NotificationEventFactory;
 import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
 import com.example.lab5.repository.InvoiceRepository;
@@ -19,10 +20,16 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
     private final SalesOrderRepository salesOrderRepository;
+    private final NotificationEventFactory notificationEvents;
 
-    public InvoiceServiceImpl(InvoiceRepository invoiceRepository, SalesOrderRepository salesOrderRepository) {
+    public InvoiceServiceImpl(
+            InvoiceRepository invoiceRepository,
+            SalesOrderRepository salesOrderRepository,
+            NotificationEventFactory notificationEvents
+    ) {
         this.invoiceRepository = invoiceRepository;
         this.salesOrderRepository = salesOrderRepository;
+        this.notificationEvents = notificationEvents;
     }
 
     @Override
@@ -50,7 +57,9 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setInvoiceNumber(request.invoiceNumber().trim());
         invoice.setTotal(request.total());
         invoice.setIssuedAt(request.issuedAt() == null ? LocalDateTime.now() : request.issuedAt());
-        return invoiceRepository.save(invoice);
+        Invoice saved = invoiceRepository.save(invoice);
+        notificationEvents.invoiceCreated(saved);
+        return saved;
     }
 
     @Override

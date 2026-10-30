@@ -4,9 +4,18 @@ import { useEffect, useState, type ReactNode } from 'react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import StatusPill from '@/components/ui/StatusPill';
-import { getOrder, getInvoiceByOrder, getContractByOrder, getPaymentsByOrder } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage } from '@/lib/utils/error';
+import {
+  getOrder,
+  getInvoiceByOrder,
+  getContractByOrder,
+  getPaymentsByOrder,
+  getOrderStatusHistory,
+  downloadFile,
+} from '@/lib/api';
 import { formatVnd, formatDateTime } from '@/lib/utils/format';
-import type { Contract, Invoice, Order, Payment } from '@/types';
+import type { Contract, Invoice, Order, OrderStatusHistory, Payment } from '@/types';
 
 const METHOD_LABEL: Record<string, string> = {
   CASH: 'Tiền mặt',
@@ -17,13 +26,14 @@ const METHOD_LABEL: Record<string, string> = {
 
 const CONDITION_LABEL: Record<string, string> = { NEW: 'Mới', USED: 'Cũ' };
 
-type SectionKey = 'items' | 'invoice' | 'contract' | 'payments';
+type SectionKey = 'items' | 'invoice' | 'contract' | 'payments' | 'history';
 
 const DEFAULT_OPEN: Record<SectionKey, boolean> = {
   items: true,
   invoice: true,
   contract: false,
   payments: false,
+  history: true,
 };
 
 interface Props {
@@ -101,16 +111,19 @@ function OrderDetailContent({
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [contract, setContract] = useState<Contract | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [history, setHistory] = useState<OrderStatusHistory[]>([]);
   const [open, setOpen] = useState<Record<SectionKey, boolean>>(DEFAULT_OPEN);
+  const toast = useToast();
 
   useEffect(() => {
     let active = true;
     (async () => {
-      const [o, inv, con, pay] = await Promise.allSettled([
+      const [o, inv, con, pay, hist] = await Promise.allSettled([
         getOrder(orderId),
         getInvoiceByOrder(orderId),
         getContractByOrder(orderId),
         getPaymentsByOrder(orderId),
+        getOrderStatusHistory(orderId),
       ]);
       if (!active) return;
       if (o.status === 'fulfilled') {
@@ -123,12 +136,21 @@ function OrderDetailContent({
       if (inv.status === 'fulfilled') setInvoice(inv.value);
       if (con.status === 'fulfilled') setContract(con.value);
       if (pay.status === 'fulfilled') setPayments(pay.value);
+      if (hist.status === 'fulfilled') setHistory(hist.value);
       setLoading(false);
     })();
     return () => {
       active = false;
     };
   }, [orderId, onOrderChange]);
+
+  const downloadPdf = async (path: string, filename: string) => {
+    try {
+      await downloadFile(path, filename);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  };
 
   const toggle = (key: SectionKey) => setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
 
@@ -199,16 +221,29 @@ function OrderDetailContent({
       {/* Hóa đơn */}
       <Section title="Hóa đơn" open={open.invoice} onToggle={() => toggle('invoice')}>
         {invoice ? (
-          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4">
-            <Info label="Số hóa đơn">{invoice.invoiceNumber}</Info>
-            <Info label="Mã đơn">{invoice.orderCode ?? order.orderCode}</Info>
-            <Info label="Ngày phát hành">
-              {invoice.issuedAt ? formatDateTime(invoice.issuedAt) : '—'}
-            </Info>
-            <Info label="Tổng tiền">
-              <span className="text-[#c58e00] font-bold">{formatVnd(invoice.total)}</span>
-            </Info>
-          </dl>
+          <>
+            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4">
+              <Info label="Số hóa đơn">{invoice.invoiceNumber}</Info>
+              <Info label="Mã đơn">{invoice.orderCode ?? order.orderCode}</Info>
+              <Info label="Ngày phát hành">
+                {invoice.issuedAt ? formatDateTime(invoice.issuedAt) : '—'}
+              </Info>
+              <Info label="Tổng tiền">
+                <span className="text-[#c58e00] font-bold">{formatVnd(invoice.total)}</span>
+              </Info>
+            </dl>
+            <div className="mt-4">
+              <Button
+                size="sm"
+                variant="gold"
+                onClick={() =>
+                  downloadPdf(`/invoices/${invoice.id}/pdf`, `hoa-don-${invoice.id}.pdf`)
+                }
+              >
+                Tải hóa đơn PDF
+              </Button>
+            </div>
+          </>
         ) : (
           <p className="text-sm text-[#9ca3af]">Đơn hàng này chưa có hóa đơn.</p>
         )}
@@ -235,6 +270,17 @@ function OrderDetailContent({
                 </p>
               </div>
             )}
+            <div>
+              <Button
+                size="sm"
+                variant="gold"
+                onClick={() =>
+                  downloadPdf(`/contracts/${contract.id}/pdf`, `hop-dong-${contract.id}.pdf`)
+                }
+              >
+                Tải hợp đồng PDF
+              </Button>
+            </div>
           </div>
         ) : (
           <p className="text-sm text-[#9ca3af]">Đơn hàng này chưa có hợp đồng.</p>
@@ -285,6 +331,42 @@ function OrderDetailContent({
               </span>
             </div>
           </>
+        )}
+      </Section>
+
+      {/* Lịch sử trạng thái (state machine) */}
+      <Section
+        title="Lịch sử trạng thái"
+        count={history.length}
+        open={open.history}
+        onToggle={() => toggle('history')}
+      >
+        {history.length === 0 ? (
+          <p className="text-sm text-[#9ca3af]">Chưa có lịch sử chuyển trạng thái.</p>
+        ) : (
+          <ol className="space-y-4">
+            {history.map((entry, index) => (
+              <li key={entry.id} className="relative pl-6">
+                <span className="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full bg-[#c58e00]" />
+                {index < history.length - 1 && (
+                  <span className="absolute left-[4px] top-4 h-[calc(100%+0.5rem)] w-px bg-[#e5e7eb]" />
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusPill status={entry.toStatus} />
+                  <span className="text-xs text-[#6b7280]">{formatDateTime(entry.changedAt)}</span>
+                </div>
+                <p className="mt-1 text-sm text-[#374151]">
+                  {entry.fromStatus
+                    ? `${entry.fromStatus} → ${entry.toStatus}`
+                    : `Khởi tạo đơn ở trạng thái ${entry.toStatus}`}
+                </p>
+                <p className="text-xs text-[#9ca3af]">
+                  {entry.changedBy ?? 'system'}
+                  {entry.note ? ` • ${entry.note}` : ''}
+                </p>
+              </li>
+            ))}
+          </ol>
         )}
       </Section>
     </div>

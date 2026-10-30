@@ -1,25 +1,44 @@
 'use client';
 
 import ResourceManager from '@/components/admin/ResourceManager';
+import Button from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage } from '@/lib/utils/error';
 import {
   listContracts,
   createContract,
   updateContract,
   deleteContract,
   getOrderOptions,
+  downloadFile,
 } from '@/lib/api';
 import { formatVnd, formatDateTime } from '@/lib/utils/format';
 import type { Contract } from '@/types';
 
 export default function AdminContractsPage() {
+  const toast = useToast();
+
+  const downloadPdf = async (contract: Contract) => {
+    try {
+      await downloadFile(`/contracts/${contract.id}/pdf`, `hop-dong-${contract.id}.pdf`);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  };
+
   return (
     <ResourceManager<Contract>
       title="Hợp đồng"
-      description="Quản lý hợp đồng mua bán."
+      description="Quản lý hợp đồng mua bán và tải bản PDF."
       list={listContracts}
       create={createContract}
       update={updateContract}
       remove={deleteContract}
+      rowActions={(row) => (
+        <Button size="sm" variant="ghost" onClick={() => downloadPdf(row)}>
+          PDF
+        </Button>
+      )}
       getId={(row) => row.id}
       toForm={(row) => ({
         orderId: row.orderId,

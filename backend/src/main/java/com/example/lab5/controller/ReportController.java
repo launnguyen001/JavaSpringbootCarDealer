@@ -10,13 +10,19 @@ import com.example.lab5.dto.OrderSummary;
 import com.example.lab5.dto.RevenueByMonth;
 import com.example.lab5.dto.RevenueSummary;
 import com.example.lab5.dto.TopSellingCar;
+import com.example.lab5.service.ReportExportService;
 import com.example.lab5.service.ReportService;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 // Báo cáo/thống kê (SQL thuần) - chỉ ADMIN truy cập (xem SecurityConfig)
@@ -25,9 +31,11 @@ import java.util.List;
 public class ReportController {
 
     private final ReportService reportService;
+    private final ReportExportService reportExportService;
 
-    public ReportController(ReportService reportService) {
+    public ReportController(ReportService reportService, ReportExportService reportExportService) {
         this.reportService = reportService;
+        this.reportExportService = reportExportService;
     }
 
     @GetMapping("/top-selling-cars")
@@ -80,5 +88,29 @@ public class ReportController {
     @GetMapping("/revenue-by-month")
     public List<RevenueByMonth> getRevenueByMonth() {
         return reportService.getRevenueByMonth();
+    }
+
+    /**
+     * Xuất báo cáo ra Excel/CSV.
+     *
+     * <p>Ví dụ: {@code GET /api/reports/export?type=dashboard-summary&format=xlsx}
+     */
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> export(
+            @RequestParam String type,
+            @RequestParam(defaultValue = "xlsx") String format
+    ) {
+        byte[] content = reportExportService.export(type, format);
+        String filename = reportExportService.suggestedFilename(type, format);
+        boolean csv = "csv".equalsIgnoreCase(format);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(csv
+                ? MediaType.parseMediaType("text/csv; charset=UTF-8")
+                : MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentDisposition(ContentDisposition.attachment()
+                .filename(filename, StandardCharsets.UTF_8)
+                .build());
+        return ResponseEntity.ok().headers(headers).body(content);
     }
 }

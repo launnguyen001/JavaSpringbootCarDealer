@@ -17,7 +17,7 @@ export type {
   UserStatusRequest,
   UserRoleRequest,
 } from './user';
-export type { OrderStatus, OrderItem, Order, OrderItemRequest, OrderRequest, OrderOption, OrderOptionTarget } from './order';
+export type { OrderStatus, OrderItem, Order, OrderItemRequest, OrderRequest, OrderOption, OrderOptionTarget, OrderStatusHistory } from './order';
 export type { Customer, CustomerRequest } from './customer';
 export type { Employee, EmployeeRequest } from './employee';
 export type { AppointmentStatus, TestDrive, TestDriveRequest } from './testDrive';
@@ -26,6 +26,7 @@ export type { PaymentMethod, PaymentStatus, Payment, PaymentRequest } from './pa
 export type { Contract, ContractRequest } from './contract';
 export type { Invoice, InvoiceRequest } from './invoice';
 export type { ActivityLog } from './activityLog';
+export type { NotificationType, AppNotification } from './notification';
 export type {
   DashboardSummary,
   RevenueSummary,

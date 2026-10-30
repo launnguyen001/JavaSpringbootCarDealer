@@ -55,3 +55,14 @@ export interface OrderOption {
   hasContract: boolean;
   hasInvoice: boolean;
 }
+
+/** Một mốc trong lịch sử chuyển trạng thái đơn hàng. */
+export interface OrderStatusHistory {
+  id: number;
+  orderId: number;
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  changedBy: string | null;
+  note: string | null;
+  changedAt: string;
+}

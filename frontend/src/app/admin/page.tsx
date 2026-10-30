@@ -6,6 +6,7 @@ import BarChart from '@/components/ui/BarChart';
 import DataTable, { type Column } from '@/components/ui/DataTable';
 import StatusPill from '@/components/ui/StatusPill';
 import Modal from '@/components/ui/Modal';
+import Button from '@/components/ui/Button';
 import OrderDetailModal from '@/components/admin/OrderDetailModal';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage } from '@/lib/utils/error';
@@ -21,6 +22,7 @@ import {
   getModelInventoryCars,
   getOrdersByCar,
   listInvoices,
+  downloadFile,
 } from '@/lib/api';
 import type {
   CarInventoryItem,
@@ -117,6 +119,7 @@ export default function AdminDashboardPage() {
   const [topCars, setTopCars] = useState<TopSellingCar[]>([]);
   const [revenueByMonth, setRevenueByMonth] = useState<RevenueByMonth[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exportType, setExportType] = useState('dashboard-summary');
 
   // drilldown states — hiển thị dạng popup
   const [drill, setDrill] = useState<Drill | null>(null);
@@ -232,17 +235,52 @@ export default function AdminDashboardPage() {
     setSelectedModel(null);
   };
 
+  const exportReport = async (format: 'xlsx' | 'csv') => {
+    try {
+      await downloadFile(
+        `/reports/export?type=${encodeURIComponent(exportType)}&format=${format}`,
+        `bao-cao-${exportType}.${format}`,
+      );
+      toast.success('Đã xuất báo cáo');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  };
+
   if (loading || !summary) {
     return <div className="py-20 text-center text-[#9ca3af] text-sm">Đang tải dashboard…</div>;
   }
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-serif font-bold text-[#0a0a0a]">Dashboard</h1>
-        <p className="text-sm text-[#6b7280] mt-1">
-          Tổng quan hoạt động kinh doanh — nhấp vào biểu đồ hoặc dòng dữ liệu để xem chi tiết trong popup.
-        </p>
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-serif font-bold text-[#0a0a0a]">Dashboard</h1>
+          <p className="text-sm text-[#6b7280] mt-1">
+            Tổng quan hoạt động kinh doanh — nhấp vào biểu đồ hoặc dòng dữ liệu để xem chi tiết trong popup.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={exportType}
+            onChange={(e) => setExportType(e.target.value)}
+            className="px-3 py-2 rounded-xl border border-[#e5e7eb] bg-white text-xs text-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#c58e00]"
+            aria-label="Chọn báo cáo cần xuất"
+          >
+            <option value="dashboard-summary">Tổng quan</option>
+            <option value="top-selling-cars">Xe bán chạy</option>
+            <option value="inventory-by-brand">Tồn kho theo hãng</option>
+            <option value="revenue-summary">Doanh thu</option>
+            <option value="orders-by-status">Đơn theo trạng thái</option>
+            <option value="revenue-by-month">Doanh thu theo tháng</option>
+          </select>
+          <Button size="sm" variant="outline" onClick={() => exportReport('csv')}>
+            CSV
+          </Button>
+          <Button size="sm" variant="gold" onClick={() => exportReport('xlsx')}>
+            Excel
+          </Button>
+        </div>
       </div>
 
       {/* KPI */}

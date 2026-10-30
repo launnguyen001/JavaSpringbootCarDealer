@@ -100,6 +100,8 @@ public class SecurityConfig {
                         // ---- Báo cáo & Dashboard: ADMIN ----
                         .requestMatchers("/api/reports/**").hasRole(ADMIN)
                         .requestMatchers("/api/admin/**").hasRole(ADMIN)
+                        // Cấu hình state machine đơn hàng: chỉ ADMIN (dropdown quản trị)
+                        .requestMatchers(HttpMethod.GET, "/api/orders/state-machine").hasRole(ADMIN)
 
                         // ---- Người dùng tự phục vụ (mọi role đã đăng nhập) ----
                         // Phải đặt TRƯỚC rule staff của "/api/customers/**" bên dưới
@@ -111,9 +113,18 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/orders").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/test-drives").authenticated()
                         .requestMatchers("/api/cart/**").authenticated()
+                        .requestMatchers("/api/notifications/**").authenticated()
                         // Xem đơn / lịch lái thử của chính mình (theo customerId)
                         .requestMatchers(HttpMethod.GET, "/api/orders/customer/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/test-drives/customer/**").authenticated()
+                        // Lịch sử trạng thái & trạng thái kế tiếp: chủ đơn hoặc staff (service kiểm tra quyền sở hữu)
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/orders/*/history",
+                                "/api/orders/*/allowed-transitions").authenticated()
+                        // Tải PDF chứng từ: chủ đơn hoặc staff (service kiểm tra quyền sở hữu)
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/contracts/*/pdf",
+                                "/api/invoices/*/pdf").authenticated()
 
                         // ---- Kiểm duyệt/nội dung: staff ----
                         .requestMatchers(HttpMethod.PUT, "/api/car-reviews/**").hasAnyRole(EMPLOYEE, ADMIN)

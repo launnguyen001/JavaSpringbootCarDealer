@@ -142,9 +142,3 @@ export default async function Home({ searchParams }: HomeProps) {
     </div>
   );
 }
-
-async function searchCars(q: string): Promise<Car[]> {
-  const res = await fetch(`/api/cars/search/name?name=${encodeURIComponent(q)}`, { cache: 'no-store' });
-  if (!res.ok) return [];
-  return res.json();
-}

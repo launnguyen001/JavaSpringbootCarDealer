@@ -2,16 +2,89 @@
 
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import {
+  listNotifications,
+  getUnreadNotificationCount,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from '@/lib/api';
+import type { AppNotification } from '@/types';
+import { formatDateTime } from '@/lib/utils/format';
 
 export default function Header() {
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unread, setUnread] = useState(0);
+  const [notifLoading, setNotifLoading] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const { user, logout, isAdmin } = useAuth();
+
+  // Cập nhật số thông báo chưa đọc mỗi 60 giây (và khi đổi tài khoản).
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    const refresh = () => {
+      getUnreadNotificationCount()
+        .then((count) => {
+          if (active) setUnread(count);
+        })
+        .catch(() => {
+          // Header không chặn UI nếu API thông báo lỗi.
+        });
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 60_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [user]);
+
+  const toggleNotifications = async () => {
+    const next = !notifOpen;
+    setNotifOpen(next);
+    setMenuOpen(false);
+    if (!next) return;
+    setNotifLoading(true);
+    try {
+      const data = await listNotifications();
+      setNotifications(data);
+      setUnread(data.filter((item) => !item.read).length);
+    } catch {
+      setNotifications([]);
+    } finally {
+      setNotifLoading(false);
+    }
+  };
+
+  const markRead = async (notification: AppNotification) => {
+    if (notification.read) return;
+    try {
+      await markNotificationRead(notification.id);
+      setNotifications((prev) =>
+        prev.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
+      );
+      setUnread((prev) => Math.max(prev - 1, 0));
+    } catch {
+      // Bỏ qua lỗi mạng nhỏ; lần mở sau sẽ đồng bộ lại.
+    }
+  };
+
+  const markAllRead = async () => {
+    try {
+      await markAllNotificationsRead();
+      setNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
+      setUnread(0);
+    } catch {
+      // Bỏ qua lỗi mạng nhỏ.
+    }
+  };
 
   // Trang hiện tại có "khớp" với href không (dùng cho hiệu ứng active trên nav)
   const isActive = (href: string) =>
@@ -51,6 +124,9 @@ export default function Header() {
     await logout();
     setMenuOpen(false);
     setOpen(false);
+    setNotifOpen(false);
+    setNotifications([]);
+    setUnread(0);
     router.push('/');
     router.refresh();
   };
@@ -106,10 +182,98 @@ export default function Header() {
               </svg>
             </Link>
 
+            {user && (
+              <div className="relative">
+                <button
+                  onClick={toggleNotifications}
+                  className={`relative p-2 transition-colors hover:text-[#c58e00] ${
+                    notifOpen ? 'text-[#c58e00]' : 'text-[#0a0a0a]'
+                  }`}
+                  title="Thông báo"
+                  aria-label="Thông báo"
+                  aria-expanded={notifOpen}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                  {unread > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ef4444] text-white text-[10px] font-bold flex items-center justify-center">
+                      {unread > 9 ? '9+' : unread}
+                    </span>
+                  )}
+                </button>
+
+                {notifOpen && (
+                  <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-xl border border-[#e5e7eb] shadow-xl overflow-hidden animate-fade-in z-50">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-[#f3f4f6]">
+                      <span className="text-sm font-semibold text-[#0a0a0a]">Thông báo</span>
+                      {unread > 0 && (
+                        <button
+                          onClick={markAllRead}
+                          className="text-xs font-medium text-[#c58e00] hover:underline"
+                        >
+                          Đọc tất cả
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifLoading ? (
+                        <p className="px-4 py-8 text-center text-sm text-[#9ca3af]">Đang tải…</p>
+                      ) : notifications.length === 0 ? (
+                        <p className="px-4 py-8 text-center text-sm text-[#9ca3af]">
+                          Chưa có thông báo nào.
+                        </p>
+                      ) : (
+                        notifications.slice(0, 8).map((notification) => (
+                          <button
+                            key={notification.id}
+                            onClick={() => markRead(notification)}
+                            className={`w-full text-left px-4 py-3 border-b border-[#f3f4f6] last:border-0 hover:bg-[#fafafa] transition-colors ${
+                              notification.read ? '' : 'bg-[#fffbeb]'
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <span
+                                className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${
+                                  notification.read ? 'bg-transparent' : 'bg-[#c58e00]'
+                                }`}
+                              />
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-[#0a0a0a] truncate">
+                                  {notification.title}
+                                </p>
+                                <p className="mt-0.5 text-xs text-[#6b7280] line-clamp-2">
+                                  {notification.message}
+                                </p>
+                                <p className="mt-1 text-[10px] text-[#9ca3af]">
+                                  {formatDateTime(notification.createdAt)}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                    <Link
+                      href="/account"
+                      onClick={() => setNotifOpen(false)}
+                      className="block px-4 py-3 text-center text-xs font-medium text-[#c58e00] border-t border-[#f3f4f6] hover:bg-[#fafafa]"
+                    >
+                      Xem tất cả thông báo
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
             {user ? (
               <div className="relative hidden lg:block">
                 <button
-                  onClick={() => setMenuOpen((v) => !v)}
+                  onClick={() => {
+                    setMenuOpen((v) => !v);
+                    setNotifOpen(false);
+                  }}
                   className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-[#0a0a0a] hover:bg-[#f3f4f6] transition-colors"
                 >
                   <span className="w-7 h-7 rounded-full bg-[#c58e00] text-white flex items-center justify-center text-xs font-bold uppercase">

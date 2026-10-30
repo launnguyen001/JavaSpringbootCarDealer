@@ -11,6 +11,7 @@ import com.example.lab5.entity.OrderItem;
 import com.example.lab5.entity.OrderStatus;
 import com.example.lab5.entity.Payment;
 import com.example.lab5.entity.SalesOrder;
+import com.example.lab5.event.NotificationEventFactory;
 import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
 import com.example.lab5.repository.CarItemRepository;
@@ -21,7 +22,9 @@ import com.example.lab5.repository.InvoiceRepository;
 import com.example.lab5.repository.OrderItemRepository;
 import com.example.lab5.repository.PaymentRepository;
 import com.example.lab5.repository.SalesOrderRepository;
+import com.example.lab5.service.OrderStateService;
 import com.example.lab5.service.SalesOrderService;
+import com.example.lab5.util.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +48,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final PaymentRepository paymentRepository;
     private final ContractRepository contractRepository;
     private final InvoiceRepository invoiceRepository;
+    private final OrderStateService orderStateService;
+    private final NotificationEventFactory notificationEvents;
 
     public SalesOrderServiceImpl(
             SalesOrderRepository salesOrderRepository,
@@ -54,7 +59,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             OrderItemRepository orderItemRepository,
             PaymentRepository paymentRepository,
             ContractRepository contractRepository,
-            InvoiceRepository invoiceRepository
+            InvoiceRepository invoiceRepository,
+            OrderStateService orderStateService,
+            NotificationEventFactory notificationEvents
     ) {
         this.salesOrderRepository = salesOrderRepository;
         this.customerRepository = customerRepository;
@@ -64,6 +71,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         this.paymentRepository = paymentRepository;
         this.contractRepository = contractRepository;
         this.invoiceRepository = invoiceRepository;
+        this.orderStateService = orderStateService;
+        this.notificationEvents = notificationEvents;
     }
 
     @Override
@@ -78,7 +87,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         SalesOrder order = new SalesOrder();
         order.setOrderCode(generateOrderCode());
         order.setOrderDate(LocalDateTime.now());
-        order.setStatus(OrderStatus.CONFIRMED);
+        order.setStatus(OrderStatus.PENDING);
         order.setCustomer(customer);
         order.setEmployee(resolveEmployee(request.employeeId()));
 
@@ -88,7 +97,11 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
 
         order.setTotalAmount(total);
-        return salesOrderRepository.save(order);
+
+        SalesOrder saved = salesOrderRepository.save(order);
+        orderStateService.recordInitial(saved, SecurityUtils.currentUsername());
+        notificationEvents.orderCreated(saved);
+        return saved;
     }
 
     @Override
@@ -160,9 +173,13 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         if (status == null) {
             throw new BadRequestException("Trạng thái đơn hàng không được để trống");
         }
+        // Hủy đơn phải đi qua cancel() để hoàn lại trạng thái tồn kho của từng xe.
+        if (status == OrderStatus.CANCELLED) {
+            return cancel(id);
+        }
         SalesOrder order = getOrderById(id);
-        order.setStatus(status);
-        return salesOrderRepository.save(order);
+        return orderStateService.transition(order, status, SecurityUtils.currentUsername(),
+                "Cập nhật trạng thái qua API");
     }
 
     @Override
@@ -173,8 +190,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             throw new BadRequestException("Đơn hàng đã bị huỷ trước đó");
         }
         restoreStock(order);
-        order.setStatus(OrderStatus.CANCELLED);
-        return salesOrderRepository.save(order);
+        return orderStateService.transition(order, OrderStatus.CANCELLED, SecurityUtils.currentUsername(),
+                "Hủy đơn hàng");
     }
 
     @Override

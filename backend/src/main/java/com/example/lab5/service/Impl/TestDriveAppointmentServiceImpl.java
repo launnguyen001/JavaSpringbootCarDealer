@@ -6,6 +6,7 @@ import com.example.lab5.entity.CarItem;
 import com.example.lab5.entity.Customer;
 import com.example.lab5.entity.Employee;
 import com.example.lab5.entity.TestDriveAppointment;
+import com.example.lab5.event.NotificationEventFactory;
 import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
 import com.example.lab5.repository.CarItemRepository;
@@ -13,6 +14,7 @@ import com.example.lab5.repository.CustomerRepository;
 import com.example.lab5.repository.EmployeeRepository;
 import com.example.lab5.repository.TestDriveAppointmentRepository;
 import com.example.lab5.service.TestDriveAppointmentService;
+import com.example.lab5.statemachine.AppointmentStateMachine;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,17 +27,23 @@ public class TestDriveAppointmentServiceImpl implements TestDriveAppointmentServ
     private final CustomerRepository customerRepository;
     private final CarItemRepository carItemRepository;
     private final EmployeeRepository employeeRepository;
+    private final AppointmentStateMachine stateMachine;
+    private final NotificationEventFactory notificationEvents;
 
     public TestDriveAppointmentServiceImpl(
             TestDriveAppointmentRepository appointmentRepository,
             CustomerRepository customerRepository,
             CarItemRepository carItemRepository,
-            EmployeeRepository employeeRepository
+            EmployeeRepository employeeRepository,
+            AppointmentStateMachine stateMachine,
+            NotificationEventFactory notificationEvents
     ) {
         this.appointmentRepository = appointmentRepository;
         this.customerRepository = customerRepository;
         this.carItemRepository = carItemRepository;
         this.employeeRepository = employeeRepository;
+        this.stateMachine = stateMachine;
+        this.notificationEvents = notificationEvents;
     }
 
     @Override
@@ -70,7 +78,9 @@ public class TestDriveAppointmentServiceImpl implements TestDriveAppointmentServ
         appointment.setCarItem(carItem);
         appointment.setEmployee(employee);
         appointment.setStatus(request.status() == null ? AppointmentStatus.SCHEDULED : request.status());
-        return appointmentRepository.save(appointment);
+        TestDriveAppointment saved = appointmentRepository.save(appointment);
+        notificationEvents.testDriveCreated(saved);
+        return saved;
     }
 
     @Override
@@ -99,8 +109,7 @@ public class TestDriveAppointmentServiceImpl implements TestDriveAppointmentServ
             throw new BadRequestException("Trạng thái lịch lái thử không được để trống");
         }
         TestDriveAppointment appointment = getAppointmentById(id);
-        appointment.setStatus(status);
-        return appointmentRepository.save(appointment);
+        return applyStatus(appointment, status);
     }
 
     @Override
@@ -110,8 +119,7 @@ public class TestDriveAppointmentServiceImpl implements TestDriveAppointmentServ
         if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
             throw new BadRequestException("Lịch lái thử đã bị huỷ trước đó");
         }
-        appointment.setStatus(AppointmentStatus.CANCELLED);
-        return appointmentRepository.save(appointment);
+        return applyStatus(appointment, AppointmentStatus.CANCELLED);
     }
 
     @Override
@@ -137,8 +145,8 @@ public class TestDriveAppointmentServiceImpl implements TestDriveAppointmentServ
         appointment.setNote(request.note());
         appointment.setCarItem(carItem);
         appointment.setEmployee(employee);
-        if (request.status() != null) {
-            appointment.setStatus(request.status());
+        if (request.status() != null && request.status() != appointment.getStatus()) {
+            return applyStatus(appointment, request.status());
         }
         return appointmentRepository.save(appointment);
     }
@@ -148,6 +156,17 @@ public class TestDriveAppointmentServiceImpl implements TestDriveAppointmentServ
     public void delete(Long id) {
         getAppointmentById(id);
         appointmentRepository.deleteById(id);
+    }
+
+    private TestDriveAppointment applyStatus(TestDriveAppointment appointment, AppointmentStatus target) {
+        AppointmentStatus current = appointment.getStatus();
+        stateMachine.assertCanTransition(current, target);
+        appointment.setStatus(target);
+        TestDriveAppointment saved = appointmentRepository.save(appointment);
+        if (current != target) {
+            notificationEvents.testDriveStatusChanged(saved, current, target);
+        }
+        return saved;
     }
 
     private CarItem findCarItem(Long carItemId) {

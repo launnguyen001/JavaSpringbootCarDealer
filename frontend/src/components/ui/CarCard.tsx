@@ -5,7 +5,6 @@ import { Car } from '@/types/car';
 import PriceTag from '@/components/ui/PriceTag';
 import StatusBadge from '@/components/ui/StatusBadge';
 import RatingStars from '@/components/ui/RatingStars';
-import Image from "next/image";
 
 interface CarCardProps {
   car: Car;

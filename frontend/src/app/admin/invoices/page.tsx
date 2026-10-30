@@ -1,25 +1,44 @@
 'use client';
 
 import ResourceManager from '@/components/admin/ResourceManager';
+import Button from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
+import { getErrorMessage } from '@/lib/utils/error';
 import {
   listInvoices,
   createInvoice,
   updateInvoice,
   deleteInvoice,
   getOrderOptions,
+  downloadFile,
 } from '@/lib/api';
 import { formatVnd, formatDateTime } from '@/lib/utils/format';
 import type { Invoice } from '@/types';
 
 export default function AdminInvoicesPage() {
+  const toast = useToast();
+
+  const downloadPdf = async (invoice: Invoice) => {
+    try {
+      await downloadFile(`/invoices/${invoice.id}/pdf`, `hoa-don-${invoice.id}.pdf`);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  };
+
   return (
     <ResourceManager<Invoice>
       title="Hóa đơn"
-      description="Quản lý hóa đơn bán hàng."
+      description="Quản lý hóa đơn bán hàng và tải bản PDF."
       list={listInvoices}
       create={createInvoice}
       update={updateInvoice}
       remove={deleteInvoice}
+      rowActions={(row) => (
+        <Button size="sm" variant="ghost" onClick={() => downloadPdf(row)}>
+          PDF
+        </Button>
+      )}
       getId={(row) => row.id}
       toForm={(row) => ({
         orderId: row.orderId,

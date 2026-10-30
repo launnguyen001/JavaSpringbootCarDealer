@@ -5,8 +5,16 @@ import com.example.lab5.dto.InvoiceResponse;
 import com.example.lab5.entity.Invoice;
 import com.example.lab5.mapper.InvoiceMapper;
 import com.example.lab5.service.InvoiceService;
+import com.example.lab5.service.PdfDocumentService;
+import com.example.lab5.util.SecurityUtils;
 import jakarta.validation.Valid;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -25,10 +34,16 @@ public class InvoiceController {
 
     private final InvoiceService invoiceService;
     private final InvoiceMapper invoiceMapper;
+    private final PdfDocumentService pdfDocumentService;
 
-    public InvoiceController(InvoiceService invoiceService, InvoiceMapper invoiceMapper) {
+    public InvoiceController(
+            InvoiceService invoiceService,
+            InvoiceMapper invoiceMapper,
+            PdfDocumentService pdfDocumentService
+    ) {
         this.invoiceService = invoiceService;
         this.invoiceMapper = invoiceMapper;
+        this.pdfDocumentService = pdfDocumentService;
     }
 
     @PostMapping
@@ -50,6 +65,21 @@ public class InvoiceController {
     @GetMapping("/order/{orderId}")
     public InvoiceResponse getByOrder(@PathVariable Long orderId) {
         return invoiceMapper.toResponse(invoiceService.getByOrder(orderId));
+    }
+
+    /** Tải hóa đơn dạng PDF — chủ đơn hoặc nhân viên/admin. */
+    @GetMapping("/{id}/pdf")
+    public ResponseEntity<byte[]> downloadPdf(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        byte[] pdf = pdfDocumentService.renderInvoicePdf(id, userDetails.getUsername(), SecurityUtils.isStaff());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.attachment()
+                .filename("hoa-don-" + id + ".pdf", StandardCharsets.UTF_8)
+                .build());
+        return new ResponseEntity<>(pdf, headers, HttpStatus.OK);
     }
 
     @PutMapping("/{id}")

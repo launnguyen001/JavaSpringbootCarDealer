@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
@@ -52,6 +52,8 @@ export interface ResourceManagerProps<T> {
   canEdit?: boolean;
   canDelete?: boolean;
   search?: (term: string) => Promise<T[]>;
+  /** Nút thao tác bổ sung (ví dụ tải PDF) hiển thị cạnh Sửa/Xóa. */
+  rowActions?: (row: T) => ReactNode;
 }
 
 function emptyForm(fields: FieldConfig[]): Record<string, unknown> {
@@ -109,6 +111,7 @@ export default function ResourceManager<T>({
   canEdit = true,
   canDelete = true,
   search,
+  rowActions,
 }: ResourceManagerProps<T>) {
   const toast = useToast();
   const [rows, setRows] = useState<T[]>([]);
@@ -237,7 +240,7 @@ export default function ResourceManager<T>({
 
   const allColumns: Column<T>[] = [
     ...columns,
-    ...(canEdit || canDelete
+    ...(canEdit || canDelete || rowActions
       ? [
           {
             key: '__actions',
@@ -245,6 +248,7 @@ export default function ResourceManager<T>({
             className: 'text-right whitespace-nowrap',
             render: (row: T) => (
               <div className="flex justify-end gap-2">
+                {rowActions?.(row)}
                 {canEdit && update && (
                   <Button size="sm" variant="outline" onClick={() => openEdit(row)}>
                     Sửa

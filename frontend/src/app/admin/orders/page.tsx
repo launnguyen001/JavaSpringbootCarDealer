@@ -18,10 +18,10 @@ import {
   deleteOrder,
   listCars,
   listAvailableCarItems,
+  getOrderStateMachine,
 } from '@/lib/api';
 import type { Car, CarItem, Order, OrderStatus } from '@/types';
 
-const statuses: OrderStatus[] = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
 const CONDITION_LABEL: Record<string, string> = { NEW: 'Mới', USED: 'Cũ' };
 
 interface ItemRow {
@@ -33,6 +33,7 @@ export default function AdminOrdersPage() {
   const toast = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
+  const [transitions, setTransitions] = useState<Record<OrderStatus, OrderStatus[]> | null>(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -47,7 +48,12 @@ export default function AdminOrdersPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setOrders(await listOrders());
+      const [ordersData, machine] = await Promise.all([
+        listOrders(),
+        getOrderStateMachine().catch(() => null),
+      ]);
+      setOrders(ordersData);
+      setTransitions(machine);
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -158,16 +164,23 @@ export default function AdminOrdersPage() {
           </Button>
           <Select
             value={r.status}
+            disabled={!transitions || (transitions[r.status] ?? []).filter((s) => s !== 'CANCELLED').length === 0}
             onChange={(e) => changeStatus(r, e.target.value as OrderStatus)}
             className="!py-1 !px-2 !text-xs !w-32"
+            title="Chỉ các trạng thái hợp lệ theo state machine mới chọn được"
           >
-            {statuses.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
+            <option value={r.status}>{r.status}</option>
+            {(transitions?.[r.status] ?? [])
+              .filter((s) => s !== 'CANCELLED')
+              .map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
           </Select>
-          {r.status !== 'CANCELLED' && (
+          {(!transitions
+            ? r.status !== 'CANCELLED'
+            : (transitions[r.status] ?? []).includes('CANCELLED')) && (
             <Button size="sm" variant="outline" onClick={() => doCancel(r)}>
               Hủy
             </Button>

@@ -14,6 +14,9 @@ Hệ thống backend cho **đại lý bán xe**, xây dựng trên Spring Boot 4
 | CSDL linh hoạt | MongoDB (`cardealer`) |
 | Cache / session | Redis |
 | Tài liệu API | springdoc OpenAPI 3 + Swagger UI |
+| Thông báo / email | Spring Mail (Gmail SMTP), `@TransactionalEventListener` + `@Async` |
+| Xuất PDF | OpenPDF 1.3.39 + font Noto Sans (tiếng Việt) |
+| Xuất báo cáo | Apache POI 5.4.1 (`.xlsx`) + CSV UTF-8 |
 | Test | JUnit 5, Mockito, MockMvc, H2 in-memory |
 
 ## 2. Kiến trúc & phân chia SQL / NoSQL
@@ -30,16 +33,19 @@ Cấu trúc package:
 
 ```
 com.example.lab5
-├── config        (cache Redis, seed dữ liệu)
+├── config        (cache Redis, seed dữ liệu, async executor)
 ├── controller    (REST controllers)
 ├── dto           (record request/response)
 ├── entity        (SQL/JPA)
 ├── document      (NoSQL/MongoDB)
+├── event         (sự kiện nghiệp vụ + listener thông báo)
 ├── mapper
 ├── repository    (SQL repositories + JdbcTemplate)
 ├── mongorepository (NoSQL repositories)
 ├── service
 │   └── Impl
+├── statemachine  (StateMachine tổng quát + đơn hàng/lịch lái thử/thanh toán)
+├── util
 └── exception
 ```
 
@@ -180,9 +186,9 @@ cd backend
 .\mvnw.cmd test
 ```
 
-Kết quả hiện tại: **110 test PASS** (bao gồm 16 test phân quyền `SecurityAuthorizationTests`, 9 test dashboard
-`ReportControllerMockMvcTests`, 15 test quản trị người dùng `UserAdminControllerMockMvcTests`, và 8 test
-`CarItemControllerMockMvcTests`).
+Kết quả hiện tại: **137 test PASS** (bao gồm 16 test phân quyền `SecurityAuthorizationTests`, 12 test dashboard & xuất báo cáo
+`ReportControllerMockMvcTests`, 15 test quản trị người dùng `UserAdminControllerMockMvcTests`, 8 test
+`CarItemControllerMockMvcTests`, cùng test mới cho state machine, lịch sử trạng thái, notification service, PDF và xuất báo cáo).
 
 ## 5. API chính
 
@@ -197,10 +203,11 @@ Mỗi tài nguyên SQL dưới đây đều có đủ **CRUD**: `POST` (tạo), 
 | Xe trong kho (từng chiếc) | `/api/car-items` | `/api/car-items/{id}`, `/api/car-items/available?carId=`, `PATCH /api/car-items/{id}/status` |
 | Khách hàng | `/api/customers` | `/api/customers/{id}`, `/api/customers/search/name`, `/api/customers/search/phone`, **`GET/PUT /api/customers/me`** (hồ sơ gắn tài khoản) |
 | Nhân viên | `/api/employees` | `/api/employees/{id}`, `/api/employees/search/name` |
-| Đơn hàng | `/api/orders` | `/api/orders/{id}`, `/api/orders/customer/{customerId}`, `PATCH /api/orders/{id}/status`, `POST /api/orders/{id}/cancel`, `/api/orders/{orderId}/items[/{itemId}]` (CRUD dòng xe) |
+| Đơn hàng | `/api/orders` | `/api/orders/{id}`, `/api/orders/customer/{customerId}`, `PATCH /api/orders/{id}/status`, `POST /api/orders/{id}/cancel`, **`GET /api/orders/{id}/history`**, **`GET /api/orders/{id}/allowed-transitions`**, **`GET /api/orders/state-machine`** (ADMIN), `/api/orders/{orderId}/items[/{itemId}]` (CRUD dòng xe) |
 | Thanh toán | `/api/payments` | `/api/payments/{id}`, `/api/payments/order/{orderId}` |
-| Hợp đồng | `/api/contracts` | `/api/contracts/{id}`, `/api/contracts/order/{orderId}` |
-| Hóa đơn | `/api/invoices` | `/api/invoices/{id}`, `/api/invoices/order/{orderId}` |
+| Hợp đồng | `/api/contracts` | `/api/contracts/{id}`, `/api/contracts/order/{orderId}`, **`GET /api/contracts/{id}/pdf`** |
+| Hóa đơn | `/api/invoices` | `/api/invoices/{id}`, `/api/invoices/order/{orderId}`, **`GET /api/invoices/{id}/pdf`** |
+| Thông báo | `/api/notifications` | **`GET /api/notifications`**, **`GET /api/notifications/unread-count`**, **`PATCH /api/notifications/{id}/read`**, **`PATCH /api/notifications/read-all`** |
 | Lịch lái thử | `/api/test-drives` | `/api/test-drives/{id}`, `/api/test-drives/customer/{customerId}`, `PATCH /api/test-drives/{id}/status`, `POST /api/test-drives/{id}/cancel` |
 | Thông số kỹ thuật (Mongo) | `/api/car-specs` | `/api/car-specs/{carId}` (`PUT` để lưu, `DELETE` để xoá) |
 | Đánh giá (Mongo) | `/api/car-reviews` | `/api/car-reviews/{id}`, `/api/car-reviews/car/{carId}`, `/api/car-reviews/car/{carId}/summary`, `POST /api/car-reviews/{reviewId}/replies` |
@@ -210,7 +217,7 @@ Mỗi tài nguyên SQL dưới đây đều có đủ **CRUD**: `POST` (tạo), 
 | Xác thực | `/api/auth/register`, `/api/auth/login`, `/api/auth/me`, `/api/auth/logout` | JWT (Bearer token); **`PUT /api/auth/me`** (tự đổi email/mật khẩu) |
 | Quản trị người dùng (ADMIN) | `/api/admin/users` | `PUT /api/admin/users/{id}/status` (khoá/mở khoá), `PUT /api/admin/users/{id}/role` (đổi vai trò) |
 | Session (Redis) | `/api/sessions` | `POST` đăng nhập, `DELETE` đăng xuất |
-| Báo cáo (SQL thuần) | `/api/reports/top-selling-cars`, `/api/reports/inventory-by-brand`, `/api/reports/revenue-summary`, `/api/reports/orders-by-status` | |
+| Báo cáo (SQL thuần) | `/api/reports/top-selling-cars`, `/api/reports/inventory-by-brand`, `/api/reports/revenue-summary`, `/api/reports/orders-by-status` | **`GET /api/reports/export?type=...&format=xlsx\|csv`** |
 | Dashboard & drilldown | `/api/reports/dashboard-summary`, `/api/reports/revenue-by-month`, `/api/reports/inventory-by-brand/{brandId}/models`, `/api/reports/inventory-by-model/{modelId}/cars`, `/api/reports/top-selling-cars/{carId}/orders`, `/api/reports/orders-by-status/{status}` | |
 
 ### Xác thực & phân quyền (RBAC)
@@ -221,7 +228,7 @@ Mỗi tài nguyên SQL dưới đây đều có đủ **CRUD**: `POST` (tạo), 
 | Vai trò (`Role`) | Quyền chính |
 | --- | --- |
 | 🟢 Công khai | `GET` catalog: `/api/cars`, `/api/car-items`, `/api/brands`, `/api/car-models`, `/api/car-specs`, `/api/car-media`, `/api/car-reviews/**`; `/api/auth/**`; Swagger |
-| 🔵 Đã đăng nhập (`USER`/`EMPLOYEE`/`ADMIN`) | `/api/auth/me` (+`PUT`), `/api/customers/me` (`GET`/`PUT`), `/api/cart/**`, `GET /api/orders/customer/**`, `GET /api/test-drives/customer/**`, `POST /api/customers`, `POST /api/orders`, `POST /api/test-drives`, `POST /api/car-reviews/**` |
+| 🔵 Đã đăng nhập (`USER`/`EMPLOYEE`/`ADMIN`) | `/api/auth/me` (+`PUT`), `/api/customers/me` (`GET`/`PUT`), `/api/notifications/**`, `/api/cart/**`, `GET /api/orders/customer/**`, `GET /api/orders/{id}/history`, `GET /api/test-drives/customer/**`, `POST /api/customers`, `POST /api/orders`, `POST /api/test-drives`, `POST /api/car-reviews/**`; tải PDF chứng từ của chính mình |
 | 🟠 `EMPLOYEE` hoặc `ADMIN` | CRUD khách hàng/đơn hàng/lịch lái thử/thanh toán/hợp đồng/hóa đơn; `GET/PUT/DELETE` media & specs; `PUT/DELETE` đánh giá; `GET` nhân viên; nhật ký hoạt động |
 | 🔴 `ADMIN` | Ghi catalog (xe/hãng/dòng xe/**xe trong kho**), CRUD nhân viên, `/api/reports/**`, `/api/admin/**` |
 
@@ -244,6 +251,68 @@ Mỗi tài nguyên SQL dưới đây đều có đủ **CRUD**: `POST` (tạo), 
 | Employee | có `SalesOrder` hoặc `TestDriveAppointment` |
 | SalesOrder | không phải `CANCELLED`, hoặc đã có Payment/Contract/Invoice |
 | Payment / Contract / Invoice / TestDrive | (không có tham chiếu) → xoá tự do |
+
+## 6. Thông báo, PDF, xuất báo cáo & state machine
+
+### 6.1. Thông báo in-app + email
+
+- Mỗi sự kiện nghiệp vụ (tạo đơn, đổi trạng thái đơn, thanh toán, hợp đồng, hóa đơn, lịch lái thử)
+  phát `BusinessEvent` **bên trong transaction**; `BusinessEventListener` xử lý **AFTER_COMMIT + @Async**
+  nên rollback hoặc SMTP chậm không làm hỏng giao dịch chính.
+- Thông báo được lưu vào bảng `notifications` cho tài khoản của khách; khách không có tài khoản vẫn nhận email.
+- API: `/api/notifications`, `/api/notifications/unread-count`, `PATCH /api/notifications/{id}/read`,
+  `PATCH /api/notifications/read-all`.
+- Frontend: chuông thông báo trên `Header` (badge chưa đọc, tự làm mới mỗi 60 giây) và tab **Thông báo**
+  trong `/account`.
+
+Bật gửi email bằng biến môi trường (không lưu App Password trong source):
+
+```bash
+MAIL_USERNAME=your@gmail.com \
+MAIL_PASSWORD=your-google-app-password \
+MAIL_ENABLED=true \
+NOTIFICATION_EMAIL_ENABLED=true \
+./mvnw spring-boot:run
+```
+
+Mặc định email **tắt** (`MAIL_ENABLED=false`); thông báo in-app vẫn hoạt động bình thường.
+Có thể tắt riêng phần email qua `NOTIFICATION_EMAIL_ENABLED=false`.
+
+### 6.2. PDF hợp đồng / hóa đơn
+
+- `GET /api/contracts/{id}/pdf`, `GET /api/invoices/{id}/pdf` trả file PDF có font Noto Sans,
+  hiển thị đúng tiếng Việt.
+- Khách chỉ tải được chứng từ thuộc đơn của mình; `EMPLOYEE`/`ADMIN` tải được mọi chứng từ.
+- Nút **PDF** có trong trang quản trị hợp đồng/hóa đơn và trong popup chi tiết đơn hàng.
+
+### 6.3. Xuất báo cáo Excel / CSV
+
+`GET /api/reports/export?type=<loại>&format=xlsx|csv` (ADMIN). Các loại hỗ trợ:
+
+`dashboard-summary`, `top-selling-cars`, `inventory-by-brand`, `revenue-summary`,
+`orders-by-status`, `revenue-by-month`.
+
+File `.xlsx` dùng Apache POI (header tô màu, freeze pane, định dạng tiền); CSV dùng UTF-8 BOM
+để Excel mở đúng tiếng Việt.
+
+### 6.4. State machine chuẩn hóa
+
+Luồng trạng thái được khai báo tập trung tại `statemachine/` và **mọi** thay đổi trạng thái
+đơn hàng/lịch lái thử/thanh toán đều đi qua `StateMachine.assertCanTransition`.
+
+```
+Đơn hàng:      PENDING ──► CONFIRMED ──► COMPLETED
+                  │            │
+                  └────────────┴──────► CANCELLED
+Lịch lái thử:  SCHEDULED ──► CONFIRMED ──► COMPLETED
+                    │            │
+                    └────────────┴──────► CANCELLED
+Thanh toán:    UNPAID ──► PARTIAL ──► PAID ──► REFUNDED
+```
+
+- `PENDING → COMPLETED` được cho phép vì luồng thanh toán hiện tại có thể hoàn tất đơn chưa xác nhận.
+- Mỗi lần đổi trạng thái đơn được ghi vào `order_status_history` (ai đổi, từ → đến, ghi chú, thời điểm).
+- Frontend chỉ hiển thị các trạng thái hợp lệ trong dropdown và hiển thị timeline lịch sử trong popup đơn hàng.
 
 ## 7. Nghiệp vụ tồn kho
 
@@ -306,7 +375,11 @@ frontend/src
 - Trang chi tiết `/cars/[id]` dùng `CarGallery` (client) để **bấm thumbnail đổi ảnh**; `CarPurchasePanel`
   cho chọn **chiếc xe cụ thể** (VIN/màu/tình trạng/giá) trước khi thêm vào giỏ hoặc đăng ký lái thử.
 - `Header` có trạng thái **active** theo `usePathname()`: mục đang xem được tô vàng + gạch chân (desktop),
-  nền xám + chữ vàng (mobile), kèm `aria-current="page"`.
+  nền xám + chữ vàng (mobile), kèm `aria-current="page"`. Chuông thông báo hiển thị badge chưa đọc cho
+  tài khoản đã đăng nhập.
+- `/account` có thêm tab **Thông báo** (đọc từng thông báo hoặc đánh dấu tất cả đã đọc).
+- Trang quản trị hợp đồng/hóa đơn có nút tải **PDF**; popup chi tiết đơn hàng có timeline lịch sử trạng thái.
+- Dashboard có bộ chọn loại báo cáo + nút **CSV / Excel** để tải file trực tiếp.
 
 
 Dashboard có **drilldown**: nhấp cột trạng thái → danh sách đơn; nhấp hãng → dòng xe → danh sách xe;
