@@ -63,7 +63,7 @@ public class ChatServiceImpl implements ChatService {
 
         // Tái sử dụng phòng PRIVATE đã tồn tại giữa hai người.
         return chatRoomRepository
-                .findByTypeAndParticipantIdsContainingAndParticipantIdsContaining(
+                .findPrivateRoomBetween(
                         ChatRoom.ChatRoomType.PRIVATE, currentUserId, otherUserId)
                 .map(this::toResponse)
                 .orElseGet(() -> {
