@@ -15,6 +15,9 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
 
     boolean existsByOrder_Id(Long orderId);
 
+    /** Hợp đồng ký gần nhất đứng đầu. */
+    List<Contract> findAllByOrderBySignedAtDescIdDesc();
+
     /** Id các đơn hàng đã có hợp đồng. */
     @Query("SELECT c.order.id FROM Contract c")
     List<Long> findAllOrderIds();
