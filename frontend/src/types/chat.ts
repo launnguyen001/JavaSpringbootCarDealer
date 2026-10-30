@@ -15,6 +15,7 @@ export interface ChatRoom {
   createdAt: string;
   lastMessageContent: string | null;
   lastMessageAt: string | null;
+  unreadCount?: number;
 }
 
 /** Tin nhắn chat */
