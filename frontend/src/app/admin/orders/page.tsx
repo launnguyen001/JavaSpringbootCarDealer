@@ -17,10 +17,12 @@ import {
   cancelOrder,
   deleteOrder,
   listCars,
+  listCustomers,
+  listEmployees,
   listAvailableCarItems,
   getOrderStateMachine,
 } from '@/lib/api';
-import type { Car, CarItem, Order, OrderStatus } from '@/types';
+import type { Car, CarItem, Customer, Employee, Order, OrderStatus } from '@/types';
 
 const CONDITION_LABEL: Record<string, string> = { NEW: 'Mới', USED: 'Cũ' };
 
@@ -33,6 +35,8 @@ export default function AdminOrdersPage() {
   const toast = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [transitions, setTransitions] = useState<Record<OrderStatus, OrderStatus[]> | null>(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -64,6 +68,8 @@ export default function AdminOrdersPage() {
   useEffect(() => {
     load();
     listCars().then(setCars).catch(() => setCars([]));
+    listCustomers().then(setCustomers).catch(() => setCustomers([]));
+    listEmployees().then(setEmployees).catch(() => setEmployees([]));
   }, [load]);
 
   const changeStatus = async (order: Order, status: OrderStatus) => {
@@ -110,7 +116,7 @@ export default function AdminOrdersPage() {
 
   const submitCreate = async () => {
     if (!customerId) {
-      toast.error('Vui lòng nhập ID khách hàng');
+      toast.error('Vui lòng chọn khách hàng');
       return;
     }
     // Mỗi dòng đơn là một chiếc xe cụ thể (car_item), số lượng luôn = 1.
