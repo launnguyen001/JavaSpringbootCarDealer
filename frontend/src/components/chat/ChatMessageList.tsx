@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { ChatMessage } from '@/types';
+import type { ChatMessage, ChatReadState } from '@/types';
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
@@ -9,6 +9,8 @@ interface ChatMessageListProps {
   loading?: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
+  readStates?: ChatReadState[];
+  typingUsers?: string[];
 }
 
 /** Danh sách tin nhắn chat với auto-scroll và load thêm. */
@@ -18,6 +20,8 @@ export default function ChatMessageList({
   loading,
   onLoadMore,
   hasMore,
+  readStates = [],
+  typingUsers = [],
 }: ChatMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -63,9 +67,16 @@ export default function ChatMessageList({
         </div>
       )}
 
-      {messages.map((msg) => {
+      {messages.map((msg, index) => {
         const isMe = msg.senderId === currentUserId;
         const isSystem = msg.type === 'JOIN' || msg.type === 'LEAVE';
+        const isLastOwnMessage = isMe && !messages.slice(index + 1).some(
+          (item) => item.senderId === currentUserId && item.type === 'CHAT',
+        );
+        const hasBeenRead = isLastOwnMessage && readStates.some(
+          (state) => state.userId !== currentUserId && state.lastReadAt
+            && new Date(state.lastReadAt).getTime() >= new Date(msg.createdAt).getTime(),
+        );
 
         if (isSystem) {
           return (
@@ -106,11 +117,21 @@ export default function ChatMessageList({
                   minute: '2-digit',
                 })}
               </p>
+              {hasBeenRead && (
+                <p className="text-[10px] mt-0.5 text-white/80 text-right">Đã xem</p>
+              )}
             </div>
           </div>
         );
       })}
 
+      {typingUsers.length > 0 && (
+        <div className="text-xs text-gray-500 italic px-2 py-1">
+          {typingUsers.length === 1
+            ? typingUsers[0] + ' đang nhập...'
+            : typingUsers.join(', ') + ' đang nhập...'}
+        </div>
+      )}
       <div ref={bottomRef} />
     </div>
   );
