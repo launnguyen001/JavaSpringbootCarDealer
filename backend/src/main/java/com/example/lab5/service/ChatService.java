@@ -4,6 +4,7 @@ import com.example.lab5.dto.ChatMessageRequest;
 import com.example.lab5.dto.ChatMessageResponse;
 import com.example.lab5.dto.ChatRoomRequest;
 import com.example.lab5.dto.ChatRoomResponse;
+import com.example.lab5.dto.ChatUserResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -19,6 +20,9 @@ public interface ChatService {
 
     /** Tạo phòng chat GROUP. */
     ChatRoomResponse createGroupRoom(Long currentUserId, ChatRoomRequest request);
+
+    /** Tìm tài khoản đang hoạt động để bắt đầu chat. */
+    List<ChatUserResponse> searchChatUsers(Long currentUserId, String keyword);
 
     /** Lấy danh sách phòng chat của user. */
     List<ChatRoomResponse> getRoomsForUser(Long userId);
