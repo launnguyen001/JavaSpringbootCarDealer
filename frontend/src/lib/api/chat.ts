@@ -1,9 +1,16 @@
 import { apiRequest } from './http';
-import type { ChatRoom, ChatRoomRequest, ChatMessagePage } from '@/types';
+import type { ChatRoom, ChatRoomRequest, ChatMessagePage, ChatUser } from '@/types';
 
 /** Lấy danh sách phòng chat của user hiện tại. */
 export function getRooms(): Promise<ChatRoom[]> {
   return apiRequest<ChatRoom[]>('/chat/rooms', { auth: true });
+}
+
+/** Tìm tối đa 20 tài khoản đang hoạt động theo username. */
+export function searchChatUsers(keyword: string): Promise<ChatUser[]> {
+  return apiRequest<ChatUser[]>(`/chat/users?keyword=${encodeURIComponent(keyword)}`, {
+    auth: true,
+  });
 }
 
 /** Tạo hoặc lấy phòng chat PRIVATE với user khác. */
