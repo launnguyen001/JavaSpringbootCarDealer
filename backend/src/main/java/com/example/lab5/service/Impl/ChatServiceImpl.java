@@ -4,6 +4,7 @@ import com.example.lab5.dto.ChatMessageRequest;
 import com.example.lab5.dto.ChatMessageResponse;
 import com.example.lab5.dto.ChatRoomRequest;
 import com.example.lab5.dto.ChatRoomResponse;
+import com.example.lab5.dto.ChatUserResponse;
 import com.example.lab5.entity.User;
 import com.example.lab5.mongodocument.ChatMessage;
 import com.example.lab5.mongodocument.ChatRoom;
@@ -98,6 +99,21 @@ public class ChatServiceImpl implements ChatService {
                 .build();
 
         return toResponse(chatRoomRepository.save(room));
+    }
+
+    @Override
+    public List<ChatUserResponse> searchChatUsers(Long currentUserId, String keyword) {
+        String normalized = keyword == null ? "" : keyword.trim();
+        if (normalized.length() < 2) {
+            return List.of();
+        }
+        return userRepository
+                .findTop20ByEnabledTrueAndIdNotAndUsernameContainingIgnoreCaseOrderByUsernameAsc(
+                        currentUserId, normalized)
+                .stream()
+                .map(user -> new ChatUserResponse(
+                        user.getId(), user.getUsername(), user.getRole().name()))
+                .toList();
     }
 
     @Override
