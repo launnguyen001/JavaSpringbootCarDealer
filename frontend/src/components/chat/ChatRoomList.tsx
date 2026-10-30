@@ -90,7 +90,7 @@ export default function ChatRoomList({
                   </div>
 
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className={`text-sm truncate ${room.unreadCount ? "font-bold text-gray-950" : "font-medium text-gray-900"}`}>
                       {getRoomDisplayName(room)}
                     </p>
                     {room.lastMessageContent && (
@@ -101,11 +101,18 @@ export default function ChatRoomList({
                   </div>
                 </div>
 
+                <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
                 {room.lastMessageAt && (
                   <span className="text-[10px] text-gray-400 shrink-0 ml-2">
                     {formatTime(room.lastMessageAt)}
                   </span>
                 )}
+                {!!room.unreadCount && (
+                  <span className="min-w-5 h-5 px-1 rounded-full bg-[#c58e00] text-white text-[10px] font-bold flex items-center justify-center">
+                    {room.unreadCount > 99 ? '99+' : room.unreadCount}
+                  </span>
+                )}
+                </div>
               </div>
             </button>
           );
