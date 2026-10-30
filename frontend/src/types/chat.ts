@@ -76,3 +76,6 @@ export interface ChatReadState {
   lastReadMessageId: string | null;
   lastReadAt: string | null;
 }
+
+/** Presence event từ WebSocket. */
+export interface ChatPresenceEvent { userId: number; online: boolean; }
