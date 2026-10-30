@@ -166,6 +166,12 @@ export default function ChatPage() {
           return bTime - aTime;
         }),
     );
+
+    // Người nhận có thể chưa có phòng này trong danh sách (tin nhắn đầu tiên).
+    // Đồng bộ lại danh sách từ REST để phòng mới xuất hiện mà không cần reload.
+    void chatApi.getRooms().then(setRooms).catch((err: unknown) => {
+      console.error('Không thể đồng bộ danh sách phòng chat:', err);
+    });
   }, []);
 
   const { connected, sendMessage } = useChatWebSocket({
