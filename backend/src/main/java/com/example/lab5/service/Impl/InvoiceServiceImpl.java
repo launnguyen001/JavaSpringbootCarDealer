@@ -55,7 +55,10 @@ public class InvoiceServiceImpl implements InvoiceService {
         Invoice invoice = new Invoice();
         invoice.setOrder(order);
         invoice.setInvoiceNumber(request.invoiceNumber().trim());
-        invoice.setTotal(request.total());
+        if (Math.abs(request.total() - order.getTotalAmount()) > 0.0001d) {
+            throw new BadRequestException("Tổng tiền hóa đơn phải bằng giá trị đơn hàng: " + order.getTotalAmount());
+        }
+        invoice.setTotal(order.getTotalAmount());
         invoice.setIssuedAt(request.issuedAt() == null ? LocalDateTime.now() : request.issuedAt());
         Invoice saved = invoiceRepository.save(invoice);
         notificationEvents.invoiceCreated(saved);
@@ -97,7 +100,10 @@ public class InvoiceServiceImpl implements InvoiceService {
                     throw new BadRequestException("Số hóa đơn đã tồn tại");
                 });
         invoice.setInvoiceNumber(invoiceNumber);
-        invoice.setTotal(request.total());
+        if (Math.abs(request.total() - invoice.getOrder().getTotalAmount()) > 0.0001d) {
+            throw new BadRequestException("Tổng tiền hóa đơn phải bằng giá trị đơn hàng: " + invoice.getOrder().getTotalAmount());
+        }
+        invoice.setTotal(invoice.getOrder().getTotalAmount());
         if (request.issuedAt() != null) {
             invoice.setIssuedAt(request.issuedAt());
         }
