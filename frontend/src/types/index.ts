@@ -38,6 +38,7 @@ export type {
   ChatUser,
   ChatRealtimeEvent,
   ChatReadState,
+  ChatPresenceEvent,
 } from './chat';
 export type {
   DashboardSummary,
