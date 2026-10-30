@@ -7,6 +7,7 @@ interface ChatRoomListProps {
   selectedRoomId: string | null;
   currentUserId: number;
   onSelectRoom: (room: ChatRoom) => void;
+  onNewConversation: () => void;
 }
 
 /** Danh sách phòng chat bên trái. */
@@ -15,6 +16,7 @@ export default function ChatRoomList({
   selectedRoomId,
   currentUserId,
   onSelectRoom,
+  onNewConversation,
 }: ChatRoomListProps) {
   function getRoomDisplayName(room: ChatRoom): string {
     if (room.name) return room.name;
@@ -43,7 +45,16 @@ export default function ChatRoomList({
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">Tin nhắn</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-gray-900">Tin nhắn</h2>
+          <button
+            type="button"
+            onClick={onNewConversation}
+            className="rounded-lg bg-[#c58e00] px-3 py-2 text-xs font-medium text-white transition hover:bg-[#a87800]"
+          >
+            + Tin nhắn mới
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
