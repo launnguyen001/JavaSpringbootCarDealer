@@ -7,27 +7,22 @@ import { getToken } from '@/lib/auth/token';
 import type { ChatMessage, ChatMessageRequest } from '@/types';
 
 interface UseChatWebSocketOptions {
-  /** Phòng chat đang subscribe. */
+  /** Phòng chat đang mở. */
   roomId: string | null;
-  /** userId hiện tại (để subscribe notification channel). */
+  /** ID user hiện tại, dùng cho kênh notification cá nhân. */
   userId: number | null;
-  /** Callback khi nhận tin nhắn mới trong phòng hiện tại. */
   onMessage?: (message: ChatMessage) => void;
-  /** Callback khi nhận notification tin nhắn mới (từ phòng khác). */
   onNotification?: (message: ChatMessage) => void;
 }
 
 interface UseChatWebSocketReturn {
-  /** Trạng thái kết nối */
   connected: boolean;
-  /** Gửi tin nhắn */
-  sendMessage: (content: string) => void;
+  sendMessage: (content: string) => boolean;
 }
 
 /**
- * Hook quản lý kết nối WebSocket STOMP cho chat realtime.
- * Tự động kết nối khi mount, ngắt khi unmount.
- * Subscribe vào /topic/chat/{roomId} và /topic/user/{userId}/chat-notifications.
+ * Quản lý một kết nối STOMP theo phiên đăng nhập.
+ * Việc đổi phòng chỉ unsubscribe/subscribe topic, không tạo lại WebSocket.
  */
 export function useChatWebSocket({
   roomId,
@@ -37,20 +32,26 @@ export function useChatWebSocket({
 }: UseChatWebSocketOptions): UseChatWebSocketReturn {
   const [connected, setConnected] = useState(false);
   const clientRef = useRef<Client | null>(null);
+  const roomSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+  const notificationSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
   const onMessageRef = useRef(onMessage);
   const onNotificationRef = useRef(onNotification);
 
-  // Cập nhật callback refs
   useEffect(() => {
     onMessageRef.current = onMessage;
   }, [onMessage]);
+
   useEffect(() => {
     onNotificationRef.current = onNotification;
   }, [onNotification]);
 
+  // Chỉ tạo kết nối khi user đăng nhập / đổi tài khoản.
   useEffect(() => {
     const token = getToken();
-    if (!token) return;
+    if (!token || userId === null) {
+      setConnected(false);
+      return;
+    }
 
     const client = new Client({
       webSocketFactory: () => new SockJS('/ws'),
@@ -62,58 +63,82 @@ export function useChatWebSocket({
       heartbeatOutgoing: 10000,
       onConnect: () => {
         setConnected(true);
-
-        // Subscribe vào phòng chat hiện tại
-        if (roomId) {
-          client.subscribe(`/topic/chat/${roomId}`, (frame) => {
-            const msg = JSON.parse(frame.body) as ChatMessage;
-            onMessageRef.current?.(msg);
-          });
-        }
-
-        // Subscribe vào notification channel của user
-        if (userId) {
-          client.subscribe(
-            `/topic/user/${userId}/chat-notifications`,
-            (frame) => {
-              const msg = JSON.parse(frame.body) as ChatMessage;
-              onNotificationRef.current?.(msg);
-            },
-          );
-        }
+        notificationSubscriptionRef.current?.unsubscribe();
+        notificationSubscriptionRef.current = client.subscribe(
+          `/topic/user/${userId}/chat-notifications`,
+          (frame) => {
+            try {
+              onNotificationRef.current?.(JSON.parse(frame.body) as ChatMessage);
+            } catch (error) {
+              console.error('Không thể đọc notification chat:', error);
+            }
+          },
+        );
       },
-      onDisconnect: () => {
-        setConnected(false);
-      },
+      onDisconnect: () => setConnected(false),
+      onWebSocketClose: () => setConnected(false),
       onStompError: (frame) => {
-        console.error('STOMP error:', frame.headers?.message);
+        console.error('STOMP error:', frame.headers?.message ?? frame.body);
         setConnected(false);
       },
     });
 
-    client.activate();
     clientRef.current = client;
+    client.activate();
 
     return () => {
-      client.deactivate();
+      roomSubscriptionRef.current?.unsubscribe();
+      notificationSubscriptionRef.current?.unsubscribe();
+      roomSubscriptionRef.current = null;
+      notificationSubscriptionRef.current = null;
       clientRef.current = null;
+      void client.deactivate();
       setConnected(false);
     };
-  }, [roomId, userId]);
+  }, [userId]);
+
+  // Đổi phòng chỉ thay subscription. Kết nối STOMP được giữ nguyên.
+  useEffect(() => {
+    const client = clientRef.current;
+    if (!connected || !client?.connected || !roomId) {
+      roomSubscriptionRef.current?.unsubscribe();
+      roomSubscriptionRef.current = null;
+      return;
+    }
+
+    roomSubscriptionRef.current?.unsubscribe();
+    roomSubscriptionRef.current = client.subscribe(
+      `/topic/chat/${roomId}`,
+      (frame) => {
+        try {
+          onMessageRef.current?.(JSON.parse(frame.body) as ChatMessage);
+        } catch (error) {
+          console.error('Không thể đọc tin nhắn chat:', error);
+        }
+      },
+    );
+
+    return () => {
+      roomSubscriptionRef.current?.unsubscribe();
+      roomSubscriptionRef.current = null;
+    };
+  }, [connected, roomId]);
 
   const sendMessage = useCallback(
-    (content: string) => {
-      if (!clientRef.current?.connected || !roomId) return;
+    (content: string): boolean => {
+      const client = clientRef.current;
+      if (!client?.connected || !roomId || !content.trim()) return false;
 
       const request: ChatMessageRequest = {
         roomId,
-        content,
+        content: content.trim(),
       };
 
-      clientRef.current.publish({
+      client.publish({
         destination: '/app/chat.send',
         body: JSON.stringify(request),
       });
+      return true;
     },
     [roomId],
   );
