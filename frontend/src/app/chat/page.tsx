@@ -8,7 +8,8 @@ import { useChatWebSocket } from '@/hooks/useChatWebSocket';
 import ChatRoomList from '@/components/chat/ChatRoomList';
 import ChatMessageList from '@/components/chat/ChatMessageList';
 import ChatInput from '@/components/chat/ChatInput';
-import type { ChatRoom, ChatMessage } from '@/types';
+import NewChatDialog from '@/components/chat/NewChatDialog';
+import type { ChatRoom, ChatMessage, ChatUser } from '@/types';
 
 export default function ChatPage() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
@@ -23,6 +24,8 @@ export default function ChatPage() {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRoomList, setShowRoomList] = useState(true);
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [startingUserId, setStartingUserId] = useState<number | null>(null);
   const messageRequestId = useRef(0);
 
   useEffect(() => {
@@ -186,6 +189,23 @@ export default function ChatPage() {
     setShowRoomList(false);
   }
 
+  async function handleStartConversation(target: ChatUser) {
+    setStartingUserId(target.id);
+    setError(null);
+    try {
+      const room = await chatApi.getOrCreatePrivateRoom(target.id);
+      setRooms((prev) => [room, ...prev.filter((item) => item.id !== room.id)]);
+      setSelectedRoom(room);
+      setShowNewChat(false);
+      setShowRoomList(false);
+    } catch (err) {
+      console.error('Không thể mở cuộc trò chuyện:', err);
+      setError('Không thể tạo cuộc trò chuyện. Vui lòng thử lại.');
+    } finally {
+      setStartingUserId(null);
+    }
+  }
+
   if (authLoading) {
     return (
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
@@ -214,6 +234,7 @@ export default function ChatPage() {
             selectedRoomId={selectedRoom?.id ?? null}
             currentUserId={user!.id}
             onSelectRoom={handleSelectRoom}
+            onNewConversation={() => setShowNewChat(true)}
           />
         )}
       </aside>
@@ -273,6 +294,11 @@ export default function ChatPage() {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-gray-400 px-6 text-center">
+            {error && (
+              <p role="alert" className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">
+                {error}
+              </p>
+            )}
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
@@ -292,6 +318,13 @@ export default function ChatPage() {
           </div>
         )}
       </main>
+      {showNewChat && (
+        <NewChatDialog
+          onClose={() => setShowNewChat(false)}
+          onSelectUser={handleStartConversation}
+          startingUserId={startingUserId}
+        />
+      )}
     </div>
   );
 }
