@@ -55,3 +55,8 @@ export function getReadStates(roomId: string): Promise<import('@/types').ChatRea
     { auth: true },
   );
 }
+
+/** Danh sách user online trong các phòng chat của tài khoản hiện tại. */
+export function getOnlineChatUsers(): Promise<number[]> {
+  return apiRequest<number[]>('/chat/online-users', { auth: true });
+}
