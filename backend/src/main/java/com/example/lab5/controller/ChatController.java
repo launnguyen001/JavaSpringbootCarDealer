@@ -3,6 +3,7 @@ package com.example.lab5.controller;
 import com.example.lab5.dto.ChatMessageResponse;
 import com.example.lab5.dto.ChatRoomRequest;
 import com.example.lab5.dto.ChatRoomResponse;
+import com.example.lab5.dto.ChatUserResponse;
 import com.example.lab5.entity.User;
 import com.example.lab5.repository.UserRepository;
 import com.example.lab5.service.ChatService;
@@ -37,6 +38,14 @@ public class ChatController {
     public ResponseEntity<List<ChatRoomResponse>> getMyRooms() {
         Long userId = getCurrentUserId();
         return ResponseEntity.ok(chatService.getRoomsForUser(userId));
+    }
+
+    /** Tìm người dùng đang hoạt động theo username để bắt đầu cuộc trò chuyện. */
+    @GetMapping("/users")
+    public ResponseEntity<List<ChatUserResponse>> searchChatUsers(
+            @RequestParam(defaultValue = "") String keyword) {
+        Long userId = getCurrentUserId();
+        return ResponseEntity.ok(chatService.searchChatUsers(userId, keyword));
     }
 
     /** Tạo hoặc lấy phòng chat PRIVATE với user khác. */
