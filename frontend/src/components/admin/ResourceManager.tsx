@@ -26,6 +26,8 @@ export interface FieldConfig {
   onPick?: (option: FieldOption) => Record<string, unknown> | void;
   /** Ẩn ô này khi mở form "Sửa" (ví dụ khoá đổi đơn hàng của chứng từ). */
   hideOnEdit?: boolean;
+  /** Ẩn ô nhập nội bộ khi tạo mới nếu được tự động điền từ lựa chọn khác. */
+  hideOnCreate?: boolean;
   required?: boolean;
   placeholder?: string;
   step?: string;
@@ -266,7 +268,7 @@ export default function ResourceManager<T>({
       : []),
   ];
 
-  const visibleFields = fields.filter((f) => !(f.hideOnEdit && editing));
+  const visibleFields = fields.filter((f) => !(f.hideOnEdit && editing) && !(f.hideOnCreate && !editing));
 
   return (
     <div>
