@@ -72,6 +72,7 @@ export default function Header() {
         heartbeatOutgoing: 10000,
         onConnect: () => {
           client?.subscribe(`/topic/user/${user.id}/chat-notifications`, refreshChatUnread);
+          client?.subscribe(`/topic/user/${user.id}/chat-unread`, refreshChatUnread);
         },
       });
       void client.activate();
