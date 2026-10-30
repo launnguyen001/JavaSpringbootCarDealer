@@ -174,12 +174,58 @@ export default function ChatPage() {
     });
   }, []);
 
-  const { connected, sendMessage } = useChatWebSocket({
+  const handleRealtimeEvent = useCallback((event: ChatRealtimeEvent) => {
+    if (event.type === 'READ') {
+      setReadStates((prev) => [
+        ...prev.filter((state) => state.userId !== event.userId),
+        { userId: event.userId, lastReadMessageId: event.lastReadMessageId, lastReadAt: event.lastReadAt },
+      ]);
+      return;
+    }
+    if (event.type === 'TYPING' && event.userId !== user?.id) {
+      const oldTimer = typingTimers.current[event.userId];
+      if (oldTimer) clearTimeout(oldTimer);
+      if (event.typing) {
+        setTypingUsers((prev) => ({ ...prev, [event.userId]: event.username }));
+        typingTimers.current[event.userId] = setTimeout(() => {
+          setTypingUsers((prev) => {
+            const next = { ...prev };
+            delete next[event.userId];
+            return next;
+          });
+        }, 2500);
+      } else {
+        setTypingUsers((prev) => {
+          const next = { ...prev };
+          delete next[event.userId];
+          return next;
+        });
+      }
+    }
+  }, [user?.id]);
+
+  const { connected, sendMessage, sendTyping, markRead } = useChatWebSocket({
     roomId: selectedRoom?.id ?? null,
     userId: user?.id ?? null,
     onMessage: handleNewMessage,
     onNotification: handleNotification,
+    onEvent: handleRealtimeEvent,
   });
+
+  useEffect(() => {
+    const latest = messages[messages.length - 1];
+    if (!selectedRoom || !latest || !connected || document.visibilityState !== 'visible') return;
+    const key = selectedRoom.id + ':' + latest.id;
+    if (lastMarkedRef.current === key) return;
+    lastMarkedRef.current = key;
+    markRead(latest.id);
+    setRooms((prev) => prev.map((room) => room.id === selectedRoom.id ? { ...room, unreadCount: 0 } : room));
+  }, [messages, selectedRoom, connected, markRead]);
+
+  useEffect(() => {
+    const cleanup = () => Object.values(typingTimers.current).forEach(clearTimeout);
+    return cleanup;
+  }, []);
 
   function handleSend(content: string) {
     const sent = sendMessage(content);
@@ -295,8 +341,10 @@ export default function ChatPage() {
               loading={loadingMessages}
               onLoadMore={loadMore}
               hasMore={hasMore}
+              readStates={readStates}
+              typingUsers={Object.values(typingUsers)}
             />
-            <ChatInput onSend={handleSend} disabled={!connected} />
+            <ChatInput onSend={handleSend} onTyping={sendTyping} disabled={!connected} />
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-gray-400 px-6 text-center">
