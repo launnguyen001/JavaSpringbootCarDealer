@@ -9,7 +9,10 @@ import java.util.List;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
-    List<Payment> findByOrder_IdOrderByIdAsc(Long orderId);
+    /** Giao dịch thanh toán mới nhất đứng đầu trong danh sách toàn hệ thống và theo đơn hàng. */
+    List<Payment> findAllByOrderByPaidAtDescIdDesc();
+
+    List<Payment> findByOrder_IdOrderByPaidAtDescIdDesc(Long orderId);
 
     boolean existsByOrder_Id(Long orderId);
 
