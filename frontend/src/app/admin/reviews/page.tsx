@@ -10,10 +10,11 @@ import {
   updateCarReview,
   deleteCarReview,
   listCars,
+  listCustomers,
   type CarReviewRequest,
 } from '@/lib/api';
 import { formatDateTime } from '@/lib/utils/format';
-import type { Car, CarReview } from '@/types';
+import type { Car, CarReview, Customer } from '@/types';
 
 function toPayload(payload: Record<string, unknown>): CarReviewRequest {
   return {
@@ -28,15 +29,18 @@ function toPayload(payload: Record<string, unknown>): CarReviewRequest {
 
 export default function AdminReviewsPage() {
   const [cars, setCars] = useState<Car[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [replyReview, setReplyReview] = useState<CarReview | null>(null);
   const [replyModalOpen, setReplyModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     listCars().then(setCars).catch(() => setCars([]));
+    listCustomers().then(setCustomers).catch(() => setCustomers([]));
   }, []);
 
   const carOptions = cars.map((c) => ({ value: c.id, label: c.name }));
+  const customerOptions = customers.map((c) => ({ value: c.id, label: `${c.fullName}${c.phone ? ` · ${c.phone}` : ''}`, meta: { fullName: c.fullName } }));
 
   const fields: FieldConfig[] = [
     {
@@ -47,8 +51,8 @@ export default function AdminReviewsPage() {
       placeholder: '— Chọn xe —',
       options: carOptions,
     },
-    { name: 'customerId', label: 'ID khách hàng', type: 'number', required: true },
-    { name: 'customerName', label: 'Tên khách hàng', required: true },
+    { name: 'customerId', label: 'Khách hàng', type: 'select', required: true, placeholder: '— Chọn khách hàng —', options: customerOptions, onPick: (option) => ({ customerName: String(option.meta?.fullName ?? '') }) },
+    { name: 'customerName', label: 'Tên khách hàng', required: true, hideOnCreate: true },
     { name: 'rating', label: 'Điểm (1-5)', type: 'number', required: true },
     { name: 'title', label: 'Tiêu đề' },
     { name: 'content', label: 'Nội dung', type: 'textarea', required: true },
