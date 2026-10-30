@@ -57,3 +57,21 @@ export interface ChatUser {
   username: string;
   role: 'ADMIN' | 'EMPLOYEE' | 'USER';
 }
+
+
+/** Event realtime tách biệt với ChatMessage. */
+export interface ChatRealtimeEvent {
+  type: 'TYPING' | 'READ';
+  roomId: string;
+  userId: number;
+  username: string;
+  typing: boolean | null;
+  lastReadMessageId: string | null;
+  lastReadAt: string | null;
+}
+
+export interface ChatReadState {
+  userId: number;
+  lastReadMessageId: string | null;
+  lastReadAt: string | null;
+}
