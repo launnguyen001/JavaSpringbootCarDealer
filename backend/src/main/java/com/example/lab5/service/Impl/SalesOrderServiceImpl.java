@@ -107,7 +107,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
 
     @Override
     public List<SalesOrder> getAllOrders() {
-        return salesOrderRepository.findAllByOrderByOrderDateDesc();
+        return salesOrderRepository.findAllByOrderByOrderDateDescIdDesc();
     }
 
     @Override
@@ -121,7 +121,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         if (customerId == null) {
             throw new BadRequestException("Khách hàng không được để trống");
         }
-        return salesOrderRepository.findByCustomer_IdOrderByOrderDateDesc(customerId);
+        return salesOrderRepository.findByCustomer_IdOrderByOrderDateDescIdDesc(customerId);
     }
 
     @Override
