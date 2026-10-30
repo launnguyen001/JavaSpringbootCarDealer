@@ -5,8 +5,6 @@ import StatusPill from '@/components/ui/StatusPill';
 import {
   listPayments,
   createPayment,
-  updatePayment,
-  deletePayment,
   getOrderOptions,
 } from '@/lib/api';
 import { formatVnd, formatDateTime } from '@/lib/utils/format';
@@ -19,28 +17,20 @@ const methodOptions = [
   { value: 'INSTALLMENT', label: 'Trả góp' },
 ];
 
-const statusOptions = [
-  { value: 'UNPAID', label: 'Chưa thanh toán' },
-  { value: 'PARTIAL', label: 'Một phần' },
-  { value: 'PAID', label: 'Đã thanh toán' },
-  { value: 'REFUNDED', label: 'Đã hoàn tiền' },
-];
-
 export default function AdminPaymentsPage() {
   return (
     <ResourceManager<Payment>
       title="Thanh toán"
-      description="Quản lý giao dịch thanh toán của đơn hàng."
+      description="Ghi nhận các khoản tiền thực thu. Giao dịch đã ghi nhận không thể sửa hoặc xóa; công nợ được tính từ tổng tiền đã thu."
       list={listPayments}
       create={createPayment}
-      update={updatePayment}
-      remove={deletePayment}
+      canEdit={false}
+      canDelete={false}
       getId={(row) => row.id}
       toForm={(row) => ({
         orderId: row.orderId,
         amount: row.amount,
         method: row.method,
-        status: row.status,
       })}
       fields={[
         {
@@ -64,7 +54,6 @@ export default function AdminPaymentsPage() {
         },
         { name: 'amount', label: 'Số tiền (triệu)', type: 'number', required: true, step: '0.1' },
         { name: 'method', label: 'Phương thức', type: 'select', options: methodOptions, required: true },
-        { name: 'status', label: 'Trạng thái', type: 'select', options: statusOptions, required: true },
       ]}
       columns={[
         { key: 'id', label: 'ID' },
