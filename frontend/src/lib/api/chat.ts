@@ -41,3 +41,17 @@ export function getMessages(
     { auth: true },
   );
 }
+
+
+/** Unread count theo roomId. */
+export function getUnreadCounts(): Promise<Record<string, number>> {
+  return apiRequest<Record<string, number>>('/chat/unread-counts', { auth: true });
+}
+
+/** Read cursor của các thành viên trong phòng. */
+export function getReadStates(roomId: string): Promise<import('@/types').ChatReadState[]> {
+  return apiRequest<import('@/types').ChatReadState[]>(
+    `/chat/rooms/${encodeURIComponent(roomId)}/read-states`,
+    { auth: true },
+  );
+}
