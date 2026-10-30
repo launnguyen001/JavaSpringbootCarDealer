@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
+import { getToken } from '@/lib/auth/token';
 import { useRouter } from 'next/navigation';
 import * as chatApi from '@/lib/api/chat';
 import { useChatWebSocket } from '@/hooks/useChatWebSocket';
@@ -9,13 +12,14 @@ import ChatRoomList from '@/components/chat/ChatRoomList';
 import ChatMessageList from '@/components/chat/ChatMessageList';
 import ChatInput from '@/components/chat/ChatInput';
 import NewChatDialog from '@/components/chat/NewChatDialog';
-import type { ChatRoom, ChatMessage, ChatUser, ChatRealtimeEvent, ChatReadState } from '@/types';
+import type { ChatRoom, ChatMessage, ChatUser, ChatRealtimeEvent, ChatReadState, ChatPresenceEvent } from '@/types';
 
 export default function ChatPage() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const router = useRouter();
 
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
+  const [onlineUserIds, setOnlineUserIds] = useState<number[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [readStates, setReadStates] = useState<ChatReadState[]>([]);
@@ -35,6 +39,39 @@ export default function ChatPage() {
   useEffect(() => {
     if (!authLoading && !isAuthenticated) router.replace('/login');
   }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let active = true;
+    chatApi.getOnlineChatUsers().then((ids) => { if (active) setOnlineUserIds(ids); })
+      .catch((err: unknown) => console.error('Không thể tải trạng thái online:', err));
+    return () => { active = false; };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const token = getToken();
+    if (!token) return;
+    const client = new Client({
+      webSocketFactory: () => new SockJS('/ws'),
+      connectHeaders: { Authorization: `Bearer ${token}` },
+      reconnectDelay: 5000,
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
+      onConnect: () => {
+        client.subscribe('/topic/chat-presence', (frame) => {
+          try {
+            const event = JSON.parse(frame.body) as ChatPresenceEvent;
+            setOnlineUserIds((prev) => event.online
+              ? (prev.includes(event.userId) ? prev : [...prev, event.userId])
+              : prev.filter((id) => id !== event.userId));
+          } catch (err) { console.error('Presence event không hợp lệ:', err); }
+        });
+      },
+    });
+    void client.activate();
+    return () => { void client.deactivate(); };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -295,6 +332,7 @@ export default function ChatPage() {
             rooms={rooms}
             selectedRoomId={selectedRoom?.id ?? null}
             currentUserId={user!.id}
+            onlineUserIds={onlineUserIds}
             onSelectRoom={handleSelectRoom}
             onNewConversation={() => setShowNewChat(true)}
           />
