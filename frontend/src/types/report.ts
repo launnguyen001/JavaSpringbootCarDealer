@@ -41,4 +41,11 @@ export interface InventoryByModel { modelId: number; modelName: string; bodyType
 export interface CarInventoryItem { carId: number; carName: string; vin: string | null; color: string | null; year: number | null; status: string; condition: string | null; mileageKm: number | null; price: number; }
 export interface OrderSummary { orderId: number; orderCode: string; orderDate: string; status: string; totalAmount: number; customerName: string | null; employeeName: string | null; }
 export interface CarSalesOrderLine { orderId: number; orderCode: string; orderDate: string; status: string; customerName: string | null; quantity: number; unitPrice: number; lineTotal: number; }
-export interface RevenueByMonth { period: string; totalOrders: number; totalRevenue: number; totalCollected: number; outstandingAmount: number; }
+export interface RevenueByMonth {
+  period: string;
+  totalOrders: number;
+  pendingRevenue: number;
+  recognizedRevenue: number;
+  actualRevenue: number;
+  outstandingAmount: number;
+}
