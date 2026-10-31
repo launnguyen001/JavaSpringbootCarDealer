@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import DataTable, { type Column } from '@/components/ui/DataTable';
 import StatusPill from '@/components/ui/StatusPill';
 import { getOrdersByStatus } from '@/lib/api';
@@ -14,6 +13,7 @@ type Props = {
   count: number;
   filters: { from: string; to: string; brandId?: number; modelId?: number };
   onClose: () => void;
+  onSelectOrder: (orderId: number) => void;
 };
 
 const columns: Column<OrderSummary>[] = [
@@ -24,8 +24,7 @@ const columns: Column<OrderSummary>[] = [
   { key: 'status', label: 'Trạng thái', render: (row) => <StatusPill status={row.status} /> },
 ];
 
-export default function DashboardOrdersDrawer({ status, title, count, filters, onClose }: Props) {
-  const router = useRouter();
+export default function DashboardOrdersDrawer({ status, title, count, filters, onClose, onSelectOrder }: Props) {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -62,10 +61,10 @@ export default function DashboardOrdersDrawer({ status, title, count, filters, o
         <div className="flex-1 overflow-auto p-6">
           {loading ? <p className="py-16 text-center text-sm text-[#9ca3af]">Đang tải danh sách đơn hàng…</p>
             : error ? <p className="py-16 text-center text-sm text-red-600">{error}</p>
-              : <DataTable columns={columns} rows={orders} rowKey={(row) => row.orderId} empty="Không có đơn hàng phù hợp." onRowClick={(row) => router.push(`/admin/orders?orderId=${row.orderId}`)} />}
+              : <DataTable columns={columns} rows={orders} rowKey={(row) => row.orderId} empty="Không có đơn hàng phù hợp." onRowClick={(row) => onSelectOrder(row.orderId)} />}
         </div>
         <footer className="border-t border-[#e5e7eb] px-6 py-3 text-xs text-[#9ca3af]">
-          Danh sách kế thừa khoảng ngày, hãng và model đang chọn trên Dashboard. Chọn một dòng để mở đơn hàng.
+          Danh sách kế thừa khoảng ngày, hãng và model đang chọn trên Dashboard. Chọn một dòng để mở popup chi tiết đơn hàng.
         </footer>
       </aside>
     </div>
