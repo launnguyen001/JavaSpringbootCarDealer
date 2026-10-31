@@ -12,12 +12,12 @@ import {
   createInvoice,
   updateInvoice,
   deleteInvoice,
-  getOrderOptions,
   downloadFile,
 } from '@/lib/api';
 import { formatVnd, formatDateTime } from '@/lib/utils/format';
 import StatusPill from '@/components/ui/StatusPill';
 import type { Invoice } from '@/types';
+import { invoiceFields } from '@/components/admin/invoiceFields';
 
 export default function AdminInvoicesPage() {
   const toast = useToast();
@@ -94,29 +94,7 @@ export default function AdminInvoicesPage() {
         issuedAt: row.issuedAt ?? '',
         dueDate: row.dueDate ?? '',
       })}
-      fields={[
-        {
-          name: 'orderId',
-          label: 'Đơn hàng',
-          type: 'select',
-          required: true,
-          hideOnEdit: true,
-          placeholder: '— Chọn đơn chưa có hóa đơn —',
-          optionsLoader: () =>
-            getOrderOptions('invoice').then((orders) =>
-              orders.map((o) => ({
-                value: o.orderId,
-                label: `${o.orderCode} — ${o.customerName ?? 'Khách lẻ'} — ${formatVnd(o.totalAmount)}`,
-                meta: { totalAmount: o.totalAmount },
-              })),
-            ),
-          onPick: (option) => ({ total: String(option.meta?.totalAmount ?? '') }),
-        },
-        { name: 'invoiceNumber', label: 'Số hóa đơn', required: true },
-        { name: 'total', label: 'Tổng tiền (triệu)', type: 'number', required: true, step: '0.1' },
-        { name: 'issuedAt', label: 'Ngày phát hành', type: 'datetime' },
-        { name: 'dueDate', label: 'Hạn thanh toán', type: 'date' },
-      ]}
+      fields={invoiceFields}
       columns={[
         { key: 'id', label: 'ID' },
         { key: 'invoiceNumber', label: 'Số hóa đơn' },

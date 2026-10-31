@@ -1,7 +1,6 @@
 package com.example.lab5.util;
 
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /** Tiện ích đọc thông tin người dùng đang đăng nhập từ SecurityContext. */

@@ -1,6 +1,5 @@
 package com.example.lab5.service;
 
-import com.example.lab5.entity.User;
 import com.example.lab5.repository.UserRepository;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;

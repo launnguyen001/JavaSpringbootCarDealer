@@ -2,7 +2,6 @@ package com.example.lab5.controller;
 
 import com.example.lab5.dto.ChatReadStateResponse;
 import com.example.lab5.entity.User;
-import com.example.lab5.mongodocument.ChatReadState;
 import com.example.lab5.mongodocument.ChatRoom;
 import com.example.lab5.mongorepository.ChatMessageRepository;
 import com.example.lab5.mongorepository.ChatReadStateRepository;

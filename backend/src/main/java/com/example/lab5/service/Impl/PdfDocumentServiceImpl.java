@@ -6,7 +6,6 @@ import com.example.lab5.entity.Customer;
 import com.example.lab5.entity.Employee;
 import com.example.lab5.entity.Invoice;
 import com.example.lab5.entity.OrderItem;
-import com.example.lab5.entity.Payment;
 import com.example.lab5.entity.SalesOrder;
 import com.example.lab5.exception.ForbiddenException;
 import com.example.lab5.exception.ResourceNotFoundException;

@@ -1,7 +1,6 @@
 package com.example.lab5.controller;
 
-import com.example.lab5.entity.User;
-import com.example.lab5.mongodocument.ChatRoom;
+
 import com.example.lab5.mongorepository.ChatRoomRepository;
 import com.example.lab5.repository.UserRepository;
 import com.example.lab5.service.ChatPresenceTracker;
