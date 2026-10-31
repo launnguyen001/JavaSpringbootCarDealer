@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import StatusPill from '@/components/ui/StatusPill';
 import Button from '@/components/ui/Button';
+import OrderDetailModal from '@/components/admin/OrderDetailModal';
 import { getCarItemDetail } from '@/lib/api';
 import { formatDateTime, formatVnd } from '@/lib/utils/format';
 import { getErrorMessage } from '@/lib/utils/error';
@@ -20,6 +21,7 @@ export default function AdminCarItemDetailPage() {
   const [detail, setDetail] = useState<CarItemDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [detailOrderId, setDetailOrderId] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -98,8 +100,10 @@ export default function AdminCarItemDetailPage() {
           <h2 className="font-semibold text-[#111827]">Đơn hàng liên quan</h2>
           <p className="mt-1 text-sm text-[#6b7280]">{relatedOrder ? `Xe này thuộc đơn hàng ${relatedOrder.orderCode}.` : 'Xe chưa được gắn với đơn hàng nào.'}</p>
         </div>
-        {relatedOrder && <Button onClick={() => router.push(`/admin/orders?orderId=${relatedOrder.orderId}`)}>Mở đơn hàng</Button>}
+        {relatedOrder && <Button onClick={() => setDetailOrderId(relatedOrder.orderId)}>Mở đơn hàng</Button>}
       </section>
+
+      <OrderDetailModal orderId={detailOrderId} onClose={() => setDetailOrderId(null)} />
     </div>
   );
 }
