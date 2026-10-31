@@ -2,6 +2,7 @@ import { listCars, searchCarsByName } from '@/lib/api';
 import CarCard from '@/components/ui/CarCard';
 import Link from 'next/link';
 import type { Car } from '@/types/car';
+import Image from 'next/image';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,10 +27,13 @@ export default async function Home({ searchParams }: HomeProps) {
       {/* Hero section */}
       <section className="relative h-[70vh] lg:h-[85vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <img
+          <Image
             src="https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=1920&q=80"
             alt="Hero"
-            className="w-full h-full object-cover object-center opacity-60"
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover object-center opacity-60"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a]/20 to-[#0a0a0a]/80" />
         </div>
