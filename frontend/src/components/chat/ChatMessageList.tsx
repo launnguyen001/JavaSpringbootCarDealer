@@ -27,10 +27,15 @@ export default function ChatMessageList({
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
 
-  // Auto-scroll khi có tin nhắn mới
+  // Chỉ cuộn container tin nhắn, tránh scrollIntoView làm cuộn cả document.
   useEffect(() => {
-    if (autoScroll) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = containerRef.current;
+
+    if (autoScroll && container) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth',
+      });
     }
   }, [messages, autoScroll]);
 
@@ -46,7 +51,7 @@ export default function ChatMessageList({
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
+      className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3"
     >
       {/* Nút tải thêm tin nhắn cũ */}
       {hasMore && (
