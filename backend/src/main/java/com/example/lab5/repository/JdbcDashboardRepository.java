@@ -114,19 +114,16 @@ public class JdbcDashboardRepository {
 
     private double revenue(LocalDate from, LocalDate to, Long brandId, Long modelId) {
         String sql = """
-                SELECT COALESCE(SUM(o.total_amount), 0)
+                SELECT COALESCE(SUM(oi.quantity * oi.unit_price), 0)
                 FROM sales_orders o
+                JOIN order_items oi ON oi.order_id = o.id
+                JOIN car_items ci ON ci.id = oi.car_item_id
+                JOIN cars c ON c.id = ci.car_id
+                JOIN car_models m ON m.id = c.model_id
                 WHERE o.status <> 'CANCELLED'
                   AND o.order_date >= ? AND o.order_date < ?
-                  AND EXISTS (
-                    SELECT 1 FROM order_items oi
-                    JOIN car_items ci ON ci.id = oi.car_item_id
-                    JOIN cars c ON c.id = ci.car_id
-                    JOIN car_models m ON m.id = c.model_id
-                    WHERE oi.order_id = o.id
-                      AND (? IS NULL OR m.brand_id = ?)
-                      AND (? IS NULL OR m.id = ?)
-                  )
+                  AND (? IS NULL OR m.brand_id = ?)
+                  AND (? IS NULL OR m.id = ?)
                 """;
         Double value = jdbc.queryForObject(sql, Double.class, start(from), start(to.plusDays(1)),
                 brandId, brandId, modelId, modelId);
@@ -156,20 +153,17 @@ public class JdbcDashboardRepository {
         String sql = """
                 SELECT EXTRACT(YEAR FROM o.order_date) AS yr,
                        EXTRACT(MONTH FROM o.order_date) AS mo,
-                       COUNT(*) AS total_orders,
-                       COALESCE(SUM(o.total_amount), 0) AS total_revenue
+                       COUNT(DISTINCT o.id) AS total_orders,
+                       COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS total_revenue
                 FROM sales_orders o
+                JOIN order_items oi ON oi.order_id = o.id
+                JOIN car_items ci ON ci.id = oi.car_item_id
+                JOIN cars c ON c.id = ci.car_id
+                JOIN car_models m ON m.id = c.model_id
                 WHERE o.status <> 'CANCELLED'
                   AND o.order_date >= ? AND o.order_date < ?
-                  AND EXISTS (
-                    SELECT 1 FROM order_items oi
-                    JOIN car_items ci ON ci.id = oi.car_item_id
-                    JOIN cars c ON c.id = ci.car_id
-                    JOIN car_models m ON m.id = c.model_id
-                    WHERE oi.order_id = o.id
-                      AND (? IS NULL OR m.brand_id = ?)
-                      AND (? IS NULL OR m.id = ?)
-                  )
+                  AND (? IS NULL OR m.brand_id = ?)
+                  AND (? IS NULL OR m.id = ?)
                 GROUP BY EXTRACT(YEAR FROM o.order_date), EXTRACT(MONTH FROM o.order_date)
                 ORDER BY yr, mo
                 """;
