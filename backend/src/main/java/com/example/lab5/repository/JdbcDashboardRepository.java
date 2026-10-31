@@ -6,8 +6,12 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public class JdbcDashboardRepository {
@@ -168,10 +172,26 @@ public class JdbcDashboardRepository {
                 GROUP BY EXTRACT(YEAR FROM o.order_date), EXTRACT(MONTH FROM o.order_date)
                 ORDER BY yr, mo
                 """;
-        return jdbc.query(sql, (rs, i) -> new RevenueByMonth(
+        List<RevenueByMonth> actual = jdbc.query(sql, (rs, i) -> new RevenueByMonth(
                 String.format("%04d-%02d", rs.getInt("yr"), rs.getInt("mo")),
                 rs.getLong("total_orders"), rs.getDouble("total_revenue")),
                 start(from), start(to.plusDays(1)), brandId, brandId, modelId, modelId);
+
+        // Giữ đủ các mốc tháng trong khoảng lọc, kể cả tháng chưa phát sinh doanh thu.
+        Map<String, RevenueByMonth> byPeriod = new HashMap<>();
+        for (RevenueByMonth item : actual) {
+            byPeriod.put(item.period(), item);
+        }
+
+        List<RevenueByMonth> result = new ArrayList<>();
+        YearMonth current = YearMonth.from(from);
+        YearMonth last = YearMonth.from(to);
+        while (!current.isAfter(last)) {
+            String period = current.toString();
+            result.add(byPeriod.getOrDefault(period, new RevenueByMonth(period, 0L, 0.0)));
+            current = current.plusMonths(1);
+        }
+        return result;
     }
 
     private List<OrderSummary> findRecentOrders(LocalDate from, LocalDate to, Long brandId, Long modelId) {
