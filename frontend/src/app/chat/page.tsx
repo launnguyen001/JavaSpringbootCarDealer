@@ -340,7 +340,7 @@ export default function ChatPage() {
       </aside>
 
       {/* Khu vực hội thoại */}
-      <main className={`flex-1 min-w-0 flex-col ${showRoomList ? 'hidden md:flex' : 'flex'}`}>
+      <main className={`flex-1 min-w-0 min-h-0 flex-col ${showRoomList ? 'hidden md:flex' : 'flex'}`}>
         {selectedRoom ? (
           <>
             <header className="px-3 sm:px-6 py-3 border-b border-gray-200 flex items-center justify-between bg-white shrink-0">
