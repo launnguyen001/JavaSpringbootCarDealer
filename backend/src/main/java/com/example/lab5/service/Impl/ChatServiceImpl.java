@@ -193,7 +193,7 @@ public class ChatServiceImpl implements ChatService {
         // Resolve username cho participant IDs
         Map<Long, String> userMap = userRepository.findAllById(room.getParticipantIds())
                 .stream()
-                .collect(Collectors.toMap(User::getId, User::getUsername));
+                .collect(Collectors.toMap(user -> user.getId(), user -> user.getUsername()));
 
         List<String> usernames = room.getParticipantIds().stream()
                 .map(id -> userMap.getOrDefault(id, "Unknown"))
