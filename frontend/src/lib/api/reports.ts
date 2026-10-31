@@ -9,6 +9,8 @@ import type {
   OrderStatusCount,
   OrderSummary,
   RevenueByMonth,
+  RevenueCategory,
+  RevenueOrderSummary,
   RevenueSummary,
   TopSellingCar,
 } from '@/types';
@@ -88,4 +90,19 @@ export async function getOrdersByStatus(
 
 export async function getRevenueByMonth(): Promise<RevenueByMonth[]> {
   return apiRequest<RevenueByMonth[]>('/reports/revenue-by-month', { auth: true });
+}
+
+
+export async function getOrdersByRevenue(
+  period: string,
+  category: RevenueCategory,
+  filters?: { brandId?: number; modelId?: number },
+): Promise<RevenueOrderSummary[]> {
+  const params = new URLSearchParams({ category });
+  if (filters?.brandId) params.set('brandId', String(filters.brandId));
+  if (filters?.modelId) params.set('modelId', String(filters.modelId));
+  return apiRequest<RevenueOrderSummary[]>(
+    `/reports/revenue-by-month/${encodeURIComponent(period)}/orders?${params.toString()}`,
+    { auth: true },
+  );
 }
