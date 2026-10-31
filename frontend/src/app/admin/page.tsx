@@ -63,9 +63,10 @@ export default function AdminDashboardPage(){
     </div>
     <div className="space-y-2">
      <h3 className="text-sm font-semibold text-[#6b7280]">Xe đã có cam kết giao dịch hoặc đã xuất bán</h3>
-     <div className="grid grid-cols-2 gap-3">
+     <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
       <button onClick={()=>open('RESERVED','Xe đã đặt trước',data.reservedCars)} className="text-left"><KpiCard label="Đã đặt trước" value={data.reservedCars.toLocaleString('vi-VN')} hint="Đang có ràng buộc giao dịch"/></button>
-      <button onClick={()=>open('SOLD','Xe đã bán trong kỳ',data.soldInPeriod)} className="text-left"><KpiCard label="Đã bán trong kỳ" value={data.soldInPeriod.toLocaleString('vi-VN')} hint={growth(data.soldInPeriod,data.previousSoldInPeriod)} accent/></button>
+      <button onClick={()=>open('SOLD_ALL','Xe đã bán',data.soldCars)} className="text-left"><KpiCard label="Đã bán" value={data.soldCars.toLocaleString('vi-VN')} hint="Không còn trong kho" accent/></button>
+      <button onClick={()=>open('SOLD','Xe đã bán trong kỳ',data.soldInPeriod)} className="text-left"><KpiCard label="Đã bán trong kỳ" value={data.soldInPeriod.toLocaleString('vi-VN')} hint={growth(data.soldInPeriod,data.previousSoldInPeriod)}/></button>
      </div>
     </div>
     </div>
