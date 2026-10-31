@@ -218,7 +218,7 @@ public class JdbcDashboardRepository {
                            END) < ?
                 ),
                 allocated_orders AS (
-                    SELECT id, revenue_date, status,
+                    SELECT id, revenue_date, status, has_revenue_documents,
                            CASE WHEN ? IS NULL AND ? IS NULL
                                 THEN total_amount
                                 ELSE selected_items_amount
@@ -244,7 +244,11 @@ public class JdbcDashboardRepository {
                 SELECT EXTRACT(YEAR FROM revenue_date) AS yr,
                        EXTRACT(MONTH FROM revenue_date) AS mo,
                        COUNT(*) AS total_orders,
-                       COALESCE(SUM(CASE WHEN status = 'PENDING' THEN revenue_amount ELSE 0 END), 0) AS pending_revenue,
+                       COALESCE(SUM(CASE
+                           WHEN status = 'PENDING'
+                             OR (status = 'CONFIRMED' AND NOT has_revenue_documents)
+                           THEN revenue_amount ELSE 0
+                       END), 0) AS pending_revenue,
                        COALESCE(SUM(recognized_amount), 0) AS recognized_revenue,
                        COALESCE(SUM(collected), 0) AS actual_revenue,
                        COALESCE(SUM(CASE
