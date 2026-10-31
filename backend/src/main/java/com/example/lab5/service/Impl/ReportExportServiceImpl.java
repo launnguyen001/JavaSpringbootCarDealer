@@ -89,7 +89,10 @@ public class ReportExportServiceImpl implements ReportExportService {
         table.row("Nhân viên", summary.totalEmployees());
         table.row("Đơn hàng", summary.totalOrders());
         table.row("Lịch lái thử đã lên", summary.scheduledTestDrives());
-        table.row("Tổng doanh thu", summary.totalRevenue());
+        table.row("Tổng doanh thu (đơn không hủy)", summary.totalRevenue());
+        table.row("Doanh thu chờ", summary.pendingRevenue());
+        table.row("Doanh thu đã ghi nhận", summary.recognizedRevenue());
+        table.row("Doanh thu thực nhận", summary.actualRevenue());
         return table;
     }
 
@@ -115,7 +118,10 @@ public class ReportExportServiceImpl implements ReportExportService {
         RevenueSummary summary = reportService.getRevenueSummary();
         ReportTable table = new ReportTable("Doanh thu", List.of("Chỉ số", "Giá trị"));
         table.row("Tổng số đơn hàng", summary.totalOrders());
-        table.row("Tổng doanh thu", summary.totalRevenue());
+        table.row("Tổng doanh thu (đơn không hủy)", summary.totalRevenue());
+        table.row("Doanh thu chờ", summary.pendingRevenue());
+        table.row("Doanh thu đã ghi nhận", summary.recognizedRevenue());
+        table.row("Doanh thu thực nhận", summary.actualRevenue());
         return table;
     }
 
@@ -129,9 +135,11 @@ public class ReportExportServiceImpl implements ReportExportService {
 
     private ReportTable revenueByMonth() {
         ReportTable table = new ReportTable("Doanh thu theo tháng",
-                List.of("Tháng", "Số đơn hàng", "Doanh thu"));
+                List.of("Tháng", "Số đơn hàng", "Doanh thu chờ", "Doanh thu đã ghi nhận",
+                        "Doanh thu thực nhận", "Còn thiếu"));
         for (RevenueByMonth item : reportService.getRevenueByMonth()) {
-            table.row(item.period(), item.totalOrders(), item.totalRevenue());
+            table.row(item.period(), item.totalOrders(), item.pendingRevenue(),
+                    item.recognizedRevenue(), item.actualRevenue(), item.outstandingAmount());
         }
         return table;
     }
