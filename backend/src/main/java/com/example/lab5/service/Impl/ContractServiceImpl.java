@@ -77,11 +77,11 @@ public class ContractServiceImpl implements ContractService {
         if (order.getItems().isEmpty()) {
             throw new BadRequestException("Đơn hàng chưa có xe để lập hợp đồng");
         }
-        for (OrderItem item : order.getItems()) {
-            if (item.getCarItem() == null || item.getCarItem().getStatus() != CarStatus.RESERVED) {
-                throw new BadRequestException("Xe trong đơn không còn ở trạng thái RESERVED; không thể ký hợp đồng");
-            }
-        }
+        // for (OrderItem item : order.getItems()) {
+        //     if (item.getCarItem() == null || item.getCarItem().getStatus() != CarStatus.RESERVED) {
+        //         throw new BadRequestException("Xe trong đơn không còn ở trạng thái RESERVED; không thể ký hợp đồng");
+        //     }
+        // }
 
         Contract contract = new Contract();
         contract.setOrder(order);

@@ -38,6 +38,26 @@ const items = [
     ),
   },
   {
+    href: '/admin/brands',
+    label: 'Hãng xe',
+    icon: (
+      <>
+        <circle cx="12" cy="9" r="5" />
+        <path d="m8.5 13-2 8 5.5-3 5.5 3-2-8" />
+      </>
+    ),
+  },
+  {
+    href: '/admin/car-models',
+    label: 'Dòng xe',
+    icon: (
+      <>
+        <path d="m12 3 9 5-9 5-9-5z" />
+        <path d="m3 13 9 5 9-5" />
+      </>
+    ),
+  },
+  {
     href: '/admin/cars',
     label: 'Xe',
     icon: (
@@ -61,22 +81,86 @@ const items = [
     ),
   },
   {
-    href: '/admin/brands',
-    label: 'Hãng xe',
+    href: '/admin/media',
+    label: 'Media xe',
     icon: (
       <>
-        <circle cx="12" cy="9" r="5" />
-        <path d="m8.5 13-2 8 5.5-3 5.5 3-2-8" />
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <circle cx="8.5" cy="9.5" r="1.5" />
+        <path d="m21 16-5-5-9 9" />
       </>
     ),
   },
   {
-    href: '/admin/car-models',
-    label: 'Dòng xe',
+    href: '/admin/specs',
+    label: 'Thông số xe',
     icon: (
       <>
-        <path d="m12 3 9 5-9 5-9-5z" />
-        <path d="m3 13 9 5 9-5" />
+        <path d="M4 7h16M4 12h16M4 17h16" />
+        <path d="M9 5v4M15 10v4M8 15v4" />
+      </>
+    ),
+  },
+  {
+    href: '/admin/orders',
+    label: 'Đơn hàng',
+    icon: (
+      <>
+        <path d="M9 4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2" />
+        <rect x="9" y="2" width="6" height="4" rx="1" />
+        <path d="M9 12h6M9 16h6" />
+      </>
+    ),
+  },
+  {
+    href: '/admin/contracts',
+    label: 'Hợp đồng',
+    icon: (
+      <>
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+        <path d="M14 3v5h5" />
+        <path d="M9 13h6M9 17h6" />
+      </>
+    ),
+  },
+  {
+    href: '/admin/invoices',
+    label: 'Hóa đơn',
+    icon: (
+      <>
+        <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+        <path d="M9 8h6M9 12h6" />
+      </>
+    ),
+  },
+  {
+    href: '/admin/payments',
+    label: 'Thanh toán',
+    icon: (
+      <>
+        <rect x="2" y="5" width="20" height="14" rx="2" />
+        <path d="M2 10h20" />
+      </>
+    ),
+  },
+  {
+    href: '/admin/collections',
+    label: 'Công nợ',
+    icon: (
+      <>
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M7 9h10M7 13h5M7 17h3" />
+        <path d="m15 15 2 2 3-4" />
+      </>
+    ),
+  },
+  {
+    href: '/admin/test-drives',
+    label: 'Lịch lái thử',
+    icon: (
+      <>
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M8 3v4M16 3v4M3 10h18" />
       </>
     ),
   },
@@ -103,94 +187,10 @@ const items = [
     ),
   },
   {
-    href: '/admin/orders',
-    label: 'Đơn hàng',
-    icon: (
-      <>
-        <path d="M9 4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2" />
-        <rect x="9" y="2" width="6" height="4" rx="1" />
-        <path d="M9 12h6M9 16h6" />
-      </>
-    ),
-  },
-  {
-    href: '/admin/test-drives',
-    label: 'Lịch lái thử',
-    icon: (
-      <>
-        <rect x="3" y="5" width="18" height="16" rx="2" />
-        <path d="M8 3v4M16 3v4M3 10h18" />
-      </>
-    ),
-  },
-  {
-    href: '/admin/payments',
-    label: 'Thanh toán',
-    icon: (
-      <>
-        <rect x="2" y="5" width="20" height="14" rx="2" />
-        <path d="M2 10h20" />
-      </>
-    ),
-  },
-  {
-    href: '/admin/contracts',
-    label: 'Hợp đồng',
-    icon: (
-      <>
-        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-        <path d="M14 3v5h5" />
-        <path d="M9 13h6M9 17h6" />
-      </>
-    ),
-  },
-  {
-    href: '/admin/invoices',
-    label: 'Hóa đơn',
-    icon: (
-      <>
-        <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
-        <path d="M9 8h6M9 12h6" />
-      </>
-    ),
-  },
-  {
-    href: '/admin/collections',
-    label: 'Công nợ',
-    icon: (
-      <>
-        <rect x="3" y="4" width="18" height="16" rx="2" />
-        <path d="M7 9h10M7 13h5M7 17h3" />
-        <path d="m15 15 2 2 3-4" />
-      </>
-    ),
-  },
-  {
     href: '/admin/reviews',
     label: 'Đánh giá',
     icon: (
       <path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8-5.4 2.8 1-6L3.2 9.4l6.1-.9z" />
-    ),
-  },
-  {
-    href: '/admin/media',
-    label: 'Media xe',
-    icon: (
-      <>
-        <rect x="3" y="4" width="18" height="16" rx="2" />
-        <circle cx="8.5" cy="9.5" r="1.5" />
-        <path d="m21 16-5-5-9 9" />
-      </>
-    ),
-  },
-  {
-    href: '/admin/specs',
-    label: 'Thông số xe',
-    icon: (
-      <>
-        <path d="M4 7h16M4 12h16M4 17h16" />
-        <path d="M9 5v4M15 10v4M8 15v4" />
-      </>
     ),
   },
   {

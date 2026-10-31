@@ -95,7 +95,23 @@ public class CarItemServiceImpl implements CarItemService {
         existing.setCondition(data.getCondition() == null ? CarCondition.NEW : data.getCondition());
         existing.setPrice(data.getPrice() == null ? car.getBasePrice() : data.getPrice());
         if (data.getStatus() != null && data.getStatus() != existing.getStatus()) {
-            throw new BadRequestException("Không thể sửa trạng thái tồn kho trực tiếp tại màn hình thông tin xe");
+            CarStatus requestedStatus = data.getStatus();
+            CarStatus currentStatus = existing.getStatus();
+
+            boolean validMaintenanceTransition =
+                    (currentStatus == CarStatus.AVAILABLE
+                            && requestedStatus == CarStatus.MAINTENANCE)
+                    ||
+                    (currentStatus == CarStatus.MAINTENANCE
+                            && requestedStatus == CarStatus.AVAILABLE);
+
+            if (!validMaintenanceTransition) {
+                throw new BadRequestException(
+                        "Chỉ được chuyển xe giữa trạng thái Sẵn sàng và Bảo trì"
+                );
+            }
+
+            existing.setStatus(requestedStatus);
         }
         existing.setMileageKm(data.getMileageKm());
         existing.setNote(normalize(data.getNote()));
