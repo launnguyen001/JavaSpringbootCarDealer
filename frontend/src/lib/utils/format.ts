@@ -64,3 +64,22 @@ export function formatVnd(millions: number | null | undefined): string {
     maximumFractionDigits: 0,
   }).format(millions * 1_000_000);
 }
+
+
+/**
+ * Định dạng doanh thu từ đơn vị triệu đồng do backend trả về.
+ * Chỉ chuyển đơn vị khi hiển thị; không thay đổi giá trị dữ liệu gốc.
+ */
+export function formatCurrentcy(amount: number | null | undefined): string {
+  if (amount == null || !Number.isFinite(amount)) return '—';
+
+  const formatter = new Intl.NumberFormat('vi-VN', {
+    maximumFractionDigits: 2,
+  });
+
+  if (Math.abs(amount) >= 1_000) {
+    return `${formatter.format(amount / 1_000)} tỷ`;
+  }
+
+  return `${formatter.format(amount)} triệu`;
+}
