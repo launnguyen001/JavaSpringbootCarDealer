@@ -43,7 +43,7 @@ public class ChatPresenceTracker {
                 && auth.getPrincipal() instanceof UserDetails details
                 ? details.getUsername() : principal.getName();
 
-        users.findByUsername(username).map(User::getId).ifPresent(userId -> {
+        users.findByUsername(username).map(user -> user.getId()).ifPresent(userId -> {
             Set<String> sessions = sessionsByUser.computeIfAbsent(
                     userId, ignored -> ConcurrentHashMap.newKeySet());
             boolean wasOffline = sessions.isEmpty();
