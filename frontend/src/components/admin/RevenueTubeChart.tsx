@@ -1,13 +1,13 @@
 'use client';
 
-import type { RevenueByMonth } from '@/types';
+import type { RevenueByMonth, RevenueCategory } from '@/types';
 import { formatCurrentcy } from '@/lib/utils/format';
 
 interface Props {
   data: RevenueByMonth[];
 }
 
-export default function RevenueTubeChart({ data }: Props) {
+export default function RevenueTubeChart({ data, onSelect }: Props) {
   const maxRevenue = Math.max(
     1,
     ...data.flatMap((item) => [
@@ -44,21 +44,15 @@ export default function RevenueTubeChart({ data }: Props) {
         {data.map((item) => (
           <div key={item.period} className="flex h-full min-w-[42px] flex-1 flex-col items-center justify-end gap-2">
             <div className="flex h-[150px] items-end gap-1">
-              <div
-                className="w-3 rounded-t-md bg-[#f8edcf] ring-1 ring-inset ring-[#d6a63b]/70 sm:w-4"
-                style={{ height: barHeight(item.pendingRevenue) }}
-                title={`Doanh thu chờ: ${formatCurrentcy(item.pendingRevenue)}`}
-              />
-              <div
-                className="w-3 rounded-t-md bg-[#dce7fb] ring-1 ring-inset ring-[#5277c3]/70 sm:w-4"
-                style={{ height: barHeight(item.recognizedRevenue) }}
-                title={`Doanh thu đã ghi nhận: ${formatCurrentcy(item.recognizedRevenue)}`}
-              />
-              <div
-                className="w-3 rounded-t-md bg-[#d9f3e5] ring-1 ring-inset ring-[#16a36a]/70 sm:w-4"
-                style={{ height: barHeight(item.actualRevenue) }}
-                title={`Thực nhận lũy kế: ${formatCurrentcy(item.actualRevenue)}`}
-              />
+              <button type="button" onClick={() => onSelect?.(item.period, 'PENDING', item.pendingRevenue)} aria-label={`Xem đơn đóng góp doanh thu chờ tháng ${item.period}`} className="group/bar flex items-end rounded-t-md px-0.5 hover:bg-[#d6a63b]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6a63b]" title={`Doanh thu chờ: ${formatCurrentcy(item.pendingRevenue)} · Click để xem đơn`}>
+                <span className="w-3 rounded-t-md bg-[#f8edcf] ring-1 ring-inset ring-[#d6a63b]/70 transition-colors group-hover/bar:bg-[#d6a63b] sm:w-4" style={{ height: barHeight(item.pendingRevenue) }} />
+              </button>
+              <button type="button" onClick={() => onSelect?.(item.period, 'RECOGNIZED', item.recognizedRevenue)} aria-label={`Xem đơn đã ghi nhận tháng ${item.period}`} className="group/bar flex items-end rounded-t-md px-0.5 hover:bg-[#5277c3]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5277c3]" title={`Doanh thu đã ghi nhận: ${formatCurrentcy(item.recognizedRevenue)} · Click để xem đơn`}>
+                <span className="w-3 rounded-t-md bg-[#dce7fb] ring-1 ring-inset ring-[#5277c3]/70 transition-colors group-hover/bar:bg-[#5277c3] sm:w-4" style={{ height: barHeight(item.recognizedRevenue) }} />
+              </button>
+              <button type="button" onClick={() => onSelect?.(item.period, 'ACTUAL', item.actualRevenue)} aria-label={`Xem đơn thực nhận tháng ${item.period}`} className="group/bar flex items-end rounded-t-md px-0.5 hover:bg-[#16a36a]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#16a36a]" title={`Thực nhận lũy kế: ${formatCurrentcy(item.actualRevenue)} · Click để xem đơn`}>
+                <span className="w-3 rounded-t-md bg-[#d9f3e5] ring-1 ring-inset ring-[#16a36a]/70 transition-colors group-hover/bar:bg-[#16a36a] sm:w-4" style={{ height: barHeight(item.actualRevenue) }} />
+              </button>
             </div>
             <span className="w-full truncate text-center text-[10px] text-[#6b7280]">{item.period}</span>
           </div>
