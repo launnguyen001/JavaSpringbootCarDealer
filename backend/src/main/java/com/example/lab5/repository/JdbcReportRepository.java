@@ -80,13 +80,23 @@ public class JdbcReportRepository {
     public RevenueSummary findRevenueSummary() {
         String sql = """
                 SELECT COUNT(*) AS total_orders,
-                       COALESCE(SUM(total_amount), 0) AS total_revenue
+                       COALESCE(SUM(total_amount), 0) AS total_revenue,
+                       COALESCE(SUM(CASE WHEN status = 'PENDING' THEN total_amount ELSE 0 END), 0) AS pending_revenue,
+                       COALESCE(SUM(CASE WHEN status IN ('CONFIRMED', 'COMPLETED') THEN total_amount ELSE 0 END), 0) AS recognized_revenue,
+                       (SELECT COALESCE(SUM(p.amount), 0)
+                        FROM payments p
+                        JOIN sales_orders paid_order ON paid_order.id = p.order_id
+                        WHERE paid_order.status IN ('CONFIRMED', 'COMPLETED')
+                          AND p.status IN ('PAID', 'PARTIAL')) AS actual_revenue
                 FROM sales_orders
                 WHERE status <> 'CANCELLED'
                 """;
         return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> new RevenueSummary(
                 rs.getLong("total_orders"),
-                rs.getDouble("total_revenue")
+                rs.getDouble("total_revenue"),
+                rs.getDouble("pending_revenue"),
+                rs.getDouble("recognized_revenue"),
+                rs.getDouble("actual_revenue")
         ));
     }
 
@@ -118,10 +128,29 @@ public class JdbcReportRepository {
         long employees = count("SELECT COUNT(*) FROM employees");
         long orders = count("SELECT COUNT(*) FROM sales_orders");
         long scheduledTestDrives = count("SELECT COUNT(*) FROM test_drive_appointments WHERE status = 'SCHEDULED'");
-        double revenue = value("SELECT COALESCE(SUM(total_amount), 0) FROM sales_orders WHERE status <> 'CANCELLED'");
+        String revenueSql = """
+                SELECT COALESCE(SUM(total_amount), 0) AS total_revenue,
+                       COALESCE(SUM(CASE WHEN status = 'PENDING' THEN total_amount ELSE 0 END), 0) AS pending_revenue,
+                       COALESCE(SUM(CASE WHEN status IN ('CONFIRMED', 'COMPLETED') THEN total_amount ELSE 0 END), 0) AS recognized_revenue
+                FROM sales_orders
+                WHERE status <> 'CANCELLED'
+                """;
+        double[] revenue = jdbcTemplate.queryForObject(revenueSql, (rs, rowNum) -> new double[] {
+                rs.getDouble("total_revenue"),
+                rs.getDouble("pending_revenue"),
+                rs.getDouble("recognized_revenue")
+        });
+        double actualRevenue = value("""
+                SELECT COALESCE(SUM(p.amount), 0)
+                FROM payments p
+                JOIN sales_orders o ON o.id = p.order_id
+                WHERE o.status IN ('CONFIRMED', 'COMPLETED')
+                  AND p.status IN ('PAID', 'PARTIAL')
+                """);
 
         return new DashboardSummary(totalCars, available, reserved, sold, maintenance, newItems, usedItems,
-                customers, employees, orders, scheduledTestDrives, revenue);
+                customers, employees, orders, scheduledTestDrives,
+                revenue[0], revenue[1], revenue[2], actualRevenue);
     }
 
     // D2: các dòng xe (model) thuộc 1 hãng + tồn kho (số dòng xe và số chiếc)
