@@ -13,8 +13,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     Optional<Invoice> findByOrder_Id(Long orderId);
 
-    @Query("SELECT DISTINCT i FROM Invoice i JOIN i.order o JOIN o.items oi JOIN oi.carItem ci WHERE UPPER(ci.vin) = UPPER(:vin)")
-    Optional<Invoice> findByVehicleVin(@org.springframework.data.repository.query.Param("vin") String vin);
+    @Query("SELECT DISTINCT i FROM Invoice i JOIN i.order o JOIN o.items oi JOIN oi.carItem ci WHERE UPPER(ci.vin) = UPPER(:vin) ORDER BY i.issuedAt DESC, i.id DESC")
+    List<Invoice> findAllByVehicleVin(@org.springframework.data.repository.query.Param("vin") String vin);
 
     boolean existsByOrder_Id(Long orderId);
 
