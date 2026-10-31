@@ -139,6 +139,8 @@ public class JdbcDashboardRepository {
                     GROUP BY oi.order_id
                 ) selected_lines ON selected_lines.order_id = o.id
                 WHERE o.status IN ('CONFIRMED', 'COMPLETED')
+                  AND EXISTS (SELECT 1 FROM contracts ct WHERE ct.order_id = o.id)
+                  AND EXISTS (SELECT 1 FROM invoices i WHERE i.order_id = o.id)
                   AND COALESCE(o.confirmed_at, o.order_date) >= ?
                   AND COALESCE(o.confirmed_at, o.order_date) < ?
                 """;
@@ -195,6 +197,8 @@ public class JdbcDashboardRepository {
                            END AS revenue_date,
                            o.status,
                            o.total_amount,
+                           (EXISTS (SELECT 1 FROM contracts ct WHERE ct.order_id = o.id)
+                            AND EXISTS (SELECT 1 FROM invoices i WHERE i.order_id = o.id)) AS has_revenue_documents,
                            COALESCE(olt.all_items_amount, 0) AS all_items_amount,
                            COALESCE(olt.selected_items_amount, 0) AS selected_items_amount,
                            (SELECT COALESCE(SUM(p.amount), 0)
@@ -220,23 +224,32 @@ public class JdbcDashboardRepository {
                                 ELSE selected_items_amount
                            END AS revenue_amount,
                            CASE
-                               WHEN status NOT IN ('CONFIRMED', 'COMPLETED') THEN 0
+                               WHEN status NOT IN ('CONFIRMED', 'COMPLETED')
+                                 OR NOT has_revenue_documents THEN 0
                                WHEN ? IS NULL AND ? IS NULL THEN order_collected
                                WHEN all_items_amount > 0
                                    THEN order_collected * selected_items_amount / all_items_amount
                                ELSE 0
-                           END AS collected
+                           END AS collected,
+                           CASE
+                               WHEN status IN ('CONFIRMED', 'COMPLETED') AND has_revenue_documents
+                               THEN CASE WHEN ? IS NULL AND ? IS NULL
+                                         THEN total_amount
+                                         ELSE selected_items_amount
+                                    END
+                               ELSE 0
+                           END AS recognized_amount
                     FROM eligible_orders
                 )
                 SELECT EXTRACT(YEAR FROM revenue_date) AS yr,
                        EXTRACT(MONTH FROM revenue_date) AS mo,
                        COUNT(*) AS total_orders,
                        COALESCE(SUM(CASE WHEN status = 'PENDING' THEN revenue_amount ELSE 0 END), 0) AS pending_revenue,
-                       COALESCE(SUM(CASE WHEN status IN ('CONFIRMED', 'COMPLETED') THEN revenue_amount ELSE 0 END), 0) AS recognized_revenue,
+                       COALESCE(SUM(recognized_amount), 0) AS recognized_revenue,
                        COALESCE(SUM(collected), 0) AS actual_revenue,
                        COALESCE(SUM(CASE
-                           WHEN status IN ('CONFIRMED', 'COMPLETED')
-                           THEN GREATEST(revenue_amount - collected, 0)
+                           WHEN status IN ('CONFIRMED', 'COMPLETED') AND recognized_amount > 0
+                           THEN GREATEST(recognized_amount - collected, 0)
                            ELSE 0
                        END), 0) AS outstanding_amount
                 FROM allocated_orders
@@ -252,7 +265,7 @@ public class JdbcDashboardRepository {
                 rs.getDouble("outstanding_amount")),
                 brandId, brandId, modelId, modelId,
                 start(from), start(to.plusDays(1)),
-                brandId, modelId, brandId, modelId);
+                brandId, modelId, brandId, modelId, brandId, modelId);
 
         Map<String, RevenueByMonth> byPeriod = new HashMap<>();
         for (RevenueByMonth item : actual) byPeriod.put(item.period(), item);
@@ -302,6 +315,7 @@ public class JdbcDashboardRepository {
                 FROM order_items oi
                 JOIN sales_orders o ON o.id = oi.order_id
                 JOIN contracts ct ON ct.order_id = o.id
+                JOIN invoices inv ON inv.order_id = o.id
                 JOIN car_items ci ON ci.id = oi.car_item_id
                 JOIN cars c ON c.id = ci.car_id
                 JOIN car_models m ON m.id = c.model_id

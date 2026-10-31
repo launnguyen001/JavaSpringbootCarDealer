@@ -39,6 +39,7 @@ public class JdbcReportRepository {
                 FROM order_items oi
                 JOIN sales_orders o ON o.id = oi.order_id
                 JOIN contracts ct ON ct.order_id = o.id
+                JOIN invoices inv ON inv.order_id = o.id
                 JOIN car_items ci ON ci.id = oi.car_item_id
                 JOIN cars c ON c.id = ci.car_id
                 WHERE o.status <> 'CANCELLED'
@@ -82,11 +83,17 @@ public class JdbcReportRepository {
                 SELECT COUNT(*) AS total_orders,
                        COALESCE(SUM(total_amount), 0) AS total_revenue,
                        COALESCE(SUM(CASE WHEN status = 'PENDING' THEN total_amount ELSE 0 END), 0) AS pending_revenue,
-                       COALESCE(SUM(CASE WHEN status IN ('CONFIRMED', 'COMPLETED') THEN total_amount ELSE 0 END), 0) AS recognized_revenue,
+                       COALESCE(SUM(CASE
+                           WHEN status IN ('CONFIRMED', 'COMPLETED')
+                            AND EXISTS (SELECT 1 FROM contracts ct WHERE ct.order_id = sales_orders.id)
+                            AND EXISTS (SELECT 1 FROM invoices i WHERE i.order_id = sales_orders.id)
+                           THEN total_amount ELSE 0 END), 0) AS recognized_revenue,
                        (SELECT COALESCE(SUM(p.amount), 0)
                         FROM payments p
                         JOIN sales_orders paid_order ON paid_order.id = p.order_id
                         WHERE paid_order.status IN ('CONFIRMED', 'COMPLETED')
+                          AND EXISTS (SELECT 1 FROM contracts ct WHERE ct.order_id = paid_order.id)
+                          AND EXISTS (SELECT 1 FROM invoices i WHERE i.order_id = paid_order.id)
                           AND p.status IN ('PAID', 'PARTIAL')) AS actual_revenue
                 FROM sales_orders
                 WHERE status <> 'CANCELLED'
@@ -131,7 +138,11 @@ public class JdbcReportRepository {
         String revenueSql = """
                 SELECT COALESCE(SUM(total_amount), 0) AS total_revenue,
                        COALESCE(SUM(CASE WHEN status = 'PENDING' THEN total_amount ELSE 0 END), 0) AS pending_revenue,
-                       COALESCE(SUM(CASE WHEN status IN ('CONFIRMED', 'COMPLETED') THEN total_amount ELSE 0 END), 0) AS recognized_revenue
+                       COALESCE(SUM(CASE
+                           WHEN status IN ('CONFIRMED', 'COMPLETED')
+                            AND EXISTS (SELECT 1 FROM contracts ct WHERE ct.order_id = sales_orders.id)
+                            AND EXISTS (SELECT 1 FROM invoices i WHERE i.order_id = sales_orders.id)
+                           THEN total_amount ELSE 0 END), 0) AS recognized_revenue
                 FROM sales_orders
                 WHERE status <> 'CANCELLED'
                 """;
@@ -145,6 +156,8 @@ public class JdbcReportRepository {
                 FROM payments p
                 JOIN sales_orders o ON o.id = p.order_id
                 WHERE o.status IN ('CONFIRMED', 'COMPLETED')
+                  AND EXISTS (SELECT 1 FROM contracts ct WHERE ct.order_id = o.id)
+                  AND EXISTS (SELECT 1 FROM invoices i WHERE i.order_id = o.id)
                   AND p.status IN ('PAID', 'PARTIAL')
                 """);
 
@@ -277,6 +290,8 @@ public class JdbcReportRepository {
                            END AS revenue_date,
                            o.status,
                            o.total_amount,
+                           (EXISTS (SELECT 1 FROM contracts ct WHERE ct.order_id = o.id)
+                            AND EXISTS (SELECT 1 FROM invoices i WHERE i.order_id = o.id)) AS has_revenue_documents,
                            CASE WHEN o.status IN ('CONFIRMED', 'COMPLETED')
                                 THEN (SELECT COALESCE(SUM(p.amount), 0)
                                       FROM payments p
@@ -291,10 +306,14 @@ public class JdbcReportRepository {
                        EXTRACT(MONTH FROM revenue_date) AS mo,
                        COUNT(*) AS total_orders,
                        COALESCE(SUM(CASE WHEN status = 'PENDING' THEN total_amount ELSE 0 END), 0) AS pending_revenue,
-                       COALESCE(SUM(CASE WHEN status IN ('CONFIRMED', 'COMPLETED') THEN total_amount ELSE 0 END), 0) AS recognized_revenue,
-                       COALESCE(SUM(actual_revenue), 0) AS actual_revenue,
                        COALESCE(SUM(CASE
-                           WHEN status IN ('CONFIRMED', 'COMPLETED')
+                           WHEN status IN ('CONFIRMED', 'COMPLETED') AND has_revenue_documents
+                           THEN total_amount ELSE 0 END), 0) AS recognized_revenue,
+                       COALESCE(SUM(CASE
+                           WHEN status IN ('CONFIRMED', 'COMPLETED') AND has_revenue_documents
+                           THEN actual_revenue ELSE 0 END), 0) AS actual_revenue,
+                       COALESCE(SUM(CASE
+                           WHEN status IN ('CONFIRMED', 'COMPLETED') AND has_revenue_documents
                            THEN GREATEST(total_amount - actual_revenue, 0)
                            ELSE 0
                        END), 0) AS outstanding_amount
