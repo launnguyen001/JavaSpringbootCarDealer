@@ -13,6 +13,9 @@ export interface DashboardSummary {
   totalOrders: number;
   scheduledTestDrives: number;
   totalRevenue: number;
+  pendingRevenue: number;
+  recognizedRevenue: number;
+  actualRevenue: number;
 }
 
 export interface DashboardData {
@@ -33,7 +36,13 @@ export interface DashboardData {
   topSellingCars: TopSellingCar[];
 }
 
-export interface RevenueSummary { totalOrders: number; totalRevenue: number; }
+export interface RevenueSummary {
+  totalOrders: number;
+  totalRevenue: number;
+  pendingRevenue: number;
+  recognizedRevenue: number;
+  actualRevenue: number;
+}
 export interface OrderStatusCount { status: string; total: number; }
 export interface TopSellingCar { carId: number; carName: string; totalSold: number; revenue: number; }
 export interface InventoryByBrand { brandId: number; brandName: string; totalCars: number; totalQuantity: number; availableItems: number; }
