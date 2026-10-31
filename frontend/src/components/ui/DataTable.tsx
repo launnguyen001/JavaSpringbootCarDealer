@@ -51,8 +51,18 @@ export default function DataTable<T>({
               <tr
                 key={rowKey(row, index)}
                 onClick={() => onRowClick?.(row)}
-                className={`border-b border-[#f3f4f6] last:border-0 hover:bg-[#fafafa] transition-colors ${
-                  onRowClick ? 'cursor-pointer' : ''
+                tabIndex={onRowClick ? 0 : undefined}
+                onKeyDown={(event) => {
+                  if (!onRowClick) return;
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onRowClick(row);
+                  }
+                }}
+                className={`border-b border-[#f3f4f6] last:border-0 transition-all duration-150 ${
+                  onRowClick
+                    ? 'group cursor-pointer hover:bg-[#fffbeb]/70 hover:shadow-[inset_3px_0_0_0_#c58e00] focus-visible:bg-[#fffbeb]/70 focus-visible:outline-none focus-visible:shadow-[inset_3px_0_0_0_#c58e00]'
+                    : 'hover:bg-[#fafafa]'
                 }`}
               >
                 {columns.map((c) => (

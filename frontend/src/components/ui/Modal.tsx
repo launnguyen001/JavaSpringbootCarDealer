@@ -9,6 +9,8 @@ interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  /** Cho phép modal nổi trên drawer (mặc định 90). */
+  zIndex?: number;
 }
 
 const sizes: Record<string, string> = {
@@ -18,7 +20,7 @@ const sizes: Record<string, string> = {
   xl: 'max-w-4xl',
 };
 
-export default function Modal({ open, title, onClose, children, footer, size = 'md' }: ModalProps) {
+export default function Modal({ open, title, onClose, children, footer, size = 'md', zIndex = 90 }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -31,7 +33,7 @@ export default function Modal({ open, title, onClose, children, footer, size = '
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+    <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div
         className={`relative w-full ${sizes[size]} bg-white rounded-2xl shadow-2xl border border-[#e5e7eb] max-h-[90vh] flex flex-col animate-slide-up`}

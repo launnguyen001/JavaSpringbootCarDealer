@@ -250,13 +250,19 @@ export default function AdminSidebar() {
               href={item.href}
               title={expanded ? undefined : item.label}
               aria-label={item.label}
-              className={`flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors ${
+              aria-current={active ? 'page' : undefined}
+              className={`group relative flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-all duration-150 hover:translate-x-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c58e00]/40 focus-visible:ring-offset-1 ${
                 active
-                  ? 'bg-[#0a0a0a] text-white'
-                  : 'text-[#4b5563] hover:bg-[#f3f4f6] hover:text-[#0a0a0a]'
+                  ? 'bg-[#0a0a0a] text-white shadow-sm'
+                  : 'text-[#4b5563] hover:bg-[#fffbeb] hover:text-[#8a6d00]'
               }`}
             >
-              <Icon>{item.icon}</Icon>
+              {active && (
+                <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-[#c58e00]" />
+              )}
+              <span className={`transition-colors ${active ? 'text-[#e7c86a]' : 'group-hover:text-[#c58e00]'}`}>
+                <Icon>{item.icon}</Icon>
+              </span>
               {/* Ẩn nhãn khi thu gọn: opacity-0 giữ icon không bị nhảy vị trí */}
               <span
                 className={`whitespace-nowrap transition-opacity duration-150 ${
