@@ -375,7 +375,7 @@ public class DataSeeder implements CommandLineRunner {
                 OrderStatus.COMPLETED, c1, e1, List.of(item(corollaCross, 1))));
         SalesOrder o2 = salesOrderRepository.save(order("ORD-2026-0002", dt(2026, 2, 8, 14, 0),
                 OrderStatus.COMPLETED, c2, e3, List.of(item(civicCar, 1))));
-        SalesOrder o3 = salesOrderRepository.save(order("ORD-2026-0003", dt(2026, 3, 22, 10, 15),
+        salesOrderRepository.save(order("ORD-2026-0003", dt(2026, 3, 22, 10, 15),
                 OrderStatus.CANCELLED, c3, e1, List.of(item(rangerCar, 1))));
         SalesOrder o4 = salesOrderRepository.save(order("ORD-2026-0004", dt(2026, 4, 5, 16, 45),
                 OrderStatus.COMPLETED, c4, e2, List.of(item(c300, 1))));
@@ -387,7 +387,7 @@ public class DataSeeder implements CommandLineRunner {
                 OrderStatus.COMPLETED, c1, e2, List.of(item(bmw320i, 1))));
         SalesOrder o8 = salesOrderRepository.save(order("ORD-2026-0008", dt(2026, 7, 27, 15, 10),
                 OrderStatus.COMPLETED, c2, e3, List.of(item(camry20, 1))));
-        SalesOrder o9 = salesOrderRepository.save(order("ORD-2026-0009", dt(2026, 8, 14, 9, 0),
+        salesOrderRepository.save(order("ORD-2026-0009", dt(2026, 8, 14, 9, 0),
                 OrderStatus.PENDING, c3, e1, List.of(item(macanCar, 1))));
         SalesOrder o10 = salesOrderRepository.save(order("ORD-2026-0010", dt(2026, 9, 9, 10, 30),
                 OrderStatus.COMPLETED, c4, e2, List.of(item(glc300, 1))));
@@ -397,7 +397,7 @@ public class DataSeeder implements CommandLineRunner {
                 OrderStatus.COMPLETED, c6, e1, List.of(item(rx350, 1))));
         SalesOrder o13 = salesOrderRepository.save(order("ORD-2026-0013", dt(2026, 10, 12, 14, 30),
                 OrderStatus.COMPLETED, c1, e2, List.of(item(e300, 1))));
-        SalesOrder o14 = salesOrderRepository.save(order("ORD-2026-0014", dt(2026, 10, 15, 16, 0),
+        salesOrderRepository.save(order("ORD-2026-0014", dt(2026, 10, 15, 16, 0),
                 OrderStatus.PENDING, c2, e3, List.of(item(p911Car, 1))));
 
         // ---------- Thanh toán ----------
