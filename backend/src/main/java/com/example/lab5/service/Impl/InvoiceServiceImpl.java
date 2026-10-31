@@ -122,7 +122,8 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Override
     public Invoice getByVin(String vin) {
         if (vin == null || vin.isBlank()) throw new BadRequestException("Mã VIN không được để trống");
-        Invoice invoice = invoiceRepository.findByVehicleVin(vin.trim())
+        Invoice invoice = invoiceRepository.findAllByVehicleVin(vin.trim()).stream()
+                .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hóa đơn theo VIN = " + vin));
         syncPaymentTotal(invoice);
         return invoice;
