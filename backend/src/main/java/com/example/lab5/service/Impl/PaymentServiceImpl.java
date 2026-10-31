@@ -64,6 +64,10 @@ public class PaymentServiceImpl implements PaymentService {
         if (order.getTotalAmount() == null || order.getTotalAmount() <= 0)
             throw new BadRequestException("Đơn hàng không có giá trị hợp lệ để thu tiền");
 
+        if (!contractRepository.existsByOrder_Id(order.getId())) {
+            throw new BadRequestException("Cần lập hợp đồng trước khi ghi nhận thanh toán");
+        }
+
         Invoice invoice = invoiceRepository.findByOrder_Id(order.getId())
                 .orElseThrow(() -> new BadRequestException("Cần lập hóa đơn trước khi ghi nhận thanh toán"));
         if (invoice.getPaymentStatus() == com.example.lab5.entity.InvoicePaymentStatus.CANCELLED) {
