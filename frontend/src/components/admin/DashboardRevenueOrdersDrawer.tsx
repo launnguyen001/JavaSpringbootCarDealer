@@ -18,44 +18,44 @@ type Props = {
   onSelectOrder: (orderId: number) => void;
 };
 
-const columns: Column<RevenueOrderSummary>[] = [
-  { key: 'orderCode', label: 'Mã đơn' },
-  { key: 'customerName', label: 'Khách hàng', render: row => row.customerName ?? '—' },
-  { key: 'orderDate', label: 'Ngày đặt', render: row => formatDateTime(row.orderDate) },
-  { key: 'status', label: 'Trạng thái', render: row => <StatusPill status={row.status} /> },
-  { key: 'revenueAmount', label: 'Đóng góp doanh thu', className: 'text-right', render: row => <b>{formatVnd(row.revenueAmount)}</b> },
-  { key: 'totalAmount', label: 'Tổng giá trị đơn', className: 'text-right', render: row => formatVnd(row.totalAmount) },
-  {
-    key: 'invoiceQuickView',
-    label: 'Hóa đơn',
-    className: 'text-right whitespace-nowrap',
-    render: row => (
-      <button
-        type="button"
-        onClick={event => {
-          event.stopPropagation();
-          setInvoiceOrderCode(row.orderCode);
-        }}
-        className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#4b5563] transition-all hover:-translate-y-px hover:border-[#c58e00]/60 hover:bg-[#fffbeb] hover:text-[#8a6d00] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c58e00]/40"
-        title={`Xem nhanh hóa đơn ${row.orderCode}`}
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
-          <path d="M9 8h6M9 12h6" />
-        </svg>
-        Xem hóa đơn
-      </button>
-    ),
-  },
-];
-
 export default function DashboardRevenueOrdersDrawer({
   period, category, title, amount, filters, onClose, onSelectOrder,
 }: Props) {
   const [orders, setOrders] = useState<RevenueOrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [invoiceOrderCode, setInvoiceOrderCode] = useState<string | null>(null);
+  const [invoiceOrderId, setInvoiceOrderId] = useState<number | null>(null);
+
+  const columns: Column<RevenueOrderSummary>[] = [
+    { key: 'orderCode', label: 'Mã đơn' },
+    { key: 'customerName', label: 'Khách hàng', render: row => row.customerName ?? '—' },
+    { key: 'orderDate', label: 'Ngày đặt', render: row => formatDateTime(row.orderDate) },
+    { key: 'status', label: 'Trạng thái', render: row => <StatusPill status={row.status} /> },
+    { key: 'revenueAmount', label: 'Đóng góp doanh thu', className: 'text-right', render: row => <b>{formatVnd(row.revenueAmount)}</b> },
+    { key: 'totalAmount', label: 'Tổng giá trị đơn', className: 'text-right', render: row => formatVnd(row.totalAmount) },
+    {
+      key: 'invoiceQuickView',
+      label: 'Hóa đơn',
+      className: 'text-right whitespace-nowrap',
+      render: row => (
+        <button
+          type="button"
+          onClick={event => {
+            event.stopPropagation();
+            setInvoiceOrderId(row.orderId);
+          }}
+          className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#4b5563] transition-all hover:-translate-y-px hover:border-[#c58e00]/60 hover:bg-[#fffbeb] hover:text-[#8a6d00] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c58e00]/40"
+          title={`Xem nhanh hóa đơn đơn hàng #${row.orderId}`}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+            <path d="M9 8h6M9 12h6" />
+          </svg>
+          Xem hóa đơn
+        </button>
+      ),
+    },
+  ];
 
   useEffect(() => {
     let active = true;
@@ -92,13 +92,13 @@ export default function DashboardRevenueOrdersDrawer({
               : <DataTable columns={columns} rows={orders} rowKey={row => row.orderId} empty="Không có đơn hàng đóng góp cho nhóm doanh thu này." onRowClick={row => onSelectOrder(row.orderId)} />}
         </div>
         <footer className="border-t border-[#e5e7eb] px-6 py-3 text-xs text-[#9ca3af]">
-          Giá trị đóng góp được phân bổ theo cùng quy tắc tính biểu đồ; chọn một dòng để mở chi tiết đơn hàng tại chỗ hoặc dùng “Xem hóa đơn” để xem nhanh chứng từ.
+          Chọn một dòng để mở chi tiết đơn hàng hoặc dùng “Xem hóa đơn” để xem nhanh chứng từ.
         </footer>
       </aside>
       <InvoiceQuickViewModal
-        open={invoiceOrderCode !== null}
-        orderCode={invoiceOrderCode}
-        onClose={() => setInvoiceOrderCode(null)}
+        open={invoiceOrderId !== null}
+        orderId={invoiceOrderId}
+        onClose={() => setInvoiceOrderId(null)}
       />
     </div>
   );
