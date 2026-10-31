@@ -3,6 +3,7 @@ package com.example.lab5.service;
 import com.example.lab5.dto.CarInventoryItem;
 import com.example.lab5.dto.CarSalesOrderLine;
 import com.example.lab5.dto.DashboardSummary;
+import com.example.lab5.dto.DashboardData;
 import com.example.lab5.dto.InventoryByBrand;
 import com.example.lab5.dto.InventoryByModel;
 import com.example.lab5.dto.OrderStatusCount;
@@ -12,6 +13,7 @@ import com.example.lab5.dto.RevenueSummary;
 import com.example.lab5.dto.TopSellingCar;
 
 import java.util.List;
+import java.time.LocalDate;
 
 public interface ReportService {
 
@@ -26,6 +28,8 @@ public interface ReportService {
     // ---- Dashboard & drilldown ----
 
     DashboardSummary getDashboardSummary();
+    DashboardData getDashboard(LocalDate from, LocalDate to, Long brandId, Long modelId);
+    List<CarInventoryItem> getInventoryCars(String status, Long brandId, Long modelId);
 
     List<InventoryByModel> getModelsByBrand(Long brandId);
 

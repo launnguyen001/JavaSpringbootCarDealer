@@ -1,493 +1,76 @@
 'use client';
-
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback,useEffect,useMemo,useState } from 'react';
+import { useRouter } from 'next/navigation';
 import KpiCard from '@/components/ui/KpiCard';
 import BarChart from '@/components/ui/BarChart';
-import DataTable, { type Column } from '@/components/ui/DataTable';
+import DataTable,{type Column} from '@/components/ui/DataTable';
 import StatusPill from '@/components/ui/StatusPill';
-import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
-import OrderDetailModal from '@/components/admin/OrderDetailModal';
-import { useToast } from '@/components/ui/Toast';
-import { getErrorMessage } from '@/lib/utils/error';
-import { formatVnd, formatDateTime } from '@/lib/utils/format';
-import {
-  getDashboardSummary,
-  getInventoryByBrand,
-  getOrdersByStatus,
-  getOrdersByStatusCount,
-  getRevenueByMonth,
-  getTopSellingCars,
-  getModelsByBrand,
-  getModelInventoryCars,
-  getOrdersByCar,
-  listInvoices,
-  downloadFile,
-} from '@/lib/api';
-import type {
-  CarInventoryItem,
-  CarSalesOrderLine,
-  DashboardSummary,
-  InventoryByBrand,
-  InventoryByModel,
-  Invoice,
-  OrderStatusCount,
-  OrderSummary,
-  RevenueByMonth,
-  TopSellingCar,
-} from '@/types';
+import DashboardDrawer from '@/components/admin/DashboardDrawer';
+import {useToast} from '@/components/ui/Toast';
+import {getErrorMessage} from '@/lib/utils/error';
+import {formatVnd,formatDateTime} from '@/lib/utils/format';
+import {getDashboardData,listBrands,getCarModelsByBrand} from '@/lib/api';
+import type {Brand,CarModel,DashboardData,OrderSummary} from '@/types';
 
-const statusColors: Record<string, string> = {
-  PENDING: '#f59e0b',
-  CONFIRMED: '#2563eb',
-  COMPLETED: '#10b981',
-  CANCELLED: '#ef4444',
-};
-
-const orderColumns: Column<OrderSummary>[] = [
-  { key: 'orderCode', label: 'Mã đơn' },
-  { key: 'customerName', label: 'Khách hàng', render: (r) => r.customerName ?? '—' },
-  { key: 'orderDate', label: 'Ngày', render: (r) => formatDateTime(r.orderDate) },
-  {
-    key: 'totalAmount',
-    label: 'Tổng tiền',
-    className: 'text-right',
-    render: (r) => formatVnd(r.totalAmount),
-  },
-  { key: 'status', label: 'Trạng thái', render: (r) => <StatusPill status={r.status} /> },
+const asDate=(d:Date)=>{const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);return local.toISOString().slice(0,10)};
+const endDate=asDate(new Date());
+const start=new Date();start.setDate(start.getDate()-29);
+const startDate=asDate(start);
+const orderColumns:Column<OrderSummary>[]=[
+ {key:'orderCode',label:'Mã đơn'},
+ {key:'customerName',label:'Khách hàng',render:r=>r.customerName??'—'},
+ {key:'orderDate',label:'Ngày đặt',render:r=>formatDateTime(r.orderDate)},
+ {key:'totalAmount',label:'Tổng tiền',className:'text-right',render:r=>formatVnd(r.totalAmount)},
+ {key:'status',label:'Trạng thái',render:r=><StatusPill status={r.status}/>},
 ];
-
-// Hóa đơn gần đây trên dashboard — nhấp để mở popup chi tiết đơn hàng
-const invoiceColumns: Column<Invoice>[] = [
-  { key: 'invoiceNumber', label: 'Số hóa đơn' },
-  { key: 'orderCode', label: 'Mã đơn', render: (r) => r.orderCode ?? '—' },
-  {
-    key: 'total',
-    label: 'Tổng tiền',
-    className: 'text-right',
-    render: (r) => formatVnd(r.total),
-  },
-  {
-    key: 'issuedAt',
-    label: 'Ngày phát hành',
-    render: (r) => (r.issuedAt ? formatDateTime(r.issuedAt) : '—'),
-  },
-];
-
-/** Drilldown đang mở (hiển thị dạng popup thay vì tại chỗ). */
-type Drill =
-  | { type: 'status'; status: string }
-  | { type: 'brand'; brand: InventoryByBrand }
-  | { type: 'car'; car: TopSellingCar };
-
-const carLineColumns: Column<CarSalesOrderLine>[] = [
-  { key: 'orderCode', label: 'Mã đơn' },
-  { key: 'customerName', label: 'Khách hàng', render: (r) => r.customerName ?? '—' },
-  { key: 'quantity', label: 'SL', className: 'text-center' },
-  { key: 'orderDate', label: 'Ngày', render: (r) => formatDateTime(r.orderDate) },
-  {
-    key: 'lineTotal',
-    label: 'Thành tiền',
-    className: 'text-right',
-    render: (r) => formatVnd(r.lineTotal),
-  },
-  { key: 'status', label: 'Trạng thái', render: (r) => <StatusPill status={r.status} /> },
-];
-
-const CONDITION_LABEL: Record<string, string> = { NEW: 'Mới', USED: 'Cũ' };
-
-const carInventoryColumns: Column<CarInventoryItem>[] = [
-  { key: 'carName', label: 'Xe' },
-  { key: 'vin', label: 'VIN', render: (r) => r.vin ?? '—' },
-  { key: 'color', label: 'Màu', render: (r) => r.color ?? '—' },
-  { key: 'year', label: 'Năm', render: (r) => r.year ?? '—' },
-  {
-    key: 'condition',
-    label: 'Tình trạng',
-    render: (r) =>
-      r.condition ? (CONDITION_LABEL[r.condition] ?? r.condition) : '—',
-  },
-  { key: 'price', label: 'Giá', className: 'text-right', render: (r) => formatVnd(r.price) },
-  { key: 'status', label: 'Trạng thái', render: (r) => <StatusPill status={r.status} /> },
-];
-
-export default function AdminDashboardPage() {
-  const toast = useToast();
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [inventory, setInventory] = useState<InventoryByBrand[]>([]);
-  const [statusCounts, setStatusCounts] = useState<OrderStatusCount[]>([]);
-  const [topCars, setTopCars] = useState<TopSellingCar[]>([]);
-  const [revenueByMonth, setRevenueByMonth] = useState<RevenueByMonth[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [exportType, setExportType] = useState('dashboard-summary');
-
-  // drilldown states — hiển thị dạng popup
-  const [drill, setDrill] = useState<Drill | null>(null);
-  const [drillLoading, setDrillLoading] = useState(false);
-  const [orders, setOrders] = useState<OrderSummary[]>([]);
-  const [models, setModels] = useState<InventoryByModel[]>([]);
-  const [selectedModel, setSelectedModel] = useState<InventoryByModel | null>(null);
-  const [cars, setCars] = useState<CarInventoryItem[]>([]);
-  const [carOrders, setCarOrders] = useState<CarSalesOrderLine[]>([]);
-
-  // Hóa đơn gần đây (nhấp để mở popup chi tiết đơn hàng dùng chung)
-  const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
-  const [detailOrderId, setDetailOrderId] = useState<number | null>(null);
-
-  const fetchDashboard = useCallback(async () => {
-    const [s, inv, sc, tc, rbm, invs] = await Promise.all([
-      getDashboardSummary(),
-      getInventoryByBrand(),
-      getOrdersByStatusCount(),
-      getTopSellingCars(5),
-      getRevenueByMonth(),
-      listInvoices().catch(() => [] as Invoice[]),
-    ]);
-    return { s, inv, sc, tc, rbm, invs };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const { s, inv, sc, tc, rbm, invs } = await fetchDashboard();
-        if (cancelled) return;
-        setSummary(s);
-        setInventory(inv);
-        setStatusCounts(sc);
-        setTopCars(tc);
-        setRevenueByMonth(rbm);
-        setRecentInvoices(
-          [...invs]
-            .sort(
-              (a, b) =>
-                (b.issuedAt ? Date.parse(b.issuedAt) : 0) -
-                (a.issuedAt ? Date.parse(a.issuedAt) : 0),
-            )
-            .slice(0, 8),
-        );
-      } catch (err) {
-        if (!cancelled) toast.error(getErrorMessage(err));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchDashboard, toast]);
-
-  const openStatusDrill = async (status: string) => {
-    setDrill({ type: 'status', status });
-    setOrders([]);
-    setDrillLoading(true);
-    try {
-      setOrders(await getOrdersByStatus(status));
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setDrillLoading(false);
-    }
-  };
-
-  const openBrandDrill = async (brand: InventoryByBrand) => {
-    setDrill({ type: 'brand', brand });
-    setSelectedModel(null);
-    setCars([]);
-    setModels([]);
-    setDrillLoading(true);
-    try {
-      setModels(await getModelsByBrand(brand.brandId));
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setDrillLoading(false);
-    }
-  };
-
-  const drillModel = async (model: InventoryByModel) => {
-    setSelectedModel(model);
-    setCars([]);
-    try {
-      setCars(await getModelInventoryCars(model.modelId));
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    }
-  };
-
-  const openCarDrill = async (car: TopSellingCar) => {
-    setDrill({ type: 'car', car });
-    setCarOrders([]);
-    setDrillLoading(true);
-    try {
-      setCarOrders(await getOrdersByCar(car.carId));
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setDrillLoading(false);
-    }
-  };
-
-  const closeDrill = () => {
-    setDrill(null);
-    setSelectedModel(null);
-  };
-
-  const exportReport = async (format: 'xlsx' | 'csv') => {
-    try {
-      await downloadFile(
-        `/reports/export?type=${encodeURIComponent(exportType)}&format=${format}`,
-        `bao-cao-${exportType}.${format}`,
-      );
-      toast.success('Đã xuất báo cáo');
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    }
-  };
-
-  if (loading || !summary) {
-    return <div className="py-20 text-center text-[#9ca3af] text-sm">Đang tải dashboard…</div>;
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-serif font-bold text-[#0a0a0a]">Dashboard</h1>
-          <p className="text-sm text-[#6b7280] mt-1">
-            Tổng quan hoạt động kinh doanh — nhấp vào biểu đồ hoặc dòng dữ liệu để xem chi tiết trong popup.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={exportType}
-            onChange={(e) => setExportType(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-[#e5e7eb] bg-white text-xs text-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#c58e00]"
-            aria-label="Chọn báo cáo cần xuất"
-          >
-            <option value="dashboard-summary">Tổng quan</option>
-            <option value="top-selling-cars">Xe bán chạy</option>
-            <option value="inventory-by-brand">Tồn kho theo hãng</option>
-            <option value="revenue-summary">Doanh thu</option>
-            <option value="orders-by-status">Đơn theo trạng thái</option>
-            <option value="revenue-by-month">Doanh thu theo tháng</option>
-          </select>
-          <Button size="sm" variant="outline" onClick={() => exportReport('csv')}>
-            CSV
-          </Button>
-          <Button size="sm" variant="gold" onClick={() => exportReport('xlsx')}>
-            Excel
-          </Button>
-        </div>
-      </div>
-
-      {/* KPI */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
-        <KpiCard label="Tổng xe" value={summary.totalCars} hint={`${summary.availableCars} sẵn sàng`} />
-        <KpiCard label="Đã bán" value={summary.soldCars} hint={`${summary.reservedCars} đã đặt`} />
-        <KpiCard label="Khách hàng" value={summary.totalCustomers} />
-        <KpiCard label="Nhân viên" value={summary.totalEmployees} />
-        <KpiCard label="Đơn hàng" value={summary.totalOrders} hint={`${summary.scheduledTestDrives} lịch lái thử`} />
-        <KpiCard label="Doanh thu" value={formatVnd(summary.totalRevenue)} accent />
-        <KpiCard label="Sẵn sàng" value={summary.availableCars} />
-        <KpiCard label="Đang bảo trì" value={summary.maintenanceCars} />
-        <KpiCard label="Đã đặt trước" value={summary.reservedCars} />
-        <KpiCard label="Lịch lái thử" value={summary.scheduledTestDrives} />
-        <KpiCard label="Xe mới" value={summary.newItems} />
-        <KpiCard label="Xe cũ" value={summary.usedItems} />
-      </div>
-
-      {/* Orders by status — nhấp cột để mở popup drilldown */}
-      <div className="bg-white rounded-2xl border border-[#e5e7eb] p-6 shadow-sm">
-        <h2 className="font-serif font-bold text-lg text-[#0a0a0a] mb-4">
-          Đơn hàng theo trạng thái
-          <span className="text-xs font-sans font-normal text-[#9ca3af] ml-2">(nhấp cột để xem danh sách)</span>
-        </h2>
-        <BarChart
-          data={statusCounts.map((s) => ({
-            label: s.status,
-            value: s.total,
-            color: statusColors[s.status] ?? '#c58e00',
-          }))}
-          onSelect={openStatusDrill}
-        />
-      </div>
-
-      {/* Revenue by month */}
-      <div className="bg-white rounded-2xl border border-[#e5e7eb] p-6 shadow-sm">
-        <h2 className="font-serif font-bold text-lg text-[#0a0a0a] mb-4">Doanh thu theo tháng</h2>
-        <BarChart
-          data={revenueByMonth.map((r) => ({ label: r.period, value: Math.round(r.totalRevenue) }))}
-          formatValue={(v) => `${v} tr`}
-        />
-      </div>
-
-      {/* Hóa đơn gần đây — nhấp để chuyển sang popup chi tiết đơn hàng */}
-      <div className="bg-white rounded-2xl border border-[#e5e7eb] p-6 shadow-sm">
-        <div className="flex items-baseline justify-between mb-4 gap-3 flex-wrap">
-          <h2 className="font-serif font-bold text-lg text-[#0a0a0a]">Hóa đơn gần đây</h2>
-          <span className="text-xs text-[#9ca3af]">(nhấp một dòng để xem chi tiết đơn hàng)</span>
-        </div>
-        <DataTable
-          columns={invoiceColumns}
-          rows={recentInvoices}
-          rowKey={(r) => r.id}
-          empty="Chưa có hóa đơn nào."
-          onRowClick={(inv) => setDetailOrderId(inv.orderId)}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Inventory by brand — nhấp hãng để mở popup drilldown */}
-        <div className="bg-white rounded-2xl border border-[#e5e7eb] p-6 shadow-sm">
-          <h2 className="font-serif font-bold text-lg text-[#0a0a0a] mb-4">Tồn kho theo hãng</h2>
-          <div className="space-y-2">
-            {inventory.map((b) => (
-              <button
-                key={b.brandId}
-                onClick={() => openBrandDrill(b)}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-[#e5e7eb] transition-colors hover:bg-[#fafafa]"
-              >
-                <span className="text-sm font-medium text-[#0a0a0a]">{b.brandName}</span>
-                <span className="text-xs text-[#6b7280]">
-                  {b.totalCars} dòng • {b.availableItems}/{b.totalQuantity} sẵn sàng
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Top selling cars — nhấp xe để mở popup drilldown */}
-        <div className="bg-white rounded-2xl border border-[#e5e7eb] p-6 shadow-sm">
-          <h2 className="font-serif font-bold text-lg text-[#0a0a0a] mb-4">Xe bán chạy</h2>
-          <div className="space-y-2">
-            {topCars.length === 0 && <p className="text-sm text-[#9ca3af]">Chưa có dữ liệu bán hàng.</p>}
-            {topCars.map((c) => (
-              <button
-                key={c.carId}
-                onClick={() => openCarDrill(c)}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-[#e5e7eb] transition-colors hover:bg-[#fafafa]"
-              >
-                <span className="text-sm font-medium text-[#0a0a0a]">{c.carName}</span>
-                <span className="text-xs text-[#6b7280]">
-                  {c.totalSold} bán • {formatVnd(c.revenue)}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ===== Drilldown hiển thị dạng popup ===== */}
-      <Modal
-        // Chỉ mở 1 popup overlay 1 lần: khi popup chi tiết đơn đang mở thì tạm ẩn popup drilldown
-        // (tránh 2 modal cùng xử lý phím Escape làm đóng cả hai).
-        open={drill !== null && detailOrderId === null}
-        onClose={closeDrill}
-        size="xl"
-        title={
-          drill?.type === 'status'
-            ? `Đơn hàng theo trạng thái ${drill.status}`
-            : drill?.type === 'brand'
-              ? `Tồn kho — ${drill.brand.brandName}`
-              : drill?.type === 'car'
-                ? `Đơn hàng của ${drill.car.carName}`
-                : 'Chi tiết'
-        }
-      >
-        {/* Đơn theo trạng thái */}
-        {drill?.type === 'status' &&
-          (drillLoading ? (
-            <div className="py-10 text-center text-[#9ca3af] text-sm">Đang tải…</div>
-          ) : (
-            <>
-              <div className="mb-3">
-                <StatusPill status={drill.status} />
-              </div>
-              <DataTable
-                columns={orderColumns}
-                rows={orders}
-                rowKey={(r) => r.orderId}
-                empty="Không có đơn hàng nào."
-                onRowClick={(r) => setDetailOrderId(r.orderId)}
-              />
-              <p className="mt-3 text-xs text-[#9ca3af]">
-                Nhấp một dòng để xem chi tiết đơn (hợp đồng, thanh toán, hóa đơn).
-              </p>
-            </>
-          ))}
-
-        {/* Tồn kho theo hãng → dòng xe → danh sách xe */}
-        {drill?.type === 'brand' && (
-          <div className="space-y-4">
-            {drillLoading ? (
-              <div className="py-10 text-center text-[#9ca3af] text-sm">Đang tải…</div>
-            ) : models.length === 0 ? (
-              <p className="text-sm text-[#9ca3af]">Hãng này chưa có dòng xe nào.</p>
-            ) : (
-              <div className="space-y-2">
-                {models.map((m) => (
-                  <button
-                    key={m.modelId}
-                    onClick={() => drillModel(m)}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border text-left transition-colors ${
-                      selectedModel?.modelId === m.modelId
-                        ? 'border-[#c58e00] bg-[#fffbeb]'
-                        : 'border-[#e5e7eb] hover:bg-[#fafafa]'
-                    }`}
-                  >
-                    <span className="text-sm text-[#374151]">
-                      {m.modelName}{' '}
-                      {m.bodyType && <span className="text-[#9ca3af]">• {m.bodyType}</span>}
-                    </span>
-                    <span className="text-xs text-[#6b7280]">
-                      {m.availableItems}/{m.totalQuantity} sẵn sàng
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {selectedModel && (
-              <div>
-                <h3 className="text-sm font-semibold text-[#0a0a0a] mb-3">
-                  Danh sách xe — {selectedModel.modelName}
-                </h3>
-                <DataTable
-                  columns={carInventoryColumns}
-                  rows={cars}
-                  rowKey={(r) => r.carId}
-                  empty="Không có xe nào."
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Đơn hàng của 1 xe bán chạy */}
-        {drill?.type === 'car' &&
-          (drillLoading ? (
-            <div className="py-10 text-center text-[#9ca3af] text-sm">Đang tải…</div>
-          ) : (
-            <>
-              <DataTable
-                columns={carLineColumns}
-                rows={carOrders}
-                rowKey={(r) => r.orderId}
-                empty="Không có đơn hàng nào."
-                onRowClick={(r) => setDetailOrderId(r.orderId)}
-              />
-              <p className="mt-3 text-xs text-[#9ca3af]">
-                Nhấp một dòng để xem chi tiết đơn (hợp đồng, thanh toán, hóa đơn).
-              </p>
-            </>
-          ))}
-      </Modal>
-
-      {/* Popup chi tiết đơn hàng — đặt sau drilldown để nổi lên trên */}
-      <OrderDetailModal orderId={detailOrderId} onClose={() => setDetailOrderId(null)} />
+export default function AdminDashboardPage(){
+ const toast=useToast();const router=useRouter();
+ const [from,setFrom]=useState(startDate);const [to,setTo]=useState(endDate);
+ const [brandId,setBrandId]=useState('');const [modelId,setModelId]=useState('');
+ const [brands,setBrands]=useState<Brand[]>([]);const [models,setModels]=useState<CarModel[]>([]);
+ const [data,setData]=useState<DashboardData|null>(null);const [loading,setLoading]=useState(true);
+ const [drawer,setDrawer]=useState<{status:string|null;title:string;count:number}|null>(null);
+ const filters=useMemo(()=>({from,to,...(brandId?{brandId:Number(brandId)}:{}),...(modelId?{modelId:Number(modelId)}:{})}),[from,to,brandId,modelId]);
+ const load=useCallback(async()=>{
+  if(!from||!to||from>to){toast.error('Vui lòng chọn khoảng ngày hợp lệ.');setLoading(false);return}
+  setLoading(true);try{setData(await getDashboardData(filters))}catch(e){toast.error(getErrorMessage(e))}finally{setLoading(false)}
+ },[filters,from,to,toast]);
+ useEffect(()=>{listBrands().then(setBrands).catch(e=>toast.error(getErrorMessage(e)))},[toast]);
+ useEffect(()=>{if(!brandId){setModels([]);setModelId('');return}getCarModelsByBrand(Number(brandId)).then(setModels).catch(e=>toast.error(getErrorMessage(e)))},[brandId,toast]);
+ useEffect(()=>{load()},[load]);
+ const growth=(now:number,prev:number)=>prev===0?(now>0?'Mới phát sinh':'Không đổi'):(now-prev>0?'+':'')+(((now-prev)/Math.abs(prev))*100).toFixed(1)+'% so với kỳ trước';
+ const open=(status:string|null,title:string,count:number)=>setDrawer({status,title,count});
+ return <div className="space-y-7">
+  <section className="flex min-h-[calc(100dvh-4rem)] flex-col gap-4">
+   <div className="flex flex-wrap items-end justify-between gap-3">
+    <div><h1 className="text-2xl font-serif font-bold text-[#111827]">Dashboard</h1><p className="mt-1 text-sm text-[#6b7280]">Tổng quan tồn kho và hoạt động kinh doanh</p></div>
+    <div className="flex flex-wrap items-end gap-2">
+     <label className="text-xs text-[#6b7280]">Từ ngày<input type="date" value={from} max={to} onChange={e=>setFrom(e.target.value)} className="mt-1 block rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm"/></label>
+     <label className="text-xs text-[#6b7280]">Đến ngày<input type="date" value={to} min={from} onChange={e=>setTo(e.target.value)} className="mt-1 block rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm"/></label>
+     <label className="text-xs text-[#6b7280]">Hãng xe<select value={brandId} onChange={e=>{setBrandId(e.target.value);setModelId('')}} className="mt-1 block min-w-32 rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm"><option value="">Tất cả hãng</option>{brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+     <label className="text-xs text-[#6b7280]">Model<select value={modelId} disabled={!brandId} onChange={e=>setModelId(e.target.value)} className="mt-1 block min-w-36 rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm disabled:bg-[#f3f4f6]"><option value="">Tất cả model</option>{models.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
     </div>
-  );
+   </div>
+   {data&&<>
+    <div className="flex items-center justify-between"><h2 className="text-sm font-semibold text-[#374151]">Tồn kho hiện tại</h2>{loading&&<span className="text-xs text-[#9ca3af]">Đang cập nhật…</span>}</div>
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+     <button onClick={()=>open(null,'Toàn bộ xe',data.totalCars)} className="text-left"><KpiCard label="Tổng xe" value={data.totalCars.toLocaleString('vi-VN')} hint="Tất cả trạng thái"/></button>
+     <button onClick={()=>open('AVAILABLE','Xe sẵn sàng bán',data.availableCars)} className="text-left"><KpiCard label="Sẵn sàng bán" value={data.availableCars.toLocaleString('vi-VN')} hint="AVAILABLE"/></button>
+     <button onClick={()=>open('RESERVED','Xe đã đặt trước',data.reservedCars)} className="text-left"><KpiCard label="Đã đặt trước" value={data.reservedCars.toLocaleString('vi-VN')} hint="RESERVED"/></button>
+     <button onClick={()=>open('MAINTENANCE','Xe đang bảo trì',data.maintenanceCars)} className="text-left"><KpiCard label="Đang bảo trì" value={data.maintenanceCars.toLocaleString('vi-VN')} hint="MAINTENANCE"/></button>
+     <button onClick={()=>open('SOLD','Xe đã bán trong kỳ',data.soldInPeriod)} className="text-left"><KpiCard label="Đã bán trong kỳ" value={data.soldInPeriod.toLocaleString('vi-VN')} hint={growth(data.soldInPeriod,data.previousSoldInPeriod)} accent/></button>
+    </div>
+    <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-2">
+     <div className="min-h-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm"><div className="mb-2 flex items-center justify-between"><h2 className="font-semibold text-[#111827]">Đơn hàng theo trạng thái</h2><span className="text-xs text-[#9ca3af]">Trong kỳ</span></div><BarChart data={data.orderStatuses.map(s=>({label:s.status,value:s.total}))}/></div>
+     <div className="min-h-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm"><div className="mb-2 flex items-center justify-between"><h2 className="font-semibold text-[#111827]">Doanh thu theo tháng</h2><span className="text-xs text-[#6b7280]">{growth(data.revenue,data.previousRevenue)}</span></div><BarChart data={data.revenueByMonth.map(r=>({label:r.period,value:Math.round(r.totalRevenue/1000000)}))} formatValue={v=>String(v)+' tr'}/></div>
+    </div>
+   </>}
+   {loading&&!data&&<p className="py-12 text-center text-sm text-[#9ca3af]">Đang tải dashboard…</p>}
+  </section>
+  {data&&<section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+   <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 shadow-sm"><div className="mb-4 flex items-center justify-between"><h2 className="font-semibold text-[#111827]">Đơn hàng gần nhất</h2><button onClick={()=>router.push('/admin/orders')} className="text-xs font-medium text-[#a87900] hover:underline">Tất cả đơn hàng →</button></div><DataTable columns={orderColumns} rows={data.recentOrders} rowKey={r=>r.orderId} empty="Không có đơn hàng trong kỳ." onRowClick={r=>router.push('/admin/orders?orderId='+r.orderId)}/></div>
+   <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 shadow-sm"><h2 className="mb-4 font-semibold text-[#111827]">Xe bán chạy</h2><div className="space-y-2">{data.topSellingCars.length===0?<p className="py-8 text-center text-sm text-[#9ca3af]">Chưa có dữ liệu bán xe.</p>:data.topSellingCars.map((car,index)=><div key={car.carId} className="flex items-center justify-between gap-3 rounded-xl border border-[#f0f0f0] px-4 py-3"><div className="flex min-w-0 items-center gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#fffbeb] text-xs font-semibold text-[#a87900]">{index+1}</span><span className="truncate text-sm font-medium text-[#374151]">{car.carName}</span></div><div className="shrink-0 text-right"><p className="text-sm font-semibold text-[#111827]">{car.totalSold} xe</p><p className="text-xs text-[#9ca3af]">{formatVnd(car.revenue)}</p></div></div>)}</div></div>
+  </section>}
+  {drawer&&<DashboardDrawer status={drawer.status} title={drawer.title} count={drawer.count} brandId={filters.brandId} modelId={filters.modelId} from={from} to={to} onClose={()=>setDrawer(null)}/>}
+ </div>;
 }

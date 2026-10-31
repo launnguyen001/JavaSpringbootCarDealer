@@ -3,6 +3,7 @@ import type {
   CarInventoryItem,
   CarSalesOrderLine,
   DashboardSummary,
+  DashboardData,
   InventoryByBrand,
   InventoryByModel,
   OrderStatusCount,
@@ -30,6 +31,21 @@ export async function getOrdersByStatusCount(): Promise<OrderStatusCount[]> {
 }
 
 // ---- Dashboard & drilldown ----
+export async function getDashboardData(filters: { from: string; to: string; brandId?: number; modelId?: number }): Promise<DashboardData> {
+  const params = new URLSearchParams({ from: filters.from, to: filters.to });
+  if (filters.brandId) params.set("brandId", String(filters.brandId));
+  if (filters.modelId) params.set("modelId", String(filters.modelId));
+  return apiRequest<DashboardData>("/reports/dashboard?" + params.toString(), { auth: true });
+}
+
+export async function getInventoryCars(filters: { status?: string; brandId?: number; modelId?: number }): Promise<CarInventoryItem[]> {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  if (filters.brandId) params.set("brandId", String(filters.brandId));
+  if (filters.modelId) params.set("modelId", String(filters.modelId));
+  return apiRequest<CarInventoryItem[]>("/reports/inventory-cars?" + params.toString(), { auth: true });
+}
+
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   return apiRequest<DashboardSummary>('/reports/dashboard-summary', { auth: true });
 }

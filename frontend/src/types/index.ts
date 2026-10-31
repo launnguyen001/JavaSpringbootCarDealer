@@ -42,6 +42,7 @@ export type {
 } from './chat';
 export type {
   DashboardSummary,
+  DashboardData,
   RevenueSummary,
   OrderStatusCount,
   TopSellingCar,

@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.time.LocalDate;
+import com.example.lab5.dto.DashboardData;
 
 // Báo cáo/thống kê (SQL thuần) - chỉ ADMIN truy cập (xem SecurityConfig)
 @RestController
@@ -59,6 +61,25 @@ public class ReportController {
     }
 
     // ------------------- Dashboard & drilldown -------------------
+
+    @GetMapping("/dashboard")
+    public DashboardData getDashboard(
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to,
+            @RequestParam(required = false) Long brandId,
+            @RequestParam(required = false) Long modelId
+    ) {
+        return reportService.getDashboard(from, to, brandId, modelId);
+    }
+
+    @GetMapping("/inventory-cars")
+    public List<CarInventoryItem> getInventoryCars(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long brandId,
+            @RequestParam(required = false) Long modelId
+    ) {
+        return reportService.getInventoryCars(status, brandId, modelId);
+    }
 
     @GetMapping("/dashboard-summary")
     public DashboardSummary getDashboardSummary() {

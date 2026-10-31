@@ -3,6 +3,7 @@ package com.example.lab5.service.Impl;
 import com.example.lab5.dto.CarInventoryItem;
 import com.example.lab5.dto.CarSalesOrderLine;
 import com.example.lab5.dto.DashboardSummary;
+import com.example.lab5.dto.DashboardData;
 import com.example.lab5.dto.InventoryByBrand;
 import com.example.lab5.dto.InventoryByModel;
 import com.example.lab5.dto.OrderStatusCount;
@@ -17,26 +18,31 @@ import com.example.lab5.repository.BrandRepository;
 import com.example.lab5.repository.CarModelRepository;
 import com.example.lab5.repository.CarRepository;
 import com.example.lab5.repository.JdbcReportRepository;
+import com.example.lab5.repository.JdbcDashboardRepository;
 import com.example.lab5.service.ReportService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.time.LocalDate;
 
 @Service
 public class ReportServiceImpl implements ReportService {
 
     private final JdbcReportRepository jdbcReportRepository;
+    private final JdbcDashboardRepository jdbcDashboardRepository;
     private final BrandRepository brandRepository;
     private final CarModelRepository carModelRepository;
     private final CarRepository carRepository;
 
     public ReportServiceImpl(
             JdbcReportRepository jdbcReportRepository,
+            JdbcDashboardRepository jdbcDashboardRepository,
             BrandRepository brandRepository,
             CarModelRepository carModelRepository,
             CarRepository carRepository
     ) {
         this.jdbcReportRepository = jdbcReportRepository;
+        this.jdbcDashboardRepository = jdbcDashboardRepository;
         this.brandRepository = brandRepository;
         this.carModelRepository = carModelRepository;
         this.carRepository = carRepository;
@@ -70,6 +76,28 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public DashboardSummary getDashboardSummary() {
         return jdbcReportRepository.findDashboardSummary();
+    }
+
+    @Override
+    public DashboardData getDashboard(LocalDate from, LocalDate to, Long brandId, Long modelId) {
+        if (from == null || to == null || to.isBefore(from)) {
+            throw new BadRequestException("Khoảng ngày báo cáo không hợp lệ");
+        }
+        if (brandId != null && !brandRepository.existsById(brandId)) {
+            throw new ResourceNotFoundException("Không tìm thấy hãng xe id = " + brandId);
+        }
+        if (modelId != null && !carModelRepository.existsById(modelId)) {
+            throw new ResourceNotFoundException("Không tìm thấy dòng xe id = " + modelId);
+        }
+        return jdbcDashboardRepository.findDashboard(from, to, brandId, modelId);
+    }
+
+    @Override
+    public List<CarInventoryItem> getInventoryCars(String status, Long brandId, Long modelId) {
+        if (status != null && !List.of("AVAILABLE", "RESERVED", "SOLD", "MAINTENANCE").contains(status)) {
+            throw new BadRequestException("Trạng thái xe không hợp lệ: " + status);
+        }
+        return jdbcDashboardRepository.findInventoryCars(status, brandId, modelId);
     }
 
     @Override
