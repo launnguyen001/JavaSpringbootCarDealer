@@ -129,9 +129,11 @@ export default function ResourceManager<T>({
   const [dynamicOptions, setDynamicOptions] = useState<Record<string, FieldOption[]>>({});
   const [loadingOptions, setLoadingOptions] = useState<Record<string, boolean>>({});
 
-  // Giữ tham chiếu mới nhất để tránh reload vòng lặp khi caller truyền inline function.
+  // Giữ tham chiếu mới nhất; cập nhật ref sau render để hỗ trợ caller truyền inline function.
   const listRef = useRef(list);
-  listRef.current = list;
+  useEffect(() => {
+    listRef.current = list;
+  }, [list]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -145,9 +147,26 @@ export default function ResourceManager<T>({
     }
   }, [toast]);
 
+  // Tải dữ liệu ban đầu trực tiếp từ API; chỉ cập nhật state sau khi promise hoàn tất.
   useEffect(() => {
-    load();
-  }, [load]);
+    let active = true;
+
+    const fetchInitialRows = async () => {
+      try {
+        const data = await listRef.current();
+        if (active) setRows(data);
+      } catch (err) {
+        if (active) toast.error(getErrorMessage(err));
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void fetchInitialRows();
+    return () => {
+      active = false;
+    };
+  }, [toast]);
 
   const loadDynamicOptions = () => {
     fields.forEach((f) => {
