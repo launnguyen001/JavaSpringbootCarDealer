@@ -344,7 +344,7 @@ public class PdfDocumentServiceImpl implements PdfDocumentService {
         if (order == null || order.getId() == null) {
             return 0;
         }
-        return paymentRepository.findByOrder_IdOrderByIdAsc(order.getId()).stream()
+        return paymentRepository.findByOrder_IdOrderByPaidAtDescIdDesc(order.getId()).stream()
                 .filter(payment -> payment.getStatus() != null
                         && (payment.getStatus().name().equals("PAID") || payment.getStatus().name().equals("PARTIAL")))
                 .mapToDouble(Payment::getAmount)
