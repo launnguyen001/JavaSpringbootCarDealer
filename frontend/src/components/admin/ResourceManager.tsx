@@ -56,6 +56,7 @@ export interface ResourceManagerProps<T> {
   search?: (term: string) => Promise<T[]>;
   /** Nút thao tác bổ sung (ví dụ tải PDF) hiển thị cạnh Sửa/Xóa. */
   rowActions?: (row: T) => ReactNode;
+  onRowClick?: (row: T) => void;
 }
 
 function emptyForm(fields: FieldConfig[]): Record<string, unknown> {
@@ -114,6 +115,7 @@ export default function ResourceManager<T>({
   canDelete = true,
   search,
   rowActions,
+  onRowClick,
 }: ResourceManagerProps<T>) {
   const toast = useToast();
   const [rows, setRows] = useState<T[]>([]);
@@ -260,7 +262,7 @@ export default function ResourceManager<T>({
             label: 'Thao tác',
             className: 'text-right whitespace-nowrap',
             render: (row: T) => (
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2" onClick={(event) => event.stopPropagation()}>
                 {rowActions?.(row)}
                 {canEdit && update && (
                   <Button size="sm" variant="outline" onClick={() => openEdit(row)}>
@@ -311,7 +313,7 @@ export default function ResourceManager<T>({
       {loading ? (
         <div className="py-16 text-center text-[#9ca3af] text-sm">Đang tải…</div>
       ) : (
-        <DataTable columns={allColumns} rows={rows} rowKey={(row) => getId(row)} />
+        <DataTable columns={allColumns} rows={rows} rowKey={(row) => getId(row)} onRowClick={onRowClick} />
       )}
 
       <Modal
