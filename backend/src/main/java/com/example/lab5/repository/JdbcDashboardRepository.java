@@ -120,17 +120,27 @@ public class JdbcDashboardRepository {
 
     private double revenue(LocalDate from, LocalDate to, Long brandId, Long modelId) {
         String sql = """
-                SELECT COALESCE(SUM(oi.quantity * oi.unit_price), 0)
+                SELECT COALESCE(SUM(o.total_amount), 0)
                 FROM sales_orders o
-                JOIN order_items oi ON oi.order_id = o.id
-                JOIN car_items ci ON ci.id = oi.car_item_id
-                JOIN cars c ON c.id = ci.car_id
-                JOIN car_models m ON m.id = c.model_id
-                WHERE o.status <> 'CANCELLED'
+                WHERE o.status IN ('CONFIRMED', 'COMPLETED')
                   AND COALESCE(o.confirmed_at, o.order_date) >= ?
                   AND COALESCE(o.confirmed_at, o.order_date) < ?
-                  AND (? IS NULL OR m.brand_id = ?)
-                  AND (? IS NULL OR m.id = ?)
+                  AND (? IS NULL OR EXISTS (
+                      SELECT 1
+                      FROM order_items oi
+                      JOIN car_items ci ON ci.id = oi.car_item_id
+                      JOIN cars c ON c.id = ci.car_id
+                      JOIN car_models m ON m.id = c.model_id
+                      WHERE oi.order_id = o.id AND m.brand_id = ?
+                  ))
+                  AND (? IS NULL OR EXISTS (
+                      SELECT 1
+                      FROM order_items oi
+                      JOIN car_items ci ON ci.id = oi.car_item_id
+                      JOIN cars c ON c.id = ci.car_id
+                      JOIN car_models m ON m.id = c.model_id
+                      WHERE oi.order_id = o.id AND m.id = ?
+                  ))
                 """;
         Double value = jdbc.queryForObject(sql, Double.class, start(from), start(to.plusDays(1)),
                 brandId, brandId, modelId, modelId);
@@ -157,51 +167,91 @@ public class JdbcDashboardRepository {
     }
 
     private List<RevenueByMonth> findRevenueByMonth(LocalDate from, LocalDate to, Long brandId, Long modelId) {
-        // Thực thu được quy về tháng xác nhận của đơn, không phải tháng paid_at.
-        // Mỗi đơn chỉ xuất hiện một lần; khi lọc hãng/model, tiền thu được phân bổ theo tỷ trọng giá trị xe.
+        // Cả ba chỉ số được quy về tháng phát sinh của đơn: order_date với PENDING,
+        // confirmed_at (fallback order_date) với CONFIRMED/COMPLETED.
+        // Thực nhận là tổng Payments của nhóm đơn đó, bất kể paid_at.
+        // Khi lọc hãng/model, phân bổ tiền thu theo tỷ trọng giá trị dòng xe trong đơn.
         String sql = """
-                WITH eligible_orders AS (
-                    SELECT o.id,
-                           COALESCE(o.confirmed_at, o.order_date) AS revenue_date,
-                           o.total_amount,
-                           SUM(oi.quantity * oi.unit_price) AS revenue_amount,
-                           (SELECT COALESCE(SUM(p.amount), 0)
-                            FROM payments p
-                            WHERE p.order_id = o.id AND p.status IN ('PAID', 'PARTIAL')) AS order_collected
-                    FROM sales_orders o
-                    JOIN order_items oi ON oi.order_id = o.id
+                WITH order_line_totals AS (
+                    SELECT oi.order_id,
+                           SUM(oi.quantity * oi.unit_price) AS all_items_amount,
+                           SUM(CASE
+                               WHEN (? IS NULL OR m.brand_id = ?)
+                                AND (? IS NULL OR m.id = ?)
+                               THEN oi.quantity * oi.unit_price ELSE 0
+                           END) AS selected_items_amount
+                    FROM order_items oi
                     JOIN car_items ci ON ci.id = oi.car_item_id
                     JOIN cars c ON c.id = ci.car_id
                     JOIN car_models m ON m.id = c.model_id
+                    GROUP BY oi.order_id
+                ),
+                eligible_orders AS (
+                    SELECT o.id,
+                           CASE WHEN o.status = 'PENDING'
+                                THEN o.order_date
+                                ELSE COALESCE(o.confirmed_at, o.order_date)
+                           END AS revenue_date,
+                           o.status,
+                           o.total_amount,
+                           COALESCE(olt.all_items_amount, 0) AS all_items_amount,
+                           COALESCE(olt.selected_items_amount, 0) AS selected_items_amount,
+                           (SELECT COALESCE(SUM(p.amount), 0)
+                            FROM payments p
+                            WHERE p.order_id = o.id
+                              AND p.status IN ('PAID', 'PARTIAL')) AS order_collected
+                    FROM sales_orders o
+                    LEFT JOIN order_line_totals olt ON olt.order_id = o.id
                     WHERE o.status <> 'CANCELLED'
-                      AND COALESCE(o.confirmed_at, o.order_date) >= ?
-                      AND COALESCE(o.confirmed_at, o.order_date) < ?
-                      AND (? IS NULL OR m.brand_id = ?)
-                      AND (? IS NULL OR m.id = ?)
-                    GROUP BY o.id, o.confirmed_at, o.order_date, o.total_amount
+                      AND (CASE WHEN o.status = 'PENDING'
+                                THEN o.order_date
+                                ELSE COALESCE(o.confirmed_at, o.order_date)
+                           END) >= ?
+                      AND (CASE WHEN o.status = 'PENDING'
+                                THEN o.order_date
+                                ELSE COALESCE(o.confirmed_at, o.order_date)
+                           END) < ?
                 ),
                 allocated_orders AS (
-                    SELECT id, revenue_date, revenue_amount,
-                           CASE WHEN total_amount > 0
-                                THEN LEAST(revenue_amount, order_collected * revenue_amount / total_amount)
-                                ELSE 0 END AS collected
+                    SELECT id, revenue_date, status,
+                           CASE WHEN ? IS NULL AND ? IS NULL
+                                THEN total_amount
+                                ELSE selected_items_amount
+                           END AS revenue_amount,
+                           CASE
+                               WHEN status NOT IN ('CONFIRMED', 'COMPLETED') THEN 0
+                               WHEN ? IS NULL AND ? IS NULL THEN order_collected
+                               WHEN all_items_amount > 0
+                                   THEN order_collected * selected_items_amount / all_items_amount
+                               ELSE 0
+                           END AS collected
                     FROM eligible_orders
                 )
                 SELECT EXTRACT(YEAR FROM revenue_date) AS yr,
                        EXTRACT(MONTH FROM revenue_date) AS mo,
                        COUNT(*) AS total_orders,
-                       COALESCE(SUM(revenue_amount), 0) AS total_revenue,
-                       COALESCE(SUM(collected), 0) AS total_collected,
-                       COALESCE(SUM(GREATEST(revenue_amount - collected, 0)), 0) AS outstanding_amount
+                       COALESCE(SUM(CASE WHEN status = 'PENDING' THEN revenue_amount ELSE 0 END), 0) AS pending_revenue,
+                       COALESCE(SUM(CASE WHEN status IN ('CONFIRMED', 'COMPLETED') THEN revenue_amount ELSE 0 END), 0) AS recognized_revenue,
+                       COALESCE(SUM(collected), 0) AS actual_revenue,
+                       COALESCE(SUM(CASE
+                           WHEN status IN ('CONFIRMED', 'COMPLETED')
+                           THEN GREATEST(revenue_amount - collected, 0)
+                           ELSE 0
+                       END), 0) AS outstanding_amount
                 FROM allocated_orders
                 GROUP BY EXTRACT(YEAR FROM revenue_date), EXTRACT(MONTH FROM revenue_date)
                 ORDER BY yr, mo
                 """;
         List<RevenueByMonth> actual = jdbc.query(sql, (rs, i) -> new RevenueByMonth(
                 String.format("%04d-%02d", rs.getInt("yr"), rs.getInt("mo")),
-                rs.getLong("total_orders"), rs.getDouble("total_revenue"),
-                rs.getDouble("total_collected"), rs.getDouble("outstanding_amount")),
-                start(from), start(to.plusDays(1)), brandId, brandId, modelId, modelId);
+                rs.getLong("total_orders"),
+                rs.getDouble("pending_revenue"),
+                rs.getDouble("recognized_revenue"),
+                rs.getDouble("actual_revenue"),
+                rs.getDouble("outstanding_amount")),
+                brandId, brandId, modelId, modelId,
+                start(from), start(to.plusDays(1)),
+                brandId, modelId, brandId, modelId);
 
         Map<String, RevenueByMonth> byPeriod = new HashMap<>();
         for (RevenueByMonth item : actual) byPeriod.put(item.period(), item);
@@ -211,7 +261,7 @@ public class JdbcDashboardRepository {
         YearMonth last = YearMonth.from(to);
         while (!current.isAfter(last)) {
             String period = current.toString();
-            result.add(byPeriod.getOrDefault(period, new RevenueByMonth(period, 0L, 0.0, 0.0, 0.0)));
+            result.add(byPeriod.getOrDefault(period, new RevenueByMonth(period, 0L, 0.0, 0.0, 0.0, 0.0)));
             current = current.plusMonths(1);
         }
         return result;
