@@ -31,14 +31,14 @@ public class ChatPresenceController {
     @GetMapping("/online-users")
     public Set<Long> onlineUsers() {
         Long currentUserId = users.findByUsername(SecurityUtils.currentUsername())
-                .map(User::getId)
+                .map(user -> user.getId())
                 .orElseThrow(() -> new SecurityException("Người dùng không tồn tại"));
 
         Set<Long> conversationUsers = rooms
                 .findByParticipantIdsContainingOrderByLastMessageAtDesc(currentUserId)
                 .stream()
-                .map(ChatRoom::getParticipantIds)
-                .flatMap(java.util.Collection::stream)
+                .map(room -> room.getParticipantIds())
+                .flatMap(participantIds -> participantIds.stream())
                 .filter(id -> !id.equals(currentUserId))
                 .collect(Collectors.toSet());
 
