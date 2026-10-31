@@ -345,9 +345,10 @@ public class PdfDocumentServiceImpl implements PdfDocumentService {
             return 0;
         }
         return paymentRepository.findByOrder_IdOrderByPaidAtDescIdDesc(order.getId()).stream()
-                .filter(payment -> payment.getStatus() != null
-                        && (payment.getStatus().name().equals("PAID") || payment.getStatus().name().equals("PARTIAL")))
-                .mapToDouble(Payment::getAmount)
+                .filter(payment -> payment != null && payment.getStatus() != null
+                        && (payment.getStatus().name().equals("PAID")
+                        || payment.getStatus().name().equals("PARTIAL")))
+                .mapToDouble(payment -> payment.getAmount() == null ? 0.0 : payment.getAmount())
                 .sum();
     }
 
