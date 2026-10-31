@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
+import { Field, Input, Select } from '@/components/ui/Field';
 import StatusPill from '@/components/ui/StatusPill';
 import { useToast } from '@/components/ui/Toast';
 import { getErrorMessage } from '@/lib/utils/error';
@@ -13,9 +14,11 @@ import {
   getPaymentsByOrder,
   getOrderStatusHistory,
   downloadFile,
+  createInvoice,
+  createPayment,
 } from '@/lib/api';
 import { formatVnd, formatDateTime } from '@/lib/utils/format';
-import type { Contract, Invoice, Order, OrderStatusHistory, Payment } from '@/types';
+import type { Contract, Invoice, Order, OrderStatusHistory, Payment, PaymentMethod } from '@/types';
 
 const METHOD_LABEL: Record<string, string> = {
   CASH: 'Tiền mặt',
@@ -36,10 +39,14 @@ const DEFAULT_OPEN: Record<SectionKey, boolean> = {
   history: true,
 };
 
+type FinancialAction = 'invoice' | 'payment';
+
 interface Props {
   /** null = đóng popup. Khi có giá trị sẽ tải đơn + hợp đồng + thanh toán + hóa đơn của đơn đó. */
   orderId: number | null;
+  initialAction?: FinancialAction | null;
   onClose: () => void;
+  onActionSuccess?: () => void;
 }
 
 /** Section có nút expand (mũi tên) — gom mọi thông tin liên quan của 1 đơn hàng vào popup. */
@@ -100,10 +107,14 @@ function Info({ label, children }: { label: string; children: ReactNode }) {
  */
 function OrderDetailContent({
   orderId,
+  initialAction,
   onOrderChange,
+  onActionSuccess,
 }: {
   orderId: number;
+  initialAction?: FinancialAction | null;
   onOrderChange: (order: Order) => void;
+  onActionSuccess?: () => void;
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +124,12 @@ function OrderDetailContent({
   const [payments, setPayments] = useState<Payment[]>([]);
   const [history, setHistory] = useState<OrderStatusHistory[]>([]);
   const [open, setOpen] = useState<Record<SectionKey, boolean>>(DEFAULT_OPEN);
+  const [action, setAction] = useState<FinancialAction | null>(initialAction ?? null);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('BANK_TRANSFER');
+  const [submitting, setSubmitting] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -153,6 +170,61 @@ function OrderDetailContent({
   };
 
   const toggle = (key: SectionKey) => setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const submitInvoice = async () => {
+    if (!order) return;
+    const number = invoiceNumber.trim() || `HD-${order.orderCode}`;
+    setSubmitting(true);
+    try {
+      const created = await createInvoice({
+        orderId: order.id,
+        invoiceNumber: number,
+        total: order.totalAmount,
+        dueDate: dueDate || null,
+      });
+      setInvoice(created);
+      setAction(null);
+      toast.success('Đã tạo hóa đơn cho đơn hàng.');
+      onActionSuccess?.();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitPayment = async () => {
+    if (!order || !invoice) return;
+    const amount = Number(paymentAmount || invoice.remainingAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('Số tiền thu không hợp lệ.');
+      return;
+    }
+    if (amount - invoice.remainingAmount > 0.0001) {
+      toast.error('Số tiền vượt quá công nợ còn lại.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const created = await createPayment({
+        orderId: order.id,
+        amount,
+        method: paymentMethod,
+        status: 'PAID',
+      });
+      setPayments((prev) => [created, ...prev]);
+      const refreshedInvoice = await getInvoiceByOrder(order.id);
+      setInvoice(refreshedInvoice);
+      setPaymentAmount('');
+      setAction(null);
+      toast.success('Đã ghi nhận khoản tiền thực thu.');
+      onActionSuccess?.();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const paidTotal = payments.reduce((sum, p) => sum + (p.status === 'PAID' || p.status === 'PARTIAL' ? (p.amount ?? 0) : 0), 0);
   const remaining = invoice ? invoice.remainingAmount : order ? order.totalAmount - paidTotal : 0;
@@ -249,7 +321,32 @@ function OrderDetailContent({
             </div>
           </>
         ) : (
-          <p className="text-sm text-[#9ca3af]">Đơn hàng này chưa có hóa đơn.</p>
+          <div className="space-y-3">
+            <p className="text-sm text-[#9ca3af]">Đơn hàng này chưa có hóa đơn.</p>
+            {order.status === 'CONFIRMED' && (
+              <Button size="sm" variant="gold" onClick={() => setAction('invoice')}>
+                + Tạo hóa đơn tại đây
+              </Button>
+            )}
+          </div>
+        )}
+        {action === 'invoice' && !invoice && (
+          <div className="mt-4 rounded-xl border border-[#e5e7eb] bg-[#fafafa] p-4 space-y-3">
+            <div className="font-semibold text-sm text-[#111827]">Lập hóa đơn cho {order.orderCode}</div>
+            <Field label="Số hóa đơn" required>
+              <Input value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} maxLength={40} placeholder={`HD-${order.orderCode}`} />
+            </Field>
+            <Field label="Tổng tiền hóa đơn">
+              <Input value={formatVnd(order.totalAmount)} readOnly />
+            </Field>
+            <Field label="Hạn thanh toán">
+              <Input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+            </Field>
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="outline" disabled={submitting} onClick={() => setAction(null)}>Đóng</Button>
+              <Button size="sm" variant="gold" loading={submitting} onClick={submitInvoice}>Tạo hóa đơn</Button>
+            </div>
+          </div>
         )}
       </Section>
 
@@ -293,6 +390,17 @@ function OrderDetailContent({
 
       {/* Thanh toán */}
       <Section title="Thanh toán" count={payments.length} open={open.payments} onToggle={() => toggle('payments')}>
+        {invoice && contract && invoice.remainingAmount > 0.0001
+          && invoice.paymentStatus !== 'CANCELLED' && order.status === 'CONFIRMED' && (
+          <div className="mb-4">
+            <Button size="sm" variant="gold" onClick={() => {
+              setPaymentAmount(String(invoice.remainingAmount));
+              setAction('payment');
+            }}>
+              + Ghi nhận thanh toán / Thu tiền
+            </Button>
+          </div>
+        )}
         {payments.length === 0 ? (
           <p className="text-sm text-[#9ca3af]">Chưa có giao dịch thanh toán nào.</p>
         ) : (
@@ -331,6 +439,31 @@ function OrderDetailContent({
               </span>
             </div>
           </>
+        )}
+        {action === 'payment' && invoice && (
+          <div className="mt-4 rounded-xl border border-[#e5e7eb] bg-[#fafafa] p-4 space-y-3">
+            <div className="font-semibold text-sm text-[#111827]">Ghi nhận tiền thu — {order.orderCode}</div>
+            <dl className="grid grid-cols-2 gap-3 text-sm">
+              <div><dt className="text-xs text-[#6b7280]">Còn phải thu</dt><dd className="font-semibold text-red-600">{formatVnd(invoice.remainingAmount)}</dd></div>
+              <div><dt className="text-xs text-[#6b7280]">Đã thu</dt><dd className="font-semibold">{formatVnd(invoice.paidAmount)}</dd></div>
+            </dl>
+            <Field label="Số tiền thực nhận (VND)" required>
+              <Input type="number" min="1" max={invoice.remainingAmount} step="1" value={paymentAmount || String(invoice.remainingAmount)} onChange={(event) => setPaymentAmount(event.target.value)} />
+            </Field>
+            <Field label="Phương thức thanh toán" required>
+              <Select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}>
+                <option value="BANK_TRANSFER">Chuyển khoản</option>
+                <option value="CASH">Tiền mặt</option>
+                <option value="CARD">Thẻ</option>
+                <option value="INSTALLMENT">Trả góp</option>
+              </Select>
+            </Field>
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="outline" disabled={submitting} onClick={() => setAction(null)}>Đóng</Button>
+              <Button size="sm" variant="gold" loading={submitting} onClick={submitPayment}>Xác nhận đã nhận tiền</Button>
+            </div>
+            <p className="text-xs text-[#9ca3af]">Chỉ xác nhận sau khi nhân viên đã thực tế nhận hoặc đối soát được khoản tiền này.</p>
+          </div>
         )}
       </Section>
 
@@ -373,7 +506,7 @@ function OrderDetailContent({
   );
 }
 
-export default function OrderDetailModal({ orderId, onClose }: Props) {
+export default function OrderDetailModal({ orderId, initialAction, onClose, onActionSuccess }: Props) {
   // Dùng cho tiêu đề popup; chỉ nhận lại khi đúng đơn đang mở.
   const [order, setOrder] = useState<Order | null>(null);
   const currentOrder = order && order.id === orderId ? order : null;
@@ -391,7 +524,13 @@ export default function OrderDetailModal({ orderId, onClose }: Props) {
       }
     >
       {orderId != null && (
-        <OrderDetailContent key={orderId} orderId={orderId} onOrderChange={setOrder} />
+        <OrderDetailContent
+          key={`${orderId}-${initialAction ?? 'view'}`}
+          orderId={orderId}
+          initialAction={initialAction}
+          onOrderChange={setOrder}
+          onActionSuccess={onActionSuccess}
+        />
       )}
     </Modal>
   );
