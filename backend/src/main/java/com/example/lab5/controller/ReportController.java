@@ -13,6 +13,7 @@ import com.example.lab5.dto.RevenueSummary;
 import com.example.lab5.dto.TopSellingCar;
 import com.example.lab5.service.ReportExportService;
 import com.example.lab5.service.ReportService;
+import com.example.lab5.exception.BadRequestException;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -122,7 +123,13 @@ public class ReportController {
             @RequestParam(required = false) Long brandId,
             @RequestParam(required = false) Long modelId
     ) {
-        return reportService.getOrdersByRevenue(java.time.YearMonth.parse(period), category, brandId, modelId);
+        java.time.YearMonth parsed;
+        try {
+            parsed = java.time.YearMonth.parse(period);
+        } catch (java.time.DateTimeException ex) {
+            throw new BadRequestException("Tháng doanh thu không hợp lệ: " + period);
+        }
+        return reportService.getOrdersByRevenue(parsed, category, brandId, modelId);
     }
 
     @GetMapping("/revenue-by-month")
