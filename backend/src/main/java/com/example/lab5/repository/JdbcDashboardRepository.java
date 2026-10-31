@@ -120,30 +120,31 @@ public class JdbcDashboardRepository {
 
     private double revenue(LocalDate from, LocalDate to, Long brandId, Long modelId) {
         String sql = """
-                SELECT COALESCE(SUM(o.total_amount), 0)
+                SELECT COALESCE(SUM(
+                    CASE WHEN ? IS NULL AND ? IS NULL
+                         THEN o.total_amount
+                         ELSE COALESCE(selected_lines.selected_amount, 0)
+                    END
+                ), 0)
                 FROM sales_orders o
+                LEFT JOIN (
+                    SELECT oi.order_id,
+                           SUM(oi.quantity * oi.unit_price) AS selected_amount
+                    FROM order_items oi
+                    JOIN car_items ci ON ci.id = oi.car_item_id
+                    JOIN cars c ON c.id = ci.car_id
+                    JOIN car_models m ON m.id = c.model_id
+                    WHERE (? IS NULL OR m.brand_id = ?)
+                      AND (? IS NULL OR m.id = ?)
+                    GROUP BY oi.order_id
+                ) selected_lines ON selected_lines.order_id = o.id
                 WHERE o.status IN ('CONFIRMED', 'COMPLETED')
                   AND COALESCE(o.confirmed_at, o.order_date) >= ?
                   AND COALESCE(o.confirmed_at, o.order_date) < ?
-                  AND (? IS NULL OR EXISTS (
-                      SELECT 1
-                      FROM order_items oi
-                      JOIN car_items ci ON ci.id = oi.car_item_id
-                      JOIN cars c ON c.id = ci.car_id
-                      JOIN car_models m ON m.id = c.model_id
-                      WHERE oi.order_id = o.id AND m.brand_id = ?
-                  ))
-                  AND (? IS NULL OR EXISTS (
-                      SELECT 1
-                      FROM order_items oi
-                      JOIN car_items ci ON ci.id = oi.car_item_id
-                      JOIN cars c ON c.id = ci.car_id
-                      JOIN car_models m ON m.id = c.model_id
-                      WHERE oi.order_id = o.id AND m.id = ?
-                  ))
                 """;
-        Double value = jdbc.queryForObject(sql, Double.class, start(from), start(to.plusDays(1)),
-                brandId, brandId, modelId, modelId);
+        Double value = jdbc.queryForObject(sql, Double.class,
+                brandId, modelId, brandId, brandId, modelId, modelId,
+                start(from), start(to.plusDays(1)));
         return value == null ? 0 : value;
     }
 
