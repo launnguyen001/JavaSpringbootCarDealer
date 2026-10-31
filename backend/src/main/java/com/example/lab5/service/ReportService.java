@@ -9,11 +9,13 @@ import com.example.lab5.dto.InventoryByModel;
 import com.example.lab5.dto.OrderStatusCount;
 import com.example.lab5.dto.OrderSummary;
 import com.example.lab5.dto.RevenueByMonth;
+import com.example.lab5.dto.RevenueOrderSummary;
 import com.example.lab5.dto.RevenueSummary;
 import com.example.lab5.dto.TopSellingCar;
 
 import java.util.List;
 import java.time.LocalDate;
+import java.time.YearMonth;
 
 public interface ReportService {
 
@@ -41,4 +43,6 @@ public interface ReportService {
     List<OrderSummary> getOrdersByStatus(String status, LocalDate from, LocalDate to, Long brandId, Long modelId);
 
     List<RevenueByMonth> getRevenueByMonth();
+
+    List<RevenueOrderSummary> getOrdersByRevenue(YearMonth period, String category, Long brandId, Long modelId);
 }
