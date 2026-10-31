@@ -1,5 +1,5 @@
 'use client';
-import { useCallback,useEffect,useMemo,useState } from 'react';
+import { useEffect,useMemo,useState } from 'react';
 import { useRouter } from 'next/navigation';
 import KpiCard from '@/components/ui/KpiCard';
 import BarChart from '@/components/ui/BarChart';
@@ -39,13 +39,40 @@ export default function AdminDashboardPage(){
  const [detailOrderId,setDetailOrderId]=useState<number|null>(null);
  const filters=useMemo(()=>({from,to,...(brandId?{brandId:Number(brandId)}:{}),...(modelId?{modelId:Number(modelId)}:{})}),[from,to,brandId,modelId]);
  const revenueFilters=useMemo(()=>({brandId:filters.brandId,modelId:filters.modelId}),[filters.brandId,filters.modelId]);
- const load=useCallback(async()=>{
-  if(!from||!to||from>to){toast.error('Vui lòng chọn khoảng ngày hợp lệ.');setLoading(false);return}
-  setLoading(true);try{setData(await getDashboardData(filters))}catch(e){toast.error(getErrorMessage(e))}finally{setLoading(false)}
+ useEffect(()=>{
+  let active=true;
+  listBrands()
+   .then(rows=>{if(active)setBrands(rows)})
+   .catch(e=>{if(active)toast.error(getErrorMessage(e))});
+  return ()=>{active=false};
+ },[toast]);
+ useEffect(()=>{
+  if(!brandId)return;
+  let active=true;
+  getCarModelsByBrand(Number(brandId))
+   .then(rows=>{if(active)setModels(rows)})
+   .catch(e=>{if(active)toast.error(getErrorMessage(e))});
+  return ()=>{active=false};
+ },[brandId,toast]);
+ useEffect(()=>{
+  if(!from||!to||from>to){
+   toast.error('Vui lòng chọn khoảng ngày hợp lệ.');
+   return;
+  }
+  let active=true;
+  const fetchDashboard=async()=>{
+   try{
+    const result=await getDashboardData(filters);
+    if(active)setData(result);
+   }catch(e){
+    if(active)toast.error(getErrorMessage(e));
+   }finally{
+    if(active)setLoading(false);
+   }
+  };
+  void fetchDashboard();
+  return ()=>{active=false};
  },[filters,from,to,toast]);
- useEffect(()=>{listBrands().then(setBrands).catch(e=>toast.error(getErrorMessage(e)))},[toast]);
- useEffect(()=>{if(!brandId){setModels([]);setModelId('');return}getCarModelsByBrand(Number(brandId)).then(setModels).catch(e=>toast.error(getErrorMessage(e)))},[brandId,toast]);
- useEffect(()=>{load()},[load]);
  const growth=(now:number,prev:number)=>prev===0?(now>0?'Mới phát sinh':'Không đổi'):(now-prev>0?'+':'')+(((now-prev)/Math.abs(prev))*100).toFixed(1)+'% so với kỳ trước';
  const open=(status:string|null,title:string,count:number)=>setDrawer({status,title,count});
  return <div className="space-y-7">
@@ -53,9 +80,9 @@ export default function AdminDashboardPage(){
    <div className="flex flex-wrap items-end justify-between gap-3">
     <div><h1 className="text-2xl font-serif font-bold text-[#111827]">Dashboard</h1><p className="mt-1 text-sm text-[#6b7280]">Tổng quan tồn kho và hoạt động kinh doanh</p></div>
     <div className="flex flex-wrap items-end gap-2">
-     <label className="text-xs text-[#6b7280]">Từ ngày<input type="date" value={from} max={to} onChange={e=>setFrom(e.target.value)} className="mt-1 block rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm"/></label>
-     <label className="text-xs text-[#6b7280]">Đến ngày<input type="date" value={to} min={from} onChange={e=>setTo(e.target.value)} className="mt-1 block rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm"/></label>
-     <label className="text-xs text-[#6b7280]">Hãng xe<select value={brandId} onChange={e=>{setBrandId(e.target.value);setModelId('')}} className="mt-1 block min-w-32 rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm"><option value="">Tất cả hãng</option>{brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+     <label className="text-xs text-[#6b7280]">Từ ngày<input type="date" value={from} max={to} onChange={e=>{setLoading(true);setFrom(e.target.value)}} className="mt-1 block rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm"/></label>
+     <label className="text-xs text-[#6b7280]">Đến ngày<input type="date" value={to} min={from} onChange={e=>{setLoading(true);setTo(e.target.value)}} className="mt-1 block rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm"/></label>
+     <label className="text-xs text-[#6b7280]">Hãng xe<select value={brandId} onChange={e=>{setLoading(true);setBrandId(e.target.value);setModelId('');setModels([])}} className="mt-1 block min-w-32 rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm"><option value="">Tất cả hãng</option>{brands.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
      <label className="text-xs text-[#6b7280]">Model<select value={modelId} disabled={!brandId} onChange={e=>setModelId(e.target.value)} className="mt-1 block min-w-36 rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm disabled:bg-[#f3f4f6]"><option value="">Tất cả model</option>{models.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
     </div>
    </div>
