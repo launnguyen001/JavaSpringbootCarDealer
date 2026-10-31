@@ -37,7 +37,7 @@ public class ChatStateController {
         Map<String, Long> result = new HashMap<>();
         for (ChatRoom room : rooms.findByParticipantIdsContainingOrderByLastMessageAtDesc(userId)) {
             Instant cursor = readStates.findByRoomIdAndUserId(room.getId(), userId)
-                    .map(ChatReadState::getLastReadAt).orElse(Instant.EPOCH);
+                    .map(state -> state.getLastReadAt()).orElse(Instant.EPOCH);
             long count = messages.countByRoomIdAndSenderIdNotAndCreatedAtAfter(room.getId(), userId, cursor);
             if (count > 0) result.put(room.getId(), count);
         }
@@ -51,7 +51,7 @@ public class ChatStateController {
                 .orElseThrow(() -> new IllegalArgumentException("Phòng chat không tồn tại"));
         if (!room.getParticipantIds().contains(userId)) throw new SecurityException("Không có quyền truy cập phòng chat");
         return ResponseEntity.ok(readStates.findByRoomId(roomId).stream()
-                .map(ChatReadStateResponse::from).toList());
+                .map(state -> ChatReadStateResponse.from(state)).toList());
     }
 
     private Long currentUserId() {
