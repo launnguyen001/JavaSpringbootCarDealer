@@ -344,6 +344,109 @@ public class JdbcDashboardRepository {
                 start(from), start(to.plusDays(1)), brandId, brandId, modelId, modelId, limit);
     }
 
+
+    /**
+     * Drilldown theo đúng quy tắc phân bổ của findRevenueByMonth:
+     * PENDING = đơn chờ hoặc CONFIRMED chưa đủ chứng từ;
+     * RECOGNIZED = CONFIRMED/COMPLETED có hợp đồng và hóa đơn;
+     * ACTUAL = tiền đã thu của nhóm đơn đủ điều kiện ghi nhận.
+     */
+    public List<RevenueOrderSummary> findOrdersByRevenue(
+            YearMonth period, String category, Long brandId, Long modelId) {
+        String sql = """
+                WITH order_line_totals AS (
+                    SELECT oi.order_id,
+                           SUM(oi.quantity * oi.unit_price) AS all_items_amount,
+                           SUM(CASE
+                               WHEN (? IS NULL OR m.brand_id = ?)
+                                AND (? IS NULL OR m.id = ?)
+                               THEN oi.quantity * oi.unit_price ELSE 0
+                           END) AS selected_items_amount
+                    FROM order_items oi
+                    JOIN car_items ci ON ci.id = oi.car_item_id
+                    JOIN cars c ON c.id = ci.car_id
+                    JOIN car_models m ON m.id = c.model_id
+                    GROUP BY oi.order_id
+                ),
+                eligible_orders AS (
+                    SELECT o.id, o.order_code, o.order_date, o.status, o.total_amount,
+                           cu.full_name AS customer_name, e.full_name AS employee_name,
+                           CASE WHEN o.status = 'PENDING'
+                                THEN o.order_date
+                                ELSE COALESCE(o.confirmed_at, o.order_date)
+                           END AS revenue_date,
+                           (EXISTS (SELECT 1 FROM contracts ct WHERE ct.order_id = o.id)
+                            AND EXISTS (SELECT 1 FROM invoices i WHERE i.order_id = o.id)) AS has_revenue_documents,
+                           COALESCE(olt.all_items_amount, 0) AS all_items_amount,
+                           COALESCE(olt.selected_items_amount, 0) AS selected_items_amount,
+                           (SELECT COALESCE(SUM(p.amount), 0)
+                            FROM payments p
+                            WHERE p.order_id = o.id
+                              AND p.status IN ('PAID', 'PARTIAL')) AS order_collected
+                    FROM sales_orders o
+                    LEFT JOIN customers cu ON cu.id = o.customer_id
+                    LEFT JOIN employees e ON e.id = o.employee_id
+                    LEFT JOIN order_line_totals olt ON olt.order_id = o.id
+                    WHERE o.status <> 'CANCELLED'
+                ),
+                allocated_orders AS (
+                    SELECT *,
+                           CASE WHEN ? IS NULL AND ? IS NULL
+                                THEN total_amount ELSE selected_items_amount
+                           END AS revenue_amount,
+                           CASE
+                               WHEN status IN ('CONFIRMED', 'COMPLETED') AND has_revenue_documents
+                               THEN CASE WHEN ? IS NULL AND ? IS NULL
+                                         THEN order_collected
+                                         WHEN all_items_amount > 0
+                                         THEN order_collected * selected_items_amount / all_items_amount
+                                         ELSE 0 END
+                               ELSE 0
+                           END AS collected_amount,
+                           CASE
+                               WHEN status IN ('CONFIRMED', 'COMPLETED') AND has_revenue_documents
+                               THEN CASE WHEN ? IS NULL AND ? IS NULL
+                                         THEN total_amount ELSE selected_items_amount END
+                               ELSE 0
+                           END AS recognized_amount,
+                           CASE
+                               WHEN status = 'PENDING'
+                                 OR (status = 'CONFIRMED' AND NOT has_revenue_documents)
+                               THEN CASE WHEN ? IS NULL AND ? IS NULL
+                                         THEN total_amount ELSE selected_items_amount END
+                               ELSE 0
+                           END AS pending_amount
+                    FROM eligible_orders
+                )
+                SELECT id AS order_id, order_code, order_date, status, total_amount,
+                       CASE ?
+                           WHEN 'PENDING' THEN pending_amount
+                           WHEN 'RECOGNIZED' THEN recognized_amount
+                           WHEN 'ACTUAL' THEN collected_amount
+                       END AS revenue_amount,
+                       customer_name, employee_name
+                FROM allocated_orders
+                WHERE revenue_date >= ? AND revenue_date < ?
+                  AND (? IS NULL AND ? IS NULL OR selected_items_amount > 0)
+                  AND CASE ?
+                      WHEN 'PENDING' THEN pending_amount
+                      WHEN 'RECOGNIZED' THEN recognized_amount
+                      WHEN 'ACTUAL' THEN collected_amount
+                  END > 0
+                ORDER BY order_date DESC, id DESC
+                """;
+        Timestamp from = Timestamp.valueOf(period.atDay(1).atStartOfDay());
+        Timestamp to = Timestamp.valueOf(period.plusMonths(1).atDay(1).atStartOfDay());
+        return jdbc.query(sql, (rs, i) -> new RevenueOrderSummary(
+                rs.getLong("order_id"), rs.getString("order_code"),
+                rs.getTimestamp("order_date").toLocalDateTime(), rs.getString("status"),
+                rs.getDouble("total_amount"), rs.getDouble("revenue_amount"),
+                rs.getString("customer_name"), rs.getString("employee_name")),
+                brandId, brandId, modelId, modelId,
+                brandId, modelId, brandId, modelId, brandId, modelId, brandId, modelId,
+                category, from, to, brandId, modelId, category);
+    }
+
     private static Timestamp start(LocalDate date) {
         return Timestamp.valueOf(date.atStartOfDay());
     }
