@@ -50,7 +50,7 @@ class NotificationServiceTests {
 
         List<Notification> mine = notificationService.getMine(owner.getUsername());
 
-        assertThat(mine).extracting(Notification::getTitle)
+        assertThat(mine).extracting(notification -> notification.getTitle())
                 .containsExactly("Thông báo mới", "Thông báo cũ");
         assertThat(notificationService.countUnread(owner.getUsername())).isEqualTo(1);
     }
