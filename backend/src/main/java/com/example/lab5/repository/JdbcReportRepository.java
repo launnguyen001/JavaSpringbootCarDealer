@@ -41,6 +41,7 @@ public class JdbcReportRepository {
                 JOIN contracts ct ON ct.order_id = o.id
                 JOIN car_items ci ON ci.id = oi.car_item_id
                 JOIN cars c ON c.id = ci.car_id
+                WHERE o.status <> 'CANCELLED'
                 GROUP BY c.id, c.name
                 ORDER BY total_sold DESC, c.id
                 LIMIT ?
@@ -81,7 +82,7 @@ public class JdbcReportRepository {
                 SELECT COUNT(*) AS total_orders,
                        COALESCE(SUM(total_amount), 0) AS total_revenue
                 FROM sales_orders
-                WHERE status IN ('CONFIRMED', 'COMPLETED')
+                WHERE status <> 'CANCELLED'
                 """;
         return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> new RevenueSummary(
                 rs.getLong("total_orders"),
@@ -117,7 +118,7 @@ public class JdbcReportRepository {
         long employees = count("SELECT COUNT(*) FROM employees");
         long orders = count("SELECT COUNT(*) FROM sales_orders");
         long scheduledTestDrives = count("SELECT COUNT(*) FROM test_drive_appointments WHERE status = 'SCHEDULED'");
-        double revenue = value("SELECT COALESCE(SUM(total_amount), 0) FROM sales_orders WHERE status IN ('CONFIRMED', 'COMPLETED')");
+        double revenue = value("SELECT COALESCE(SUM(total_amount), 0) FROM sales_orders WHERE status <> 'CANCELLED'");
 
         return new DashboardSummary(totalCars, available, reserved, sold, maintenance, newItems, usedItems,
                 customers, employees, orders, scheduledTestDrives, revenue);
@@ -247,7 +248,7 @@ public class JdbcReportRepository {
                             FROM payments p
                             WHERE p.order_id = o.id AND p.status IN ('PAID', 'PARTIAL')) AS collected
                     FROM sales_orders o
-                    WHERE o.status IN ('CONFIRMED', 'COMPLETED')
+                    WHERE o.status <> 'CANCELLED'
                 )
                 SELECT EXTRACT(YEAR FROM revenue_date) AS yr,
                        EXTRACT(MONTH FROM revenue_date) AS mo,

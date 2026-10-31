@@ -126,7 +126,7 @@ public class JdbcDashboardRepository {
                 JOIN car_items ci ON ci.id = oi.car_item_id
                 JOIN cars c ON c.id = ci.car_id
                 JOIN car_models m ON m.id = c.model_id
-                WHERE o.status IN ('CONFIRMED', 'COMPLETED')
+                WHERE o.status <> 'CANCELLED'
                   AND COALESCE(o.confirmed_at, o.order_date) >= ?
                   AND COALESCE(o.confirmed_at, o.order_date) < ?
                   AND (? IS NULL OR m.brand_id = ?)
@@ -173,7 +173,7 @@ public class JdbcDashboardRepository {
                     JOIN car_items ci ON ci.id = oi.car_item_id
                     JOIN cars c ON c.id = ci.car_id
                     JOIN car_models m ON m.id = c.model_id
-                    WHERE o.status IN ('CONFIRMED', 'COMPLETED')
+                    WHERE o.status <> 'CANCELLED'
                       AND COALESCE(o.confirmed_at, o.order_date) >= ?
                       AND COALESCE(o.confirmed_at, o.order_date) < ?
                       AND (? IS NULL OR m.brand_id = ?)
@@ -254,7 +254,8 @@ public class JdbcDashboardRepository {
                 JOIN car_items ci ON ci.id = oi.car_item_id
                 JOIN cars c ON c.id = ci.car_id
                 JOIN car_models m ON m.id = c.model_id
-                WHERE ct.signed_at >= ? AND ct.signed_at < ?
+                WHERE o.status <> 'CANCELLED'
+                  AND ct.signed_at >= ? AND ct.signed_at < ?
                   AND (? IS NULL OR m.brand_id = ?)
                   AND (? IS NULL OR m.id = ?)
                 GROUP BY c.id, c.name
