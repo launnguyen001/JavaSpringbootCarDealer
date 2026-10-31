@@ -5,6 +5,7 @@ import { formatCurrentcy } from '@/lib/utils/format';
 
 interface Props {
   data: RevenueByMonth[];
+  onSelect?: (period: string, category: RevenueCategory, amount: number) => void;
 }
 
 export default function RevenueTubeChart({ data, onSelect }: Props) {
