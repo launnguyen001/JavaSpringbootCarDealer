@@ -18,10 +18,6 @@ export async function getInvoiceByOrder(orderId: number): Promise<Invoice> {
   return apiRequest<Invoice>(`/invoices/order/${orderId}`, { auth: true });
 }
 
-export async function getInvoiceByOrderCode(orderCode: string): Promise<Invoice> {
-  return apiRequest<Invoice>(`/invoices/order-code/${encodeURIComponent(orderCode.trim())}`, { auth: true });
-}
-
 export async function getInvoiceByVin(vin: string): Promise<Invoice> {
   return apiRequest<Invoice>(`/invoices/vin/${encodeURIComponent(vin.trim())}`, { auth: true });
 }
