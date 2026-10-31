@@ -93,11 +93,14 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public List<CarInventoryItem> getInventoryCars(String status, Long brandId, Long modelId) {
+    public List<CarInventoryItem> getInventoryCars(String status, LocalDate from, LocalDate to, Long brandId, Long modelId) {
         if (status != null && !List.of("AVAILABLE", "RESERVED", "SOLD", "MAINTENANCE").contains(status)) {
             throw new BadRequestException("Trạng thái xe không hợp lệ: " + status);
         }
-        return jdbcDashboardRepository.findInventoryCars(status, brandId, modelId);
+        if (from == null || to == null || to.isBefore(from)) {
+            throw new BadRequestException("Khoảng ngày báo cáo không hợp lệ");
+        }
+        return jdbcDashboardRepository.findInventoryCars(status, from, to, brandId, modelId);
     }
 
     @Override

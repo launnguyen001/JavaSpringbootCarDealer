@@ -38,9 +38,11 @@ export async function getDashboardData(filters: { from: string; to: string; bran
   return apiRequest<DashboardData>("/reports/dashboard?" + params.toString(), { auth: true });
 }
 
-export async function getInventoryCars(filters: { status?: string; brandId?: number; modelId?: number }): Promise<CarInventoryItem[]> {
+export async function getInventoryCars(filters: { status?: string; from: string; to: string; brandId?: number; modelId?: number }): Promise<CarInventoryItem[]> {
   const params = new URLSearchParams();
   if (filters.status) params.set("status", filters.status);
+  params.set("from", filters.from);
+  params.set("to", filters.to);
   if (filters.brandId) params.set("brandId", String(filters.brandId));
   if (filters.modelId) params.set("modelId", String(filters.modelId));
   return apiRequest<CarInventoryItem[]>("/reports/inventory-cars?" + params.toString(), { auth: true });

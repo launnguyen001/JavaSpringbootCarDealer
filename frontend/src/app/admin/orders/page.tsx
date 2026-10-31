@@ -49,6 +49,11 @@ export default function AdminOrdersPage() {
   const [employeeId, setEmployeeId] = useState('');
   const [items, setItems] = useState<ItemRow[]>([{ carId: '', carItemId: '' }]);
 
+  useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get('orderId'));
+    if (Number.isInteger(id) && id > 0) setDetailId(id);
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {

@@ -41,7 +41,7 @@ public class JdbcDashboardRepository {
                 findTopSellingCars(5, from, to, brandId, modelId));
     }
 
-    public List<CarInventoryItem> findInventoryCars(String status, Long brandId, Long modelId) {
+    public List<CarInventoryItem> findInventoryCars(String status, LocalDate from, LocalDate to, Long brandId, Long modelId) {
         String sql = """
                 SELECT ci.id AS car_id, c.name AS car_name, ci.vin, ci.color,
                        ci.model_year, ci.status, ci.car_condition, ci.mileage_km, ci.price
@@ -51,6 +51,11 @@ public class JdbcDashboardRepository {
                 WHERE (? IS NULL OR ci.status = ?)
                   AND (? IS NULL OR m.brand_id = ?)
                   AND (? IS NULL OR m.id = ?)
+                  AND (? IS NULL OR ? <> 'SOLD' OR EXISTS (
+                    SELECT 1 FROM order_items oi JOIN sales_orders o ON o.id = oi.order_id
+                    WHERE oi.car_item_id = ci.id AND o.status = 'COMPLETED'
+                      AND o.order_date >= ? AND o.order_date < ?
+                  ))
                 ORDER BY ci.id DESC
                 """;
         return jdbc.query(sql, (rs, i) -> new CarInventoryItem(
@@ -58,7 +63,8 @@ public class JdbcDashboardRepository {
                 rs.getString("color"), (Integer) rs.getObject("model_year"),
                 rs.getString("status"), rs.getString("car_condition"),
                 (Integer) rs.getObject("mileage_km"), rs.getDouble("price")),
-                status, status, brandId, brandId, modelId, modelId);
+                status, status, brandId, brandId, modelId, modelId,
+                status, status, start(from), start(to.plusDays(1)));
     }
 
     private long countInventory(String status, Long brandId, Long modelId) {

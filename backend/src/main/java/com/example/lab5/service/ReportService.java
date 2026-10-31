@@ -29,7 +29,7 @@ public interface ReportService {
 
     DashboardSummary getDashboardSummary();
     DashboardData getDashboard(LocalDate from, LocalDate to, Long brandId, Long modelId);
-    List<CarInventoryItem> getInventoryCars(String status, Long brandId, Long modelId);
+    List<CarInventoryItem> getInventoryCars(String status, LocalDate from, LocalDate to, Long brandId, Long modelId);
 
     List<InventoryByModel> getModelsByBrand(Long brandId);
 
