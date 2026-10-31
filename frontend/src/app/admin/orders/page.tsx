@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { Field, Select } from '@/components/ui/Field';
@@ -36,7 +35,6 @@ interface ItemRow {
 
 export default function AdminOrdersPage() {
   const toast = useToast();
-  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -51,6 +49,7 @@ export default function AdminOrdersPage() {
   const [confirmDelete, setConfirmDelete] = useState<Order | null>(null);
   // Đơn đang xem chi tiết trong popup (gồm hợp đồng / thanh toán / hóa đơn)
   const [detailId, setDetailId] = useState<number | null>(null);
+  const [detailAction, setDetailAction] = useState<'invoice' | 'payment' | null>(null);
 
   const [customerId, setCustomerId] = useState('');
   const [employeeId, setEmployeeId] = useState('');
@@ -199,7 +198,7 @@ export default function AdminOrdersPage() {
                 </Button>
               )}
               {!invoicesByOrder.has(r.id) && (
-                <Button size="sm" variant="outline" onClick={() => router.push('/admin/invoices?orderId=' + r.id)}>
+                <Button size="sm" variant="outline" onClick={() => { setDetailAction('invoice'); setDetailId(r.id); }}>
                   Hóa đơn
                 </Button>
               )}
@@ -207,7 +206,7 @@ export default function AdminOrdersPage() {
                 const invoice = invoicesByOrder.get(r.id);
                 return invoice && invoice.paymentStatus !== 'PAID' && invoice.paymentStatus !== 'CANCELLED'
                   && invoice.remainingAmount > 0.0001 ? (
-                  <Button size="sm" variant="outline" onClick={() => router.push('/admin/payments?orderId=' + r.id)}>
+                  <Button size="sm" variant="outline" onClick={() => { setDetailAction('payment'); setDetailId(r.id); }}>
                     Thu tiền
                   </Button>
                 ) : null;
@@ -361,7 +360,12 @@ export default function AdminOrdersPage() {
       </Modal>
 
       {/* Chi tiết đơn: gom hợp đồng + thanh toán + hóa đơn vào 1 popup, expand từng mục */}
-      <OrderDetailModal orderId={detailId} onClose={() => setDetailId(null)} />
+      <OrderDetailModal
+        orderId={detailId}
+        initialAction={detailAction}
+        onClose={() => { setDetailId(null); setDetailAction(null); }}
+        onActionSuccess={() => { void load(); }}
+      />
     </div>
   );
 }
