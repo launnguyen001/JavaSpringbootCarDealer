@@ -143,7 +143,7 @@ public class ReportServiceImpl implements ReportService {
         } catch (IllegalArgumentException ex) {
             throw new BadRequestException("Trạng thái đơn hàng không hợp lệ: " + status);
         }
-        if ((from == null) != (to == null) || (from != null && to.isBefore(from)))
+        if ((from == null) != (to == null) || (from != null && to != null && to.isBefore(from)))
             throw new BadRequestException("Khoảng ngày báo cáo không hợp lệ");
         if (brandId != null && !brandRepository.existsById(brandId))
             throw new ResourceNotFoundException("Không tìm thấy hãng xe id = " + brandId);
