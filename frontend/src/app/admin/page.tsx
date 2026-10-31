@@ -69,7 +69,6 @@ export default function AdminDashboardPage(){
       <button onClick={()=>open('SOLD','Xe đã bán trong kỳ',data.soldInPeriod)} className="text-left"><KpiCard label="Đã bán trong kỳ" value={data.soldInPeriod.toLocaleString('vi-VN')} hint={growth(data.soldInPeriod,data.previousSoldInPeriod)}/></button>
      </div>
     </div>
-    </div>
     <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-2">
      <div className="min-h-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm"><div className="mb-2 flex items-center justify-between"><h2 className="font-semibold text-[#111827]">Đơn hàng theo trạng thái</h2><span className="text-xs text-[#9ca3af]">Trong kỳ</span></div><BarChart data={data.orderStatuses.map(s=>({label:s.status,value:s.total}))} onSelect={status=>{const item=data.orderStatuses.find(s=>s.status===status);setOrderDrawer({status,title:`Đơn hàng ${status}`,count:item?.total??0})}}/></div>
      <div className="min-h-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm"><div className="mb-2 flex items-center justify-between"><h2 className="font-semibold text-[#111827]">Doanh thu theo tháng</h2><span className="text-xs text-[#6b7280]">{growth(data.revenue,data.previousRevenue)}</span></div><RevenueTubeChart data={data.revenueByMonth}/></div>
