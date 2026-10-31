@@ -5,15 +5,15 @@ import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import StatusPill from '@/components/ui/StatusPill';
 import { useToast } from '@/components/ui/Toast';
-import { ApiError, downloadFile, getInvoiceByOrderCode, getInvoiceByVin } from '@/lib/api';
+import { ApiError, downloadFile, getInvoiceByOrder, getInvoiceByVin } from '@/lib/api';
 import { getErrorMessage } from '@/lib/utils/error';
 import { formatDateTime, formatVnd } from '@/lib/utils/format';
 import type { Invoice } from '@/types';
 
 interface Props {
   open: boolean;
-  /** Tra cứu theo mã đơn hàng hoặc VIN; orderCode được ưu tiên khi có. */
-  orderCode?: string | null;
+  /** Tra cứu theo ID đơn hàng hoặc VIN. orderId được ưu tiên khi có. */
+  orderId?: number | null;
   vin?: string | null;
   carName?: string | null;
   onClose: () => void;
@@ -29,18 +29,16 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 /** Popup xem nhanh hóa đơn của một chiếc xe, dùng ngay trong drawer Dashboard. */
-export default function InvoiceQuickViewModal({ open, orderCode, vin, carName, onClose }: Props) {
+export default function InvoiceQuickViewModal({ open, orderId, vin, carName, onClose }: Props) {
   const toast = useToast();
-  const displayOrderCode = orderCode?.trim();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
-    const normalizedOrderCode = orderCode?.trim();
     const normalizedVin = vin?.trim();
-    if (!open || (!normalizedOrderCode && !normalizedVin)) {
+    if (!open || (orderId == null && !normalizedVin)) {
       setInvoice(null);
       setError('');
       setLoading(false);
@@ -51,8 +49,8 @@ export default function InvoiceQuickViewModal({ open, orderCode, vin, carName, o
     setLoading(true);
     setError('');
     setInvoice(null);
-    const request = normalizedOrderCode
-      ? getInvoiceByOrderCode(normalizedOrderCode)
+    const request = orderId != null
+      ? getInvoiceByOrder(orderId)
       : getInvoiceByVin(normalizedVin!);
 
     request
@@ -74,7 +72,7 @@ export default function InvoiceQuickViewModal({ open, orderCode, vin, carName, o
     return () => {
       active = false;
     };
-  }, [open, orderCode, vin]);
+  }, [open, orderId, vin]);
 
   const downloadPdf = async () => {
     if (!invoice) return;
@@ -132,7 +130,7 @@ export default function InvoiceQuickViewModal({ open, orderCode, vin, carName, o
             </svg>
           </div>
           <p className="mt-3 text-sm font-medium text-[#374151]">{error}</p>
-          {displayOrderCode ? <p className="mt-1 text-xs text-[#9ca3af]">Mã đơn: {displayOrderCode}</p> : vin && <p className="mt-1 text-xs text-[#9ca3af]">VIN: {vin}</p>}
+          {orderId != null ? <p className="mt-1 text-xs text-[#9ca3af]">Mã đơn ID: {orderId}</p> : vin && <p className="mt-1 text-xs text-[#9ca3af]">VIN: {vin}</p>}
         </div>
       ) : invoice ? (
         <div className="space-y-4">
