@@ -242,20 +242,33 @@ public class JdbcReportRepository {
         String sql = """
                 WITH eligible_orders AS (
                     SELECT o.id,
-                           COALESCE(o.confirmed_at, o.order_date) AS revenue_date,
+                           CASE WHEN o.status = 'PENDING'
+                                THEN o.order_date
+                                ELSE COALESCE(o.confirmed_at, o.order_date)
+                           END AS revenue_date,
+                           o.status,
                            o.total_amount,
-                           (SELECT COALESCE(SUM(p.amount), 0)
-                            FROM payments p
-                            WHERE p.order_id = o.id AND p.status IN ('PAID', 'PARTIAL')) AS collected
+                           CASE WHEN o.status IN ('CONFIRMED', 'COMPLETED')
+                                THEN (SELECT COALESCE(SUM(p.amount), 0)
+                                      FROM payments p
+                                      WHERE p.order_id = o.id
+                                        AND p.status IN ('PAID', 'PARTIAL'))
+                                ELSE 0
+                           END AS actual_revenue
                     FROM sales_orders o
                     WHERE o.status <> 'CANCELLED'
                 )
                 SELECT EXTRACT(YEAR FROM revenue_date) AS yr,
                        EXTRACT(MONTH FROM revenue_date) AS mo,
                        COUNT(*) AS total_orders,
-                       COALESCE(SUM(total_amount), 0) AS total_revenue,
-                       COALESCE(SUM(LEAST(total_amount, collected)), 0) AS total_collected,
-                       COALESCE(SUM(GREATEST(total_amount - LEAST(total_amount, collected), 0)), 0) AS outstanding_amount
+                       COALESCE(SUM(CASE WHEN status = 'PENDING' THEN total_amount ELSE 0 END), 0) AS pending_revenue,
+                       COALESCE(SUM(CASE WHEN status IN ('CONFIRMED', 'COMPLETED') THEN total_amount ELSE 0 END), 0) AS recognized_revenue,
+                       COALESCE(SUM(actual_revenue), 0) AS actual_revenue,
+                       COALESCE(SUM(CASE
+                           WHEN status IN ('CONFIRMED', 'COMPLETED')
+                           THEN GREATEST(total_amount - actual_revenue, 0)
+                           ELSE 0
+                       END), 0) AS outstanding_amount
                 FROM eligible_orders
                 GROUP BY EXTRACT(YEAR FROM revenue_date), EXTRACT(MONTH FROM revenue_date)
                 ORDER BY yr, mo
@@ -263,8 +276,9 @@ public class JdbcReportRepository {
         return jdbcTemplate.query(sql, (rs, rowNum) -> new RevenueByMonth(
                 String.format("%04d-%02d", rs.getInt("yr"), rs.getInt("mo")),
                 rs.getLong("total_orders"),
-                rs.getDouble("total_revenue"),
-                rs.getDouble("total_collected"),
+                rs.getDouble("pending_revenue"),
+                rs.getDouble("recognized_revenue"),
+                rs.getDouble("actual_revenue"),
                 rs.getDouble("outstanding_amount")
         ));
     }
