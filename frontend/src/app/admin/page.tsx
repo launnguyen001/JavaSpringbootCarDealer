@@ -8,11 +8,13 @@ import DataTable,{type Column} from '@/components/ui/DataTable';
 import StatusPill from '@/components/ui/StatusPill';
 import DashboardDrawer from '@/components/admin/DashboardDrawer';
 import DashboardOrdersDrawer from '@/components/admin/DashboardOrdersDrawer';
+import DashboardRevenueOrdersDrawer from '@/components/admin/DashboardRevenueOrdersDrawer';
+import OrderDetailModal from '@/components/admin/OrderDetailModal';
 import {useToast} from '@/components/ui/Toast';
 import {getErrorMessage} from '@/lib/utils/error';
 import {formatVnd,formatDateTime} from '@/lib/utils/format';
 import {getDashboardData,listBrands,getCarModelsByBrand} from '@/lib/api';
-import type {Brand,CarModel,DashboardData,OrderSummary} from '@/types';
+import type {Brand,CarModel,DashboardData,OrderSummary,RevenueCategory} from '@/types';
 
 const asDate=(d:Date)=>{const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);return local.toISOString().slice(0,10)};
 const endDate=asDate(new Date());
@@ -33,7 +35,10 @@ export default function AdminDashboardPage(){
  const [data,setData]=useState<DashboardData|null>(null);const [loading,setLoading]=useState(true);
  const [drawer,setDrawer]=useState<{status:string|null;title:string;count:number}|null>(null);
  const [orderDrawer,setOrderDrawer]=useState<{status:string;title:string;count:number}|null>(null);
+ const [revenueDrawer,setRevenueDrawer]=useState<{period:string;category:RevenueCategory;title:string;amount:number}|null>(null);
+ const [detailOrderId,setDetailOrderId]=useState<number|null>(null);
  const filters=useMemo(()=>({from,to,...(brandId?{brandId:Number(brandId)}:{}),...(modelId?{modelId:Number(modelId)}:{})}),[from,to,brandId,modelId]);
+ const revenueFilters=useMemo(()=>({brandId:filters.brandId,modelId:filters.modelId}),[filters.brandId,filters.modelId]);
  const load=useCallback(async()=>{
   if(!from||!to||from>to){toast.error('Vui lòng chọn khoảng ngày hợp lệ.');setLoading(false);return}
   setLoading(true);try{setData(await getDashboardData(filters))}catch(e){toast.error(getErrorMessage(e))}finally{setLoading(false)}
@@ -71,7 +76,7 @@ export default function AdminDashboardPage(){
     </div>
     <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-2">
      <div className="min-h-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm"><div className="mb-2 flex items-center justify-between"><h2 className="font-semibold text-[#111827]">Đơn hàng theo trạng thái</h2><span className="text-xs text-[#9ca3af]">Trong kỳ</span></div><BarChart data={data.orderStatuses.map(s=>({label:s.status,value:s.total}))} onSelect={status=>{const item=data.orderStatuses.find(s=>s.status===status);setOrderDrawer({status,title:`Đơn hàng ${status}`,count:item?.total??0})}}/></div>
-     <div className="min-h-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm"><div className="mb-2 flex items-center justify-between"><h2 className="font-semibold text-[#111827]">Doanh thu theo tháng</h2><span className="text-xs text-[#6b7280]">{growth(data.revenue,data.previousRevenue)}</span></div><RevenueTubeChart data={data.revenueByMonth}/></div>
+     <div className="min-h-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm"><div className="mb-2 flex items-center justify-between"><h2 className="font-semibold text-[#111827]">Doanh thu theo tháng</h2><span className="text-xs text-[#6b7280]">{growth(data.revenue,data.previousRevenue)}</span></div><RevenueTubeChart data={data.revenueByMonth} onSelect={(period,category,amount)=>setRevenueDrawer({period,category,amount,title:category==='PENDING'?'Doanh thu chờ':category==='RECOGNIZED'?'Doanh thu đã ghi nhận':'Thực nhận lũy kế'})}/></div>
     </div>
    </>}
    {loading&&!data&&<p className="py-12 text-center text-sm text-[#9ca3af]">Đang tải dashboard…</p>}
@@ -81,6 +86,8 @@ export default function AdminDashboardPage(){
    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 shadow-sm"><h2 className="mb-4 font-semibold text-[#111827]">Xe bán chạy</h2><div className="space-y-2">{data.topSellingCars.length===0?<p className="py-8 text-center text-sm text-[#9ca3af]">Chưa có dữ liệu bán xe.</p>:data.topSellingCars.map((car,index)=><div key={car.carId} className="flex items-center justify-between gap-3 rounded-xl border border-[#f0f0f0] px-4 py-3"><div className="flex min-w-0 items-center gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#fffbeb] text-xs font-semibold text-[#a87900]">{index+1}</span><span className="truncate text-sm font-medium text-[#374151]">{car.carName}</span></div><div className="shrink-0 text-right"><p className="text-sm font-semibold text-[#111827]">{car.totalSold} xe</p><p className="text-xs text-[#9ca3af]">{formatVnd(car.revenue)}</p></div></div>)}</div></div>
   </section>}
   {drawer&&<DashboardDrawer status={drawer.status} title={drawer.title} count={drawer.count} brandId={filters.brandId} modelId={filters.modelId} from={from} to={to} onClose={()=>setDrawer(null)}/>}
-  {orderDrawer&&<DashboardOrdersDrawer status={orderDrawer.status} title={orderDrawer.title} count={orderDrawer.count} filters={filters} onClose={()=>setOrderDrawer(null)}/>}
+  {orderDrawer&&<DashboardOrdersDrawer status={orderDrawer.status} title={orderDrawer.title} count={orderDrawer.count} filters={filters} onClose={()=>setOrderDrawer(null)} onSelectOrder={id=>{setOrderDrawer(null);setDetailOrderId(id)}}/>}
+  {revenueDrawer&&<DashboardRevenueOrdersDrawer period={revenueDrawer.period} category={revenueDrawer.category} title={revenueDrawer.title} amount={revenueDrawer.amount} filters={revenueFilters} onClose={()=>setRevenueDrawer(null)} onSelectOrder={id=>{setRevenueDrawer(null);setDetailOrderId(id)}}/>}
+  <OrderDetailModal orderId={detailOrderId} onClose={()=>setDetailOrderId(null)}/>
  </div>;
 }
