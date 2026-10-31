@@ -22,8 +22,10 @@ import {
   listEmployees,
   listAvailableCarItems,
   getOrderStateMachine,
+  listContracts,
+  listInvoices,
 } from '@/lib/api';
-import type { Car, CarItem, Customer, Employee, Order, OrderStatus } from '@/types';
+import type { Car, CarItem, Customer, Employee, Invoice, Order, OrderStatus } from '@/types';
 
 const CONDITION_LABEL: Record<string, string> = { NEW: 'Mới', USED: 'Cũ' };
 
@@ -40,6 +42,9 @@ export default function AdminOrdersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [transitions, setTransitions] = useState<Record<OrderStatus, OrderStatus[]> | null>(null);
+  const [contractOrderIds, setContractOrderIds] = useState<Set<number>>(new Set());
+  const [invoicesByOrder, setInvoicesByOrder] = useState<Map<number, Invoice>>(new Map());
+  const [documentsLoaded, setDocumentsLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -59,12 +64,23 @@ export default function AdminOrdersPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [ordersData, machine] = await Promise.all([
+      const [ordersData, machine, contractsResult, invoicesResult] = await Promise.all([
         listOrders(),
         getOrderStateMachine().catch(() => null),
+        listContracts().then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: [] })),
+        listInvoices().then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: [] })),
       ]);
       setOrders(ordersData);
       setTransitions(machine);
+      if (contractsResult.ok && invoicesResult.ok) {
+        setContractOrderIds(new Set(contractsResult.data.map((contract) => contract.orderId)));
+        setInvoicesByOrder(new Map(invoicesResult.data.map((invoice) => [invoice.orderId, invoice])));
+        setDocumentsLoaded(true);
+      } else {
+        // Không hiển thị nút tạo/thu nếu chưa xác định được chứng từ hiện có,
+        // tránh tạo trùng hoặc thu tiền khi dữ liệu chứng từ chưa tải được.
+        setDocumentsLoaded(false);
+      }
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -175,29 +191,39 @@ export default function AdminOrdersPage() {
           <Button size="sm" variant="gold" onClick={() => setDetailId(r.id)}>
             Chi tiết
           </Button>
-          {r.status === 'CONFIRMED' && (
+          {r.status === 'CONFIRMED' && documentsLoaded && (
             <>
-              <Button size="sm" variant="outline" onClick={() => router.push('/admin/contracts?orderId=' + r.id)}>
-                Hợp đồng
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => router.push('/admin/invoices?orderId=' + r.id)}>
-                Hóa đơn
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => router.push('/admin/payments?orderId=' + r.id)}>
-                Thu tiền
-              </Button>
+              {!contractOrderIds.has(r.id) && (
+                <Button size="sm" variant="outline" onClick={() => router.push('/admin/contracts?orderId=' + r.id)}>
+                  Hợp đồng
+                </Button>
+              )}
+              {!invoicesByOrder.has(r.id) && (
+                <Button size="sm" variant="outline" onClick={() => router.push('/admin/invoices?orderId=' + r.id)}>
+                  Hóa đơn
+                </Button>
+              )}
+              {(() => {
+                const invoice = invoicesByOrder.get(r.id);
+                return invoice && invoice.paymentStatus !== 'PAID' && invoice.paymentStatus !== 'CANCELLED'
+                  && invoice.remainingAmount > 0.0001 ? (
+                  <Button size="sm" variant="outline" onClick={() => router.push('/admin/payments?orderId=' + r.id)}>
+                    Thu tiền
+                  </Button>
+                ) : null;
+              })()}
             </>
           )}
           <Select
             value={r.status}
-            disabled={!transitions || (transitions[r.status] ?? []).filter((s) => s !== 'CANCELLED').length === 0}
+            disabled={!transitions || (transitions[r.status] ?? []).filter((s) => s !== 'CANCELLED' && s !== 'COMPLETED').length === 0}
             onChange={(e) => changeStatus(r, e.target.value as OrderStatus)}
             className="!py-1 !px-2 !text-xs !w-32"
             title="Chỉ các trạng thái hợp lệ theo state machine mới chọn được"
           >
             <option value={r.status}>{r.status}</option>
             {(transitions?.[r.status] ?? [])
-              .filter((s) => s !== 'CANCELLED')
+              .filter((s) => s !== 'CANCELLED' && s !== 'COMPLETED')
               .map((s) => (
                 <option key={s} value={s}>
                   {s}

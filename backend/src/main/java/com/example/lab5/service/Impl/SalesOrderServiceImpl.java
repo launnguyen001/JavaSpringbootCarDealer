@@ -186,13 +186,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
         SalesOrder order = getOrderById(id);
         if (status == OrderStatus.COMPLETED) {
-            double paid = paymentRepository.sumPaidAmountByOrderId(id);
-            if (paid + 0.0001d < (order.getTotalAmount() == null ? 0.0 : order.getTotalAmount())) {
-                throw new BadRequestException("Chỉ hoàn tất đơn hàng sau khi đã thu đủ tiền");
-            }
-            if (!contractRepository.existsByOrder_Id(id) || !invoiceRepository.existsByOrder_Id(id)) {
-                throw new BadRequestException("Cần có cả hợp đồng và hóa đơn trước khi hoàn tất đơn hàng");
-            }
+            throw new BadRequestException("Trạng thái COMPLETED được hệ thống tự động cập nhật khi hóa đơn đã thanh toán đủ và hợp đồng đã tồn tại");
         }
         return orderStateService.transition(order, status, SecurityUtils.currentUsername(),
                 "Cập nhật trạng thái qua API");

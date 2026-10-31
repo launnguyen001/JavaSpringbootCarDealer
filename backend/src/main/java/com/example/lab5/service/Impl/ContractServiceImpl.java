@@ -11,8 +11,11 @@ import com.example.lab5.event.NotificationEventFactory;
 import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
 import com.example.lab5.repository.ContractRepository;
+import com.example.lab5.repository.InvoiceRepository;
+import com.example.lab5.repository.PaymentRepository;
 import com.example.lab5.repository.SalesOrderRepository;
 import com.example.lab5.service.ContractService;
+import com.example.lab5.service.OrderStateService;
 import com.example.lab5.service.CarCatalogService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,19 +31,28 @@ public class ContractServiceImpl implements ContractService {
     private final NotificationEventFactory notificationEvents;
     private final CarItemRepository carItemRepository;
     private final CarCatalogService carCatalogService;
+    private final InvoiceRepository invoiceRepository;
+    private final PaymentRepository paymentRepository;
+    private final OrderStateService orderStateService;
 
     public ContractServiceImpl(
             ContractRepository contractRepository,
             SalesOrderRepository salesOrderRepository,
             NotificationEventFactory notificationEvents,
             CarItemRepository carItemRepository,
-            CarCatalogService carCatalogService
+            CarCatalogService carCatalogService,
+            InvoiceRepository invoiceRepository,
+            PaymentRepository paymentRepository,
+            OrderStateService orderStateService
     ) {
         this.contractRepository = contractRepository;
         this.salesOrderRepository = salesOrderRepository;
         this.notificationEvents = notificationEvents;
         this.carItemRepository = carItemRepository;
         this.carCatalogService = carCatalogService;
+        this.invoiceRepository = invoiceRepository;
+        this.paymentRepository = paymentRepository;
+        this.orderStateService = orderStateService;
     }
 
     @Override
@@ -83,6 +95,18 @@ public class ContractServiceImpl implements ContractService {
         }
         carCatalogService.evictCatalog();
         notificationEvents.contractCreated(saved);
+
+        // Trường hợp hóa đơn đã được thanh toán đủ trước khi hợp đồng được lập.
+        invoiceRepository.findByOrder_Id(order.getId()).ifPresent(invoice -> {
+            double paid = paymentRepository.sumPaidAmountByOrderId(order.getId());
+            invoice.setPaidAmount(paid);
+            invoice.refreshPaymentStatus();
+            invoiceRepository.save(invoice);
+            if (invoice.getPaymentStatus() == com.example.lab5.entity.InvoicePaymentStatus.PAID) {
+                orderStateService.transition(order, OrderStatus.COMPLETED, "system",
+                        "Tự động hoàn tất đơn hàng: hợp đồng đã được lập và hóa đơn đã thanh toán đủ");
+            }
+        });
         return saved;
     }
 

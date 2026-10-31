@@ -9,9 +9,11 @@ import com.example.lab5.entity.SalesOrder;
 import com.example.lab5.event.NotificationEventFactory;
 import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
+import com.example.lab5.repository.ContractRepository;
 import com.example.lab5.repository.InvoiceRepository;
 import com.example.lab5.repository.PaymentRepository;
 import com.example.lab5.repository.SalesOrderRepository;
+import com.example.lab5.service.OrderStateService;
 import com.example.lab5.service.PaymentService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,17 +28,23 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final InvoiceRepository invoiceRepository;
     private final SalesOrderRepository salesOrderRepository;
+    private final ContractRepository contractRepository;
+    private final OrderStateService orderStateService;
     private final NotificationEventFactory notificationEvents;
 
     public PaymentServiceImpl(
             PaymentRepository paymentRepository,
             InvoiceRepository invoiceRepository,
             SalesOrderRepository salesOrderRepository,
+            ContractRepository contractRepository,
+            OrderStateService orderStateService,
             NotificationEventFactory notificationEvents
     ) {
         this.paymentRepository = paymentRepository;
         this.invoiceRepository = invoiceRepository;
         this.salesOrderRepository = salesOrderRepository;
+        this.contractRepository = contractRepository;
+        this.orderStateService = orderStateService;
         this.notificationEvents = notificationEvents;
     }
 
@@ -56,8 +64,13 @@ public class PaymentServiceImpl implements PaymentService {
         if (order.getTotalAmount() == null || order.getTotalAmount() <= 0)
             throw new BadRequestException("Đơn hàng không có giá trị hợp lệ để thu tiền");
 
+        Invoice invoice = invoiceRepository.findByOrder_Id(order.getId())
+                .orElseThrow(() -> new BadRequestException("Cần lập hóa đơn trước khi ghi nhận thanh toán"));
+        if (invoice.getPaymentStatus() == com.example.lab5.entity.InvoicePaymentStatus.CANCELLED) {
+            throw new BadRequestException("Không thể thu tiền cho hóa đơn đã hủy");
+        }
         double paid = paymentRepository.sumPaidAmountByOrderId(order.getId());
-        double remaining = Math.max(order.getTotalAmount() - paid, 0d);
+        double remaining = Math.max(invoice.getTotal() - paid, 0d);
         if (request.amount() - remaining > EPSILON)
             throw new BadRequestException("Số tiền vượt quá công nợ còn lại: " + remaining);
 
@@ -71,11 +84,18 @@ public class PaymentServiceImpl implements PaymentService {
         Payment saved = paymentRepository.save(payment);
 
         double newPaidAmount = paid + saved.getAmount();
-        invoiceRepository.findByOrder_Id(order.getId()).ifPresent(invoice -> {
-            invoice.setPaidAmount(newPaidAmount);
-            invoice.refreshPaymentStatus();
-            invoiceRepository.save(invoice);
-        });
+        invoice.setPaidAmount(newPaidAmount);
+        invoice.refreshPaymentStatus();
+        invoiceRepository.save(invoice);
+
+        // Chỉ hoàn tất khi đã thu đủ hóa đơn và hợp đồng đã tồn tại.
+        // Nếu hợp đồng được lập sau khi hóa đơn đã thanh toán đủ, ContractService
+        // sẽ thực hiện bước chuyển trạng thái còn lại.
+        if (invoice.getPaymentStatus() == com.example.lab5.entity.InvoicePaymentStatus.PAID
+                && contractRepository.existsByOrder_Id(order.getId())) {
+            orderStateService.transition(order, OrderStatus.COMPLETED, "system",
+                    "Tự động hoàn tất đơn hàng khi đã thu đủ tiền theo hóa đơn");
+        }
 
         notificationEvents.paymentPaid(saved);
         return saved;
