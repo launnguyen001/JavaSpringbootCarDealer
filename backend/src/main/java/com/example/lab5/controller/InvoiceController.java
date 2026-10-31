@@ -83,11 +83,6 @@ public class InvoiceController {
         return invoiceMapper.toResponse(invoiceService.getByOrder(orderId));
     }
 
-    @GetMapping("/order-code/{orderCode}")
-    public InvoiceResponse getByOrderCode(@PathVariable String orderCode) {
-        return invoiceMapper.toResponse(invoiceService.getByOrderCode(orderCode));
-    }
-
     /** Tải hóa đơn dạng PDF — chủ đơn hoặc nhân viên/admin. */
     @GetMapping("/{id}/pdf")
     public ResponseEntity<byte[]> downloadPdf(
