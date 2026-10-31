@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import StatusPill from '@/components/ui/StatusPill';
@@ -129,7 +129,7 @@ export default function AdminTestDrivesPage() {
     });
   }
 
-  async function saveDrive(event: React.FormEvent<HTMLFormElement>) {
+  async function saveDrive(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editing) return;
     setSaving(true);
@@ -197,20 +197,19 @@ export default function AdminTestDrivesPage() {
           <div className="flex min-h-72 items-center justify-center text-sm text-[#6b7280]">Đang tải lịch lái thử...</div>
         ) : (
           <div className="grid grid-cols-7">
-            {cells.map((date, index) => {
+            {cells.map(date => {
               const dayDrives = byDate.get(keyOf(date)) ?? [];
               const inMonth = date.getMonth() === month.getMonth();
               const day = dayOnly(date);
               const isToday = day.getTime() === today.getTime();
               const isPast = day.getTime() < today.getTime();
-              const outline = isPast ? 'border-red-500' : isToday ? 'border-white' : 'border-emerald-500';
               return (
                 <button type="button" key={keyOf(date)} onClick={() => setSelectedDate(date)}
                   aria-label={dateLabel(date) + ', ' + dayDrives.length + ' lịch lái thử'}
-                  className={'group flex min-h-24 flex-col items-start border-b border-r border-[#e5e7eb] p-1.5 text-left transition hover:bg-[#f9fafb] focus:z-10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#c58e00] sm:min-h-28 sm:p-2.5 ' +
-                    (index % 7 === 6 ? 'border-r-0 ' : '') + (!inMonth ? 'bg-[#fafafa]' : 'bg-white')}>
+                  className={'group flex min-h-24 flex-col items-start border-2 p-1.5 text-left transition hover:bg-[#f9fafb] focus:z-10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#c58e00] sm:min-h-28 sm:p-2.5 ' +
+                    (isPast ? 'border-red-500 ' : isToday ? 'border-white bg-[#f3f4f6] ' : 'border-emerald-500 ') + (!inMonth ? 'bg-[#fafafa]' : '')}>
                   <span className={'flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-semibold sm:h-8 sm:w-8 sm:text-sm ' +
-                    outline + ' ' + (isToday ? 'bg-[#111827] text-white' : 'text-[#111827]') + (!inMonth ? ' opacity-40' : '')}>
+                     'border-transparent ' + (isToday ? 'bg-[#111827] text-white' : 'text-[#111827]') + (!inMonth ? ' opacity-40' : '')}>
                     {date.getDate()}
                   </span>
                   <span className="mt-2 flex flex-wrap items-center gap-1">
