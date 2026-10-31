@@ -17,6 +17,8 @@ public interface InvoiceService {
 
     Invoice getByOrder(Long orderId);
 
+    Invoice getByOrderCode(String orderCode);
+
     Invoice getByVin(String vin);
 
     Invoice update(Long id, InvoiceRequest request);
