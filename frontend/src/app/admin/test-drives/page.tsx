@@ -177,7 +177,7 @@ export default function AdminTestDrivesPage() {
     setEditError('');
     try {
       const payload: TestDriveRequest = {
-        scheduledAt: new Date(form.scheduledAt).toISOString(),
+        scheduledAt: form.scheduledAt,
         status: form.status,
         customerId: Number(form.customerId),
         carItemId: Number(form.carItemId),
