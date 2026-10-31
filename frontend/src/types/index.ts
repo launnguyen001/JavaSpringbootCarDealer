@@ -1,7 +1,7 @@
 export type { CarStatus, CarCondition, Car, CarItem } from './car';
 export type { Brand } from './brand';
 export type { CarModel } from './carModel';
-export type { CarItemRequest } from './carItem';
+export type { CarItemRequest, CarItemDetail } from './carItem';
 export type { CarSpecification } from './carSpec';
 export type { CarMedia } from './carMedia';
 export type { Reply } from './carReview';

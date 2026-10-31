@@ -38,6 +38,7 @@ public interface ReportService {
     List<CarSalesOrderLine> getOrdersByCar(Long carId);
 
     List<OrderSummary> getOrdersByStatus(String status);
+    List<OrderSummary> getOrdersByStatus(String status, LocalDate from, LocalDate to, Long brandId, Long modelId);
 
     List<RevenueByMonth> getRevenueByMonth();
 }

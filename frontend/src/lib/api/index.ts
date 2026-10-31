@@ -20,6 +20,7 @@ export {
   listCarItems,
   listAvailableCarItems,
   getCarItem,
+  getCarItemDetail,
   createCarItem,
   updateCarItem,
   updateCarItemStatus,

@@ -70,10 +70,20 @@ export async function getOrdersByCar(carId: number): Promise<CarSalesOrderLine[]
   });
 }
 
-export async function getOrdersByStatus(status: string): Promise<OrderSummary[]> {
-  return apiRequest<OrderSummary[]>(`/reports/orders-by-status/${encodeURIComponent(status)}`, {
-    auth: true,
-  });
+export async function getOrdersByStatus(
+  status: string,
+  filters?: { from?: string; to?: string; brandId?: number; modelId?: number },
+): Promise<OrderSummary[]> {
+  const params = new URLSearchParams();
+  if (filters?.from) params.set('from', filters.from);
+  if (filters?.to) params.set('to', filters.to);
+  if (filters?.brandId) params.set('brandId', String(filters.brandId));
+  if (filters?.modelId) params.set('modelId', String(filters.modelId));
+  const query = params.toString();
+  return apiRequest<OrderSummary[]>(
+    `/reports/orders-by-status/${encodeURIComponent(status)}${query ? `?${query}` : ''}`,
+    { auth: true },
+  );
 }
 
 export async function getRevenueByMonth(): Promise<RevenueByMonth[]> {

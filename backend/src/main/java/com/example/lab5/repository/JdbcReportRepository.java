@@ -130,7 +130,7 @@ public class JdbcReportRepository {
 
     // D1: tổng hợp chỉ số cho dashboard (đếm theo từng chiếc xe vật lý)
     public DashboardSummary findDashboardSummary() {
-        long totalCars = count("SELECT COUNT(*) FROM car_items");
+        long totalCars = count("SELECT COUNT(*) FROM car_items WHERE status IN ('AVAILABLE', 'MAINTENANCE')");
         long available = countItemStatus("AVAILABLE");
         long reserved = countItemStatus("RESERVED");
         long sold = countItemStatus("SOLD");
@@ -289,6 +289,36 @@ public class JdbcReportRepository {
                 rs.getString("customer_name"),
                 rs.getString("employee_name")
         ), status);
+    }
+
+    public List<OrderSummary> findOrdersByStatus(String status, LocalDate from, LocalDate to, Long brandId, Long modelId) {
+        String sql = """
+                SELECT o.id AS order_id, o.order_code, o.order_date, o.status, o.total_amount,
+                       cu.full_name AS customer_name, e.full_name AS employee_name
+                FROM sales_orders o
+                LEFT JOIN customers cu ON cu.id = o.customer_id
+                LEFT JOIN employees e ON e.id = o.employee_id
+                WHERE o.status = ?
+                  AND o.order_date >= ? AND o.order_date < ?
+                  AND EXISTS (
+                    SELECT 1 FROM order_items oi
+                    JOIN car_items ci ON ci.id = oi.car_item_id
+                    JOIN cars c ON c.id = ci.car_id
+                    JOIN car_models m ON m.id = c.model_id
+                    WHERE oi.order_id = o.id
+                      AND (? IS NULL OR m.brand_id = ?)
+                      AND (? IS NULL OR m.id = ?)
+                  )
+                ORDER BY o.order_date DESC, o.id DESC
+                """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new OrderSummary(
+                rs.getLong("order_id"), rs.getString("order_code"),
+                toLocalDateTime(rs, "order_date"), rs.getString("status"),
+                rs.getDouble("total_amount"), rs.getString("customer_name"),
+                rs.getString("employee_name")
+        ), status, Timestamp.valueOf(from.atStartOfDay()),
+                Timestamp.valueOf(to.plusDays(1).atStartOfDay()),
+                brandId, brandId, modelId, modelId);
     }
 
     // D6: doanh thu theo tháng (nhóm năm/tháng, ghép chuỗi ở Java để tránh khác biệt MySQL/H2)

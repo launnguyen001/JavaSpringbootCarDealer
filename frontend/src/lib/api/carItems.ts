@@ -1,5 +1,5 @@
 import { fetchJson, apiRequest } from './http';
-import type { CarItem, CarItemRequest, CarStatus } from '@/types';
+import type { CarItem, CarItemDetail, CarItemRequest, CarStatus } from '@/types';
 
 function qs(params: Record<string, string | number>): string {
   return Object.entries(params)
@@ -19,6 +19,10 @@ export async function listAvailableCarItems(carId: number): Promise<CarItem[]> {
 
 export async function getCarItem(id: number | string): Promise<CarItem> {
   return fetchJson<CarItem>(`/car-items/${id}`);
+}
+
+export async function getCarItemDetail(id: number | string): Promise<CarItemDetail> {
+  return apiRequest<CarItemDetail>(`/car-items/${id}/detail`, { auth: true });
 }
 
 // ---- CRUD (ADMIN) ----

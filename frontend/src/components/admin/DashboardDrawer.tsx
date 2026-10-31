@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import DataTable, { type Column } from '@/components/ui/DataTable';
 import StatusPill from '@/components/ui/StatusPill';
 import { getInventoryCars } from '@/lib/api';
@@ -17,6 +18,7 @@ const columns: Column<CarInventoryItem>[] = [
  { key:'status', label:'Trạng thái', render:r=><StatusPill status={r.status}/> },
 ];
 export default function DashboardDrawer({status,title,count,brandId,modelId,from,to,onClose}:Props) {
+ const router=useRouter();
  const [cars,setCars]=useState<CarInventoryItem[]>([]);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState('');
@@ -39,7 +41,7 @@ export default function DashboardDrawer({status,title,count,brandId,modelId,from
     <div><p className="text-[11px] font-semibold uppercase tracking-wider text-[#9ca3af]">Chi tiết tồn kho</p><h2 className="mt-1 text-xl font-semibold text-[#111827]">{title}</h2><p className="mt-1 text-sm text-[#6b7280]">{count.toLocaleString('vi-VN')} xe trong chỉ số này</p></div>
     <button onClick={onClose} aria-label="Đóng" className="rounded-xl p-2 text-xl text-[#6b7280] hover:bg-[#f3f4f6]">×</button>
    </header>
-   <div className="flex-1 overflow-auto p-6">{loading?<p className="py-16 text-center text-sm text-[#9ca3af]">Đang tải danh sách xe…</p>:error?<p className="py-16 text-center text-sm text-red-600">{error}</p>:<DataTable columns={columns} rows={cars} rowKey={r=>r.carId} empty="Không có xe phù hợp với bộ lọc hiện tại."/>}</div>
+   <div className="flex-1 overflow-auto p-6">{loading?<p className="py-16 text-center text-sm text-[#9ca3af]">Đang tải danh sách xe…</p>:error?<p className="py-16 text-center text-sm text-red-600">{error}</p>:<DataTable columns={columns} rows={cars} rowKey={r=>r.carId} empty="Không có xe phù hợp với bộ lọc hiện tại." onRowClick={r=>router.push(`/admin/car-items/${r.carId}`)}/>}</div>
    <footer className="border-t border-[#e5e7eb] px-6 py-3 text-xs text-[#9ca3af]">Danh sách kế thừa bộ lọc hãng, model và khoảng ngày từ Dashboard.</footer>
   </aside>
  </div>;

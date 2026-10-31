@@ -25,7 +25,7 @@ public class JdbcDashboardRepository {
         LocalDate previousTo = from.minusDays(1);
         LocalDate previousFrom = previousTo.minusDays(ChronoUnit.DAYS.between(from, to));
 
-        long total = countInventory(null, brandId, modelId);
+        long total = countInventory("IN_STOCK", brandId, modelId);
         long available = countInventory("AVAILABLE", brandId, modelId);
         long reserved = countInventory("RESERVED", brandId, modelId);
         long sold = countInventory("SOLD", brandId, modelId);
@@ -52,14 +52,17 @@ public class JdbcDashboardRepository {
                 FROM car_items ci
                 JOIN cars c ON c.id = ci.car_id
                 JOIN car_models m ON m.id = c.model_id
-                WHERE (? IS NULL
+                WHERE (
+                    (? = 'IN_STOCK' AND ci.status IN ('AVAILABLE', 'MAINTENANCE'))
+                    OR (? IS NULL)
                     OR (? = 'SOLD' AND EXISTS (
                       SELECT 1 FROM order_items oi
                       JOIN contracts ct ON ct.order_id = oi.order_id
                       WHERE oi.car_item_id = ci.id
                         AND ct.signed_at >= ? AND ct.signed_at < ?
                     ))
-                    OR (? <> 'SOLD' AND ci.status = ?))
+                    OR (? IS NOT NULL AND ? NOT IN ('SOLD', 'IN_STOCK') AND ci.status = ?)
+                )
                   AND (? IS NULL OR m.brand_id = ?)
                   AND (? IS NULL OR m.id = ?)
                 ORDER BY ci.id DESC
@@ -69,8 +72,8 @@ public class JdbcDashboardRepository {
                 rs.getString("color"), (Integer) rs.getObject("model_year"),
                 rs.getString("status"), rs.getString("car_condition"),
                 (Integer) rs.getObject("mileage_km"), rs.getDouble("price")),
-                status, status, start(from), start(to.plusDays(1)),
-                status, status, brandId, brandId, modelId, modelId);
+                status, status, status, start(from), start(to.plusDays(1)),
+                status, status, status, brandId, brandId, modelId, modelId);
     }
 
     private long countInventory(String status, Long brandId, Long modelId) {
@@ -78,12 +81,16 @@ public class JdbcDashboardRepository {
                 SELECT COUNT(*) FROM car_items ci
                 JOIN cars c ON c.id = ci.car_id
                 JOIN car_models m ON m.id = c.model_id
-                WHERE (? IS NULL OR ci.status = ?)
+                WHERE (
+                    (? = 'IN_STOCK' AND ci.status IN ('AVAILABLE', 'MAINTENANCE'))
+                    OR (? IS NULL)
+                    OR (? IS NOT NULL AND ? <> 'IN_STOCK' AND ci.status = ?)
+                )
                   AND (? IS NULL OR m.brand_id = ?)
                   AND (? IS NULL OR m.id = ?)
                 """;
         Long value = jdbc.queryForObject(sql, Long.class,
-                status, status, brandId, brandId, modelId, modelId);
+                status, status, status, status, status, brandId, brandId, modelId, modelId);
         return value == null ? 0 : value;
     }
 

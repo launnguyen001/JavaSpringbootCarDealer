@@ -22,6 +22,9 @@ export interface CarItem {
   modelId: number | null;
   modelName: string | null;
   brandName: string | null;
+  carDescription: string | null;
+  basePrice: number | null;
+  bodyType: string | null;
 }
 
 /**

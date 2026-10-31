@@ -7,6 +7,7 @@ import RevenueTubeChart from '@/components/admin/RevenueTubeChart';
 import DataTable,{type Column} from '@/components/ui/DataTable';
 import StatusPill from '@/components/ui/StatusPill';
 import DashboardDrawer from '@/components/admin/DashboardDrawer';
+import DashboardOrdersDrawer from '@/components/admin/DashboardOrdersDrawer';
 import {useToast} from '@/components/ui/Toast';
 import {getErrorMessage} from '@/lib/utils/error';
 import {formatVnd,formatDateTime} from '@/lib/utils/format';
@@ -31,6 +32,7 @@ export default function AdminDashboardPage(){
  const [brands,setBrands]=useState<Brand[]>([]);const [models,setModels]=useState<CarModel[]>([]);
  const [data,setData]=useState<DashboardData|null>(null);const [loading,setLoading]=useState(true);
  const [drawer,setDrawer]=useState<{status:string|null;title:string;count:number}|null>(null);
+ const [orderDrawer,setOrderDrawer]=useState<{status:string;title:string;count:number}|null>(null);
  const filters=useMemo(()=>({from,to,...(brandId?{brandId:Number(brandId)}:{}),...(modelId?{modelId:Number(modelId)}:{})}),[from,to,brandId,modelId]);
  const load=useCallback(async()=>{
   if(!from||!to||from>to){toast.error('Vui lòng chọn khoảng ngày hợp lệ.');setLoading(false);return}
@@ -55,14 +57,20 @@ export default function AdminDashboardPage(){
    {data&&<>
     <div className="flex items-center justify-between"><h2 className="text-sm font-semibold text-[#374151]">Tồn kho hiện tại</h2>{loading&&<span className="text-xs text-[#9ca3af]">Đang cập nhật…</span>}</div>
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-     <button onClick={()=>open(null,'Toàn bộ xe',data.totalCars)} className="text-left"><KpiCard label="Tổng xe" value={data.totalCars.toLocaleString('vi-VN')} hint="Tất cả trạng thái"/></button>
+     <button onClick={()=>open('IN_STOCK','Xe đang thuộc kho',data.totalCars)} className="text-left"><KpiCard label="Xe trong kho" value={data.totalCars.toLocaleString('vi-VN')} hint="Sẵn sàng + bảo trì"/></button>
      <button onClick={()=>open('AVAILABLE','Xe sẵn sàng bán',data.availableCars)} className="text-left"><KpiCard label="Sẵn sàng bán" value={data.availableCars.toLocaleString('vi-VN')} hint="AVAILABLE"/></button>
-     <button onClick={()=>open('RESERVED','Xe đã đặt trước',data.reservedCars)} className="text-left"><KpiCard label="Đã đặt trước" value={data.reservedCars.toLocaleString('vi-VN')} hint="RESERVED"/></button>
      <button onClick={()=>open('MAINTENANCE','Xe đang bảo trì',data.maintenanceCars)} className="text-left"><KpiCard label="Đang bảo trì" value={data.maintenanceCars.toLocaleString('vi-VN')} hint="MAINTENANCE"/></button>
-     <button onClick={()=>open('SOLD','Xe đã bán trong kỳ',data.soldInPeriod)} className="text-left"><KpiCard label="Đã bán trong kỳ" value={data.soldInPeriod.toLocaleString('vi-VN')} hint={growth(data.soldInPeriod,data.previousSoldInPeriod)} accent/></button>
+    </div>
+    <div className="space-y-2">
+     <h3 className="text-sm font-semibold text-[#6b7280]">Xe đã có cam kết giao dịch hoặc đã xuất bán</h3>
+     <div className="grid grid-cols-2 gap-3">
+      <button onClick={()=>open('RESERVED','Xe đã đặt trước',data.reservedCars)} className="text-left"><KpiCard label="Đã đặt trước" value={data.reservedCars.toLocaleString('vi-VN')} hint="Đang có ràng buộc giao dịch"/></button>
+      <button onClick={()=>open('SOLD','Xe đã bán trong kỳ',data.soldInPeriod)} className="text-left"><KpiCard label="Đã bán trong kỳ" value={data.soldInPeriod.toLocaleString('vi-VN')} hint={growth(data.soldInPeriod,data.previousSoldInPeriod)} accent/></button>
+     </div>
+    </div>
     </div>
     <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-2">
-     <div className="min-h-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm"><div className="mb-2 flex items-center justify-between"><h2 className="font-semibold text-[#111827]">Đơn hàng theo trạng thái</h2><span className="text-xs text-[#9ca3af]">Trong kỳ</span></div><BarChart data={data.orderStatuses.map(s=>({label:s.status,value:s.total}))}/></div>
+     <div className="min-h-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm"><div className="mb-2 flex items-center justify-between"><h2 className="font-semibold text-[#111827]">Đơn hàng theo trạng thái</h2><span className="text-xs text-[#9ca3af]">Trong kỳ</span></div><BarChart data={data.orderStatuses.map(s=>({label:s.status,value:s.total}))} onSelect={status=>{const item=data.orderStatuses.find(s=>s.status===status);setOrderDrawer({status,title:`Đơn hàng ${status}`,count:item?.total??0})}}/></div>
      <div className="min-h-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm"><div className="mb-2 flex items-center justify-between"><h2 className="font-semibold text-[#111827]">Doanh thu theo tháng</h2><span className="text-xs text-[#6b7280]">{growth(data.revenue,data.previousRevenue)}</span></div><RevenueTubeChart data={data.revenueByMonth}/></div>
     </div>
    </>}
@@ -73,5 +81,6 @@ export default function AdminDashboardPage(){
    <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 shadow-sm"><h2 className="mb-4 font-semibold text-[#111827]">Xe bán chạy</h2><div className="space-y-2">{data.topSellingCars.length===0?<p className="py-8 text-center text-sm text-[#9ca3af]">Chưa có dữ liệu bán xe.</p>:data.topSellingCars.map((car,index)=><div key={car.carId} className="flex items-center justify-between gap-3 rounded-xl border border-[#f0f0f0] px-4 py-3"><div className="flex min-w-0 items-center gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#fffbeb] text-xs font-semibold text-[#a87900]">{index+1}</span><span className="truncate text-sm font-medium text-[#374151]">{car.carName}</span></div><div className="shrink-0 text-right"><p className="text-sm font-semibold text-[#111827]">{car.totalSold} xe</p><p className="text-xs text-[#9ca3af]">{formatVnd(car.revenue)}</p></div></div>)}</div></div>
   </section>}
   {drawer&&<DashboardDrawer status={drawer.status} title={drawer.title} count={drawer.count} brandId={filters.brandId} modelId={filters.modelId} from={from} to={to} onClose={()=>setDrawer(null)}/>}
+  {orderDrawer&&<DashboardOrdersDrawer status={orderDrawer.status} title={orderDrawer.title} count={orderDrawer.count} filters={filters} onClose={()=>setOrderDrawer(null)}/>}
  </div>;
 }

@@ -17,6 +17,8 @@ public interface InvoiceService {
 
     Invoice getByOrder(Long orderId);
 
+    Invoice getByVin(String vin);
+
     Invoice update(Long id, InvoiceRequest request);
 
     void delete(Long id);

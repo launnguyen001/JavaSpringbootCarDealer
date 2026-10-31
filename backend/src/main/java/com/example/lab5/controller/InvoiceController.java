@@ -68,6 +68,11 @@ public class InvoiceController {
         return toResponses(invoiceService.getInvoicesForCollection(status));
     }
 
+    @GetMapping("/vin/{vin}")
+    public InvoiceResponse getByVin(@PathVariable String vin) {
+        return invoiceMapper.toResponse(invoiceService.getByVin(vin));
+    }
+
     @GetMapping("/{id}")
     public InvoiceResponse getInvoiceById(@PathVariable Long id) {
         return invoiceMapper.toResponse(invoiceService.getInvoiceById(id));

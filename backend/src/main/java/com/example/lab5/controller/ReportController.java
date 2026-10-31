@@ -104,8 +104,14 @@ public class ReportController {
     }
 
     @GetMapping("/orders-by-status/{status}")
-    public List<OrderSummary> getOrdersByStatus(@PathVariable String status) {
-        return reportService.getOrdersByStatus(status);
+    public List<OrderSummary> getOrdersByStatus(
+            @PathVariable String status,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to,
+            @RequestParam(required = false) Long brandId,
+            @RequestParam(required = false) Long modelId
+    ) {
+        return reportService.getOrdersByStatus(status, from, to, brandId, modelId);
     }
 
     @GetMapping("/revenue-by-month")

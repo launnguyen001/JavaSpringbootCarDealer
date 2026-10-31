@@ -18,6 +18,9 @@ public record CarItemResponse(
         String note,
         Long modelId,
         String modelName,
-        String brandName
+        String brandName,
+        String carDescription,
+        Double basePrice,
+        String bodyType
 ) {
 }

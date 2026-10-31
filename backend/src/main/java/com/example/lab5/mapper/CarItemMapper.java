@@ -45,7 +45,10 @@ public class CarItemMapper {
                 item.getNote(),
                 modelId,
                 modelName,
-                brandName
+                brandName,
+                car == null ? null : car.getDescription(),
+                car == null ? null : car.getBasePrice(),
+                car == null || car.getModel() == null ? null : car.getModel().getBodyType()
         );
     }
 

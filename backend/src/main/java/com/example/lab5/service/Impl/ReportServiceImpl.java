@@ -94,7 +94,7 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public List<CarInventoryItem> getInventoryCars(String status, LocalDate from, LocalDate to, Long brandId, Long modelId) {
-        if (status != null && !List.of("AVAILABLE", "RESERVED", "SOLD", "MAINTENANCE").contains(status)) {
+        if (status != null && !List.of("IN_STOCK", "AVAILABLE", "RESERVED", "SOLD", "MAINTENANCE").contains(status)) {
             throw new BadRequestException("Trạng thái xe không hợp lệ: " + status);
         }
         if (from == null || to == null || to.isBefore(from)) {
@@ -129,15 +129,26 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public List<OrderSummary> getOrdersByStatus(String status) {
-        if (status == null) {
-            throw new BadRequestException("Trạng thái đơn hàng không được để trống");
-        }
+        return getOrdersByStatus(status, null, null, null, null);
+    }
+
+    @Override
+    public List<OrderSummary> getOrdersByStatus(String status, LocalDate from, LocalDate to, Long brandId, Long modelId) {
+        if (status == null) throw new BadRequestException("Trạng thái đơn hàng không được để trống");
+        String normalized = status.trim().toUpperCase();
         try {
-            OrderStatus.valueOf(status.trim().toUpperCase());
+            OrderStatus.valueOf(normalized);
         } catch (IllegalArgumentException ex) {
             throw new BadRequestException("Trạng thái đơn hàng không hợp lệ: " + status);
         }
-        return jdbcReportRepository.findOrdersByStatus(status.trim().toUpperCase());
+        if ((from == null) != (to == null) || (from != null && to.isBefore(from)))
+            throw new BadRequestException("Khoảng ngày báo cáo không hợp lệ");
+        if (brandId != null && !brandRepository.existsById(brandId))
+            throw new ResourceNotFoundException("Không tìm thấy hãng xe id = " + brandId);
+        if (modelId != null && !carModelRepository.existsById(modelId))
+            throw new ResourceNotFoundException("Không tìm thấy dòng xe id = " + modelId);
+        if (from == null) return jdbcReportRepository.findOrdersByStatus(normalized);
+        return jdbcReportRepository.findOrdersByStatus(normalized, from, to, brandId, modelId);
     }
 
     @Override
