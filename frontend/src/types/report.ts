@@ -58,3 +58,6 @@ export interface RevenueByMonth {
   actualRevenue: number;
   outstandingAmount: number;
 }
+
+export type RevenueCategory = 'PENDING' | 'RECOGNIZED' | 'ACTUAL';
+export interface RevenueOrderSummary extends OrderSummary { revenueAmount: number; }
