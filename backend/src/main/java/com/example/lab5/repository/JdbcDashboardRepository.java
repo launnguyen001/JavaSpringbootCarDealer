@@ -61,7 +61,8 @@ public class JdbcDashboardRepository {
                       WHERE oi.car_item_id = ci.id
                         AND ct.signed_at >= ? AND ct.signed_at < ?
                     ))
-                    OR (? IS NOT NULL AND ? NOT IN ('SOLD', 'IN_STOCK') AND ci.status = ?)
+                    OR (? = 'SOLD_ALL' AND ci.status = 'SOLD')
+                    OR (? IS NOT NULL AND ? NOT IN ('SOLD', 'SOLD_ALL', 'IN_STOCK') AND ci.status = ?)
                 )
                   AND (? IS NULL OR m.brand_id = ?)
                   AND (? IS NULL OR m.id = ?)
@@ -73,7 +74,7 @@ public class JdbcDashboardRepository {
                 rs.getString("status"), rs.getString("car_condition"),
                 (Integer) rs.getObject("mileage_km"), rs.getDouble("price")),
                 status, status, status, start(from), start(to.plusDays(1)),
-                status, status, status, brandId, brandId, modelId, modelId);
+                status, status, status, status, brandId, brandId, modelId, modelId);
     }
 
     private long countInventory(String status, Long brandId, Long modelId) {
