@@ -263,7 +263,7 @@ public class DataSeeder implements CommandLineRunner {
 
         Car trimFortuner = carRepository.save(car("Toyota Fortuner 2.4G", 1150.0,
                 "SUV 7 chỗ khung gầm rời, máy dầu 2.4L.", fortuner));
-        stock(trimFortuner, "VIN-FOR-", 1150.0, 4, 2024, "Xám", CarStatus.RESERVED);
+        stock(trimFortuner, "VIN-FOR-", 1150.0, 4, 2024, "Xám", CarStatus.AVAILABLE);
 
         Car trimCivic = carRepository.save(car("Honda Civic 1.5 RS", 780.0,
                 "Civic RS thể thao, động cơ turbo 1.5L.", civic));
