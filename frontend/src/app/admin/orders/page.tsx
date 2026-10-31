@@ -204,7 +204,8 @@ export default function AdminOrdersPage() {
               )}
               {(() => {
                 const invoice = invoicesByOrder.get(r.id);
-                return invoice && invoice.paymentStatus !== 'PAID' && invoice.paymentStatus !== 'CANCELLED'
+                return contractOrderIds.has(r.id) && invoice
+                  && invoice.paymentStatus !== 'PAID' && invoice.paymentStatus !== 'CANCELLED'
                   && invoice.remainingAmount > 0.0001 ? (
                   <Button size="sm" variant="outline" onClick={() => { setDetailAction('payment'); setDetailId(r.id); }}>
                     Thu tiền
