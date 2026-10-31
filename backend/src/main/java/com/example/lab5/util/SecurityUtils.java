@@ -26,7 +26,7 @@ public final class SecurityUtils {
             return false;
         }
         return authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
+                .map(grantedAuthority -> grantedAuthority.getAuthority())
                 .anyMatch(authority -> authority.equals("ROLE_" + role));
     }
 
