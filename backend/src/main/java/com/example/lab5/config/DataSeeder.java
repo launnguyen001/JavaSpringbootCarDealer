@@ -283,7 +283,7 @@ public class DataSeeder implements CommandLineRunner {
 
         Car trimEverest = carRepository.save(car("Ford Everest Titanium", 1300.0,
                 "SUV 7 chỗ Titanium, động cơ dầu 2.0L.", everest));
-        stock(trimEverest, "VIN-EVE-", 1300.0, 3, 2024, "Đen", CarStatus.RESERVED);
+        stock(trimEverest, "VIN-EVE-", 1300.0, 3, 2024, "Đen", CarStatus.AVAILABLE);
 
         Car trimC300 = carRepository.save(car("Mercedes-Benz C300 AMG", 1900.0,
                 "C300 AMG Line, động cơ 2.0L tăng áp.", cClass));
@@ -323,11 +323,11 @@ public class DataSeeder implements CommandLineRunner {
 
         Car trimRx = carRepository.save(car("Lexus RX 350", 3500.0,
                 "RX 350 SUV sang cỡ lớn.", rx));
-        CarItem rx350 = stock(trimRx, "VIN-LEXR-", 3500.0, 1, 2024, "Đen", CarStatus.SOLD);
+        CarItem rx350 = stock(trimRx, "VIN-LEXR-", 3500.0, 1, 2024, "Đen", CarStatus.AVAILABLE);
 
         Car trimMacan = carRepository.save(car("Porsche Macan S", 4300.0,
                 "Macan S, SUV thể thao hiệu năng cao.", macan));
-        CarItem macanCar = stock(trimMacan, "VIN-POR-", 4300.0, 2, 2024, "Đỏ", CarStatus.AVAILABLE);
+        CarItem macanCar = stock(trimMacan, "VIN-POR-", 4300.0, 2, 2024, "Đỏ", CarStatus.RESERVED);
 
         Car trimP911 = carRepository.save(car("Porsche 911 Carrera", 8000.0,
                 "911 Carrera, xe thể thao huyền thoại.", p911));
@@ -366,6 +366,11 @@ public class DataSeeder implements CommandLineRunner {
                 "0911000004", "Cố vấn dịch vụ"));
 
         // ---------- Đơn hàng ----------
+        // PENDING: xe RESERVED, chưa có payment/contract/invoice nên vẫn được phép chỉnh sửa.
+        // CONFIRMED: đã xác nhận, có thể có hợp đồng, hóa đơn và thanh toán một phần.
+        // COMPLETED: bắt buộc có hợp đồng, hóa đơn và thanh toán đủ.
+        // CANCELLED: hủy trước khi phát sinh giao dịch/chứng từ.
+
         SalesOrder o1 = salesOrderRepository.save(order("ORD-2026-0001", dt(2026, 1, 15, 9, 30),
                 OrderStatus.COMPLETED, c1, e1, List.of(item(corollaCross, 1))));
         SalesOrder o2 = salesOrderRepository.save(order("ORD-2026-0002", dt(2026, 2, 8, 14, 0),
@@ -395,48 +400,68 @@ public class DataSeeder implements CommandLineRunner {
         SalesOrder o14 = salesOrderRepository.save(order("ORD-2026-0014", dt(2026, 10, 15, 16, 0),
                 OrderStatus.PENDING, c2, e3, List.of(item(p911Car, 1))));
 
-        // Đánh dấu SOLD cho những chiếc đã nằm trong đơn (trừ đơn đã huỷ)
-        for (SalesOrder o : List.of(o1, o2, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14)) {
-            for (OrderItem oi : o.getItems()) {
-                CarItem ci = oi.getCarItem();
-                if (ci != null && ci.getStatus() == CarStatus.AVAILABLE) {
-                    ci.setStatus(CarStatus.SOLD);
-                    carItemRepository.save(ci);
-                }
-            }
-        }
-
         // ---------- Thanh toán ----------
-        paymentRepository.save(payment(o1, o1.getTotalAmount(), PaymentMethod.BANK_TRANSFER, PaymentStatus.PAID, dt(2026, 1, 16, 10, 0)));
-        paymentRepository.save(payment(o2, o2.getTotalAmount(), PaymentMethod.CASH, PaymentStatus.PAID, dt(2026, 2, 8, 15, 0)));
-        paymentRepository.save(payment(o3, o3.getTotalAmount(), PaymentMethod.CARD, PaymentStatus.REFUNDED, dt(2026, 3, 23, 9, 0)));
-        paymentRepository.save(payment(o4, o4.getTotalAmount(), PaymentMethod.INSTALLMENT, PaymentStatus.PAID, dt(2026, 4, 6, 10, 0)));
-        paymentRepository.save(payment(o5, o5.getTotalAmount(), PaymentMethod.BANK_TRANSFER, PaymentStatus.PAID, dt(2026, 5, 20, 11, 0)));
-        paymentRepository.save(payment(o6, o6.getTotalAmount() * 0.3, PaymentMethod.BANK_TRANSFER, PaymentStatus.PARTIAL, dt(2026, 6, 11, 10, 0)));
-        paymentRepository.save(payment(o7, o7.getTotalAmount(), PaymentMethod.CARD, PaymentStatus.PAID, dt(2026, 7, 3, 9, 30)));
-        paymentRepository.save(payment(o8, o8.getTotalAmount(), PaymentMethod.CASH, PaymentStatus.PAID, dt(2026, 7, 27, 16, 0)));
-        paymentRepository.save(payment(o9, o9.getTotalAmount(), PaymentMethod.BANK_TRANSFER, PaymentStatus.UNPAID, null));
-        paymentRepository.save(payment(o10, o10.getTotalAmount(), PaymentMethod.INSTALLMENT, PaymentStatus.PAID, dt(2026, 9, 10, 14, 0)));
-        paymentRepository.save(payment(o11, o11.getTotalAmount() * 0.5, PaymentMethod.BANK_TRANSFER, PaymentStatus.PARTIAL, dt(2026, 9, 29, 10, 0)));
-        paymentRepository.save(payment(o12, o12.getTotalAmount(), PaymentMethod.CASH, PaymentStatus.PAID, dt(2026, 10, 6, 11, 0)));
-        paymentRepository.save(payment(o13, o13.getTotalAmount(), PaymentMethod.BANK_TRANSFER, PaymentStatus.PAID, dt(2026, 10, 13, 9, 0)));
-        paymentRepository.save(payment(o14, o14.getTotalAmount(), PaymentMethod.BANK_TRANSFER, PaymentStatus.UNPAID, null));
+        // Không tạo payment (kể cả UNPAID) cho PENDING: service kiểm tra sự tồn tại
+        // payment trước khi cho phép sửa đơn.
+        paymentRepository.save(payment(o1, o1.getTotalAmount(), PaymentMethod.BANK_TRANSFER,
+                PaymentStatus.PAID, dt(2026, 1, 16, 10, 0)));
+        paymentRepository.save(payment(o2, o2.getTotalAmount(), PaymentMethod.CASH,
+                PaymentStatus.PAID, dt(2026, 2, 8, 15, 0)));
+        // Đơn CANCELLED không phát sinh giao dịch vì luồng hủy hiện tại chặn đơn đã có payment.
+        paymentRepository.save(payment(o4, o4.getTotalAmount(), PaymentMethod.INSTALLMENT,
+                PaymentStatus.PAID, dt(2026, 4, 6, 10, 0)));
+        paymentRepository.save(payment(o5, o5.getTotalAmount(), PaymentMethod.BANK_TRANSFER,
+                PaymentStatus.PAID, dt(2026, 5, 20, 11, 0)));
+        paymentRepository.save(payment(o6, o6.getTotalAmount() * 0.3, PaymentMethod.BANK_TRANSFER,
+                PaymentStatus.PARTIAL, dt(2026, 6, 11, 10, 0)));
+        paymentRepository.save(payment(o7, o7.getTotalAmount(), PaymentMethod.CARD,
+                PaymentStatus.PAID, dt(2026, 7, 3, 9, 30)));
+        paymentRepository.save(payment(o8, o8.getTotalAmount(), PaymentMethod.CASH,
+                PaymentStatus.PAID, dt(2026, 7, 27, 16, 0)));
+        paymentRepository.save(payment(o10, o10.getTotalAmount(), PaymentMethod.INSTALLMENT,
+                PaymentStatus.PAID, dt(2026, 9, 10, 14, 0)));
+        paymentRepository.save(payment(o11, o11.getTotalAmount() * 0.5, PaymentMethod.BANK_TRANSFER,
+                PaymentStatus.PARTIAL, dt(2026, 9, 29, 10, 0)));
+        paymentRepository.save(payment(o12, o12.getTotalAmount(), PaymentMethod.CASH,
+                PaymentStatus.PAID, dt(2026, 10, 6, 11, 0)));
+        paymentRepository.save(payment(o13, o13.getTotalAmount(), PaymentMethod.BANK_TRANSFER,
+                PaymentStatus.PAID, dt(2026, 10, 13, 9, 0)));
 
-        // ---------- Hợp đồng & Hóa đơn (cho đơn COMPLETED) ----------
-        List<SalesOrder> completed = List.of(o1, o2, o4, o5, o7, o8, o10, o12, o13);
-        int contractSeq = 1;
-        for (SalesOrder o : completed) {
+        // ---------- Hợp đồng & Hóa đơn ----------
+        // Cả CONFIRMED và COMPLETED đều có thể đã ký hợp đồng/lập hóa đơn.
+        // Chỉ COMPLETED mới có số tiền đã thu bằng tổng hóa đơn.
+        List<SalesOrder> documentedOrders = List.of(
+                o1, o2, o4, o5, o6, o7, o8, o10, o11, o12, o13
+        );
+        int documentSeq = 1;
+        for (SalesOrder o : documentedOrders) {
             contractRepository.save(contract(o,
-                    String.format("HD-2026-%04d", contractSeq),
+                    String.format("HD-2026-%04d", documentSeq),
                     o.getOrderDate().plusDays(1),
                     "Hợp đồng mua bán xe " + o.getOrderCode()
                             + " giữa " + o.getCustomer().getFullName()
-                            + " và Car Dealer. Tổng giá trị " + o.getTotalAmount() + " triệu đồng."));
+                            + " và Car Dealer. Tổng giá trị "
+                            + o.getTotalAmount() + " triệu đồng."));
+
+            // Theo nghiệp vụ hiện tại, chỉ có hợp đồng mới chuyển xe sang SOLD.
+            for (OrderItem orderItem : o.getItems()) {
+                CarItem carItem = orderItem.getCarItem();
+                carItem.setStatus(CarStatus.SOLD);
+                carItemRepository.save(carItem);
+            }
+
+            double paidAmount = (o == o6)
+                    ? o.getTotalAmount() * 0.3
+                    : (o == o11)
+                    ? o.getTotalAmount() * 0.5
+                    : o.getTotalAmount();
+
             invoiceRepository.save(invoice(o,
-                    String.format("INV-2026-%04d", contractSeq),
+                    String.format("INV-2026-%04d", documentSeq),
                     o.getOrderDate().plusDays(2),
-                    o.getTotalAmount()));
-            contractSeq++;
+                    o.getTotalAmount(),
+                    paidAmount));
+            documentSeq++;
         }
 
         // ---------- Lịch lái thử ----------
@@ -771,6 +796,9 @@ public class DataSeeder implements CommandLineRunner {
         order.setStatus(status);
         order.setCustomer(customer);
         order.setEmployee(employee);
+        if (status == OrderStatus.CONFIRMED || status == OrderStatus.COMPLETED) {
+            order.setConfirmedAt(date.plusHours(1));
+        }
         double total = 0.0;
         for (OrderItem item : items) {
             item.setOrder(order);
@@ -810,12 +838,15 @@ public class DataSeeder implements CommandLineRunner {
         return contract;
     }
 
-    private Invoice invoice(SalesOrder order, String number, LocalDateTime issuedAt, double total) {
+    private Invoice invoice(SalesOrder order, String number, LocalDateTime issuedAt,
+                            double total, double paidAmount) {
         Invoice invoice = new Invoice();
         invoice.setOrder(order);
         invoice.setInvoiceNumber(number);
         invoice.setIssuedAt(issuedAt);
         invoice.setTotal(total);
+        invoice.setPaidAmount(paidAmount);
+        invoice.refreshPaymentStatus();
         return invoice;
     }
 
