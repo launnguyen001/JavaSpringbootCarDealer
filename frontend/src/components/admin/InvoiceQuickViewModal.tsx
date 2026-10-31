@@ -31,6 +31,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 /** Popup xem nhanh hóa đơn của một chiếc xe, dùng ngay trong drawer Dashboard. */
 export default function InvoiceQuickViewModal({ open, orderCode, vin, carName, onClose }: Props) {
   const toast = useToast();
+  const displayOrderCode = orderCode?.trim();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -131,7 +132,7 @@ export default function InvoiceQuickViewModal({ open, orderCode, vin, carName, o
             </svg>
           </div>
           <p className="mt-3 text-sm font-medium text-[#374151]">{error}</p>
-          {normalizedOrderCode ? <p className="mt-1 text-xs text-[#9ca3af]">Mã đơn: {normalizedOrderCode}</p> : vin && <p className="mt-1 text-xs text-[#9ca3af]">VIN: {vin}</p>}
+          {displayOrderCode ? <p className="mt-1 text-xs text-[#9ca3af]">Mã đơn: {displayOrderCode}</p> : vin && <p className="mt-1 text-xs text-[#9ca3af]">VIN: {vin}</p>}
         </div>
       ) : invoice ? (
         <div className="space-y-4">
