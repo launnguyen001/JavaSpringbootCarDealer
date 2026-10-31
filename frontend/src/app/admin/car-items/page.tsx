@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import ResourceManager, { type FieldConfig } from '@/components/admin/ResourceManager';
 import StatusPill from '@/components/ui/StatusPill';
 import { Field, Select } from '@/components/ui/Field';
@@ -29,6 +30,7 @@ const statusOptions = [
 const CONDITION_LABEL: Record<string, string> = { NEW: 'Mới', USED: 'Cũ' };
 
 export default function AdminCarItemsPage() {
+  const router = useRouter();
   const [cars, setCars] = useState<Car[]>([]);
   const [carId, setCarId] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
@@ -96,6 +98,7 @@ export default function AdminCarItemsPage() {
         update={updateCarItem}
         remove={deleteCarItem}
         getId={(row) => row.id}
+        onRowClick={(row) => router.push(`/admin/car-items/${row.id}`)}
         toForm={(row) => ({
           vin: row.vin ?? '',
           color: row.color ?? '',
