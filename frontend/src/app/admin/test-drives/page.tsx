@@ -78,23 +78,64 @@ export default function AdminTestDrivesPage() {
   }, []);
 
   useEffect(() => {
-    void reload();
+    let active = true;
+
+    listTestDrives()
+      .then(rows => {
+        if (active) setDrives(rows);
+      })
+      .catch(e => {
+        if (active) setError(e instanceof Error ? e.message : 'Không thể tải lịch lái thử.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
     listCustomers()
-      .then(rows => setCustomers(rows.map(c => ({ value: c.id, label: c.fullName + (c.phone ? ' · ' + c.phone : '') }))))
-      .catch(() => setCustomers([]));
+      .then(rows => {
+        if (active) {
+          setCustomers(rows.map(c => ({
+            value: c.id,
+            label: c.fullName + (c.phone ? ' · ' + c.phone : ''),
+          })));
+        }
+      })
+      .catch(() => {
+        if (active) setCustomers([]);
+      });
+
     listEmployees()
-      .then(rows => setEmployees(rows.map(e => ({ value: e.id, label: e.fullName + (e.position ? ' · ' + e.position : '') }))))
-      .catch(() => setEmployees([]));
+      .then(rows => {
+        if (active) {
+          setEmployees(rows.map(e => ({
+            value: e.id,
+            label: e.fullName + (e.position ? ' · ' + e.position : ''),
+          })));
+        }
+      })
+      .catch(() => {
+        if (active) setEmployees([]);
+      });
+
     listCars()
       .then(async cars => {
         const lists = await Promise.all(cars.map(c => listCarItems(c.id).catch(() => [])));
         const all: CarItem[] = lists.flat();
-        setCarItems(all.map(item => ({
-          value: item.id, label: item.carName + ' • ' + (item.vin ?? '#' + item.id),
-        })));
+        if (active) {
+          setCarItems(all.map(item => ({
+            value: item.id,
+            label: item.carName + ' • ' + (item.vin ?? '#' + item.id),
+          })));
+        }
       })
-      .catch(() => setCarItems([]));
-  }, [reload]);
+      .catch(() => {
+        if (active) setCarItems([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const cells = useMemo(() => monthCells(month), [month]);
   const byDate = useMemo(() => {
