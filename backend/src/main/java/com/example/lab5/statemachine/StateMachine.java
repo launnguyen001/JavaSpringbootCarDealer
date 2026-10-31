@@ -56,7 +56,7 @@ public abstract class StateMachine<S extends Enum<S>> {
         }
         if (!canTransition(from, to)) {
             String allowed = allowedNext(from).stream()
-                    .map(Enum::name)
+                    .map(value -> value.name())
                     .collect(Collectors.joining(", "));
             if (allowed.isBlank()) {
                 allowed = "(không có — đây là trạng thái kết thúc)";
