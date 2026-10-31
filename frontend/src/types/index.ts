@@ -52,6 +52,8 @@ export type {
   OrderSummary,
   CarSalesOrderLine,
   RevenueByMonth,
+  RevenueCategory,
+  RevenueOrderSummary,
 } from './report';
 
 export interface ApiErrorBody {
