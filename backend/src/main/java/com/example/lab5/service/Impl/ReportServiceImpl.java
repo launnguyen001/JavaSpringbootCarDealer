@@ -94,7 +94,7 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public List<CarInventoryItem> getInventoryCars(String status, LocalDate from, LocalDate to, Long brandId, Long modelId) {
-        if (status != null && !List.of("IN_STOCK", "AVAILABLE", "RESERVED", "SOLD", "MAINTENANCE").contains(status)) {
+        if (status != null && !List.of("IN_STOCK", "AVAILABLE", "RESERVED", "SOLD", "SOLD_ALL", "MAINTENANCE").contains(status)) {
             throw new BadRequestException("Trạng thái xe không hợp lệ: " + status);
         }
         if (from == null || to == null || to.isBefore(from)) {
