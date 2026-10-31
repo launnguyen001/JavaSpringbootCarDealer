@@ -213,8 +213,17 @@ function OrderDetailContent({
         status: 'PAID',
       });
       setPayments((prev) => [created, ...prev]);
-      const refreshedInvoice = await getInvoiceByOrder(order.id);
-      setInvoice(refreshedInvoice);
+      setInvoice((prev) => {
+        if (!prev) return prev;
+        const paidAmount = prev.paidAmount + amount;
+        const remainingAmount = Math.max(prev.total - paidAmount, 0);
+        return {
+          ...prev,
+          paidAmount,
+          remainingAmount,
+          paymentStatus: remainingAmount <= 0.0001 ? 'PAID' : 'PARTIALLY_PAID',
+        };
+      });
       setPaymentAmount('');
       setAction(null);
       toast.success('Đã ghi nhận khoản tiền thực thu.');
