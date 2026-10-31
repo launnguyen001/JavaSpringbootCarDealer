@@ -30,13 +30,24 @@ export default function RevenueTubeChart({ data }: Props) {
               <div className="text-center text-[10px] font-semibold text-[#374151] sm:text-[11px]" title={`Doanh thu: ${formatCurrentcy(item.totalRevenue)} · Thực thu: ${formatCurrentcy(item.totalCollected)}`}>
                 {formatCurrentcy(item.totalRevenue)}
               </div>
-              <div className="relative flex w-full max-w-12 items-end overflow-hidden rounded-t-xl border border-[#d6a63b]/70 bg-[#f8edcf] shadow-inner" style={{ height: revenueHeight }}>
-                <div className="absolute left-1/2 top-1 h-[3px] w-1/3 -translate-x-1/2 rounded-full bg-[#b88724]/70" />
+              <div className="flex items-end gap-1">
                 <div
-                  className="w-full rounded-t-md bg-gradient-to-t from-[#0b8055] to-[#42c98b]"
-                  style={{ height: `${collectionRatio}%`, transformOrigin: 'bottom', animation: 'piggy-fill 1100ms ease-out both' }}
-                  title={`Đã thu ${collectionRatio.toFixed(1)}%`}
-                />
+                  className="relative w-4 overflow-hidden rounded-t-lg border border-[#d6a63b]/70 bg-[#f8edcf] shadow-inner"
+                  style={{ height: revenueHeight }}
+                  title={`Doanh thu ${formatCurrentcy(item.totalRevenue)}`}
+                >
+                  <div className="absolute left-1/2 top-1 h-[3px] w-1/3 -translate-x-1/2 rounded-full bg-[#b88724]/70" />
+                </div>
+                <div
+                  className="relative w-4 overflow-hidden rounded-t-lg border border-[#16a36a]/50 bg-[#e7f7ef] shadow-inner"
+                  style={{ height: revenueHeight }}
+                  title={`Thực thu ${formatCurrentcy(item.totalCollected)}`}
+                >
+                  <div
+                    className="absolute bottom-0 w-full bg-gradient-to-t from-[#0b8055] to-[#42c98b]"
+                    style={{ height: `${collectionRatio}%`, transformOrigin: 'bottom', animation: 'piggy-fill 1100ms ease-out both' }}
+                  />
+                </div>
               </div>
               <span className="w-full truncate text-center text-[10px] text-[#6b7280]">{item.period}</span>
               <span className="text-[9px] font-medium text-[#0b8055]">{formatCurrentcy(item.totalCollected)}</span>
