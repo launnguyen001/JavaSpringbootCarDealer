@@ -8,6 +8,7 @@ import com.example.lab5.dto.InventoryByModel;
 import com.example.lab5.dto.OrderStatusCount;
 import com.example.lab5.dto.OrderSummary;
 import com.example.lab5.dto.RevenueByMonth;
+import com.example.lab5.dto.RevenueOrderSummary;
 import com.example.lab5.dto.RevenueSummary;
 import com.example.lab5.dto.TopSellingCar;
 import com.example.lab5.service.ReportExportService;
@@ -112,6 +113,16 @@ public class ReportController {
             @RequestParam(required = false) Long modelId
     ) {
         return reportService.getOrdersByStatus(status, from, to, brandId, modelId);
+    }
+
+    @GetMapping("/revenue-by-month/{period}/orders")
+    public List<RevenueOrderSummary> getOrdersByRevenue(
+            @PathVariable String period,
+            @RequestParam String category,
+            @RequestParam(required = false) Long brandId,
+            @RequestParam(required = false) Long modelId
+    ) {
+        return reportService.getOrdersByRevenue(java.time.YearMonth.parse(period), category, brandId, modelId);
     }
 
     @GetMapping("/revenue-by-month")
