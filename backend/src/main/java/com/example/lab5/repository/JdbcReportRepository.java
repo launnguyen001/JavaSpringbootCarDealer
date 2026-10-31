@@ -82,7 +82,13 @@ public class JdbcReportRepository {
         String sql = """
                 SELECT COUNT(*) AS total_orders,
                        COALESCE(SUM(total_amount), 0) AS total_revenue,
-                       COALESCE(SUM(CASE WHEN status = 'PENDING' THEN total_amount ELSE 0 END), 0) AS pending_revenue,
+                       COALESCE(SUM(CASE
+                           WHEN status = 'PENDING'
+                             OR (status = 'CONFIRMED' AND NOT (
+                                 EXISTS (SELECT 1 FROM contracts ct WHERE ct.order_id = sales_orders.id)
+                                 AND EXISTS (SELECT 1 FROM invoices i WHERE i.order_id = sales_orders.id)
+                             ))
+                           THEN total_amount ELSE 0 END), 0) AS pending_revenue,
                        COALESCE(SUM(CASE
                            WHEN status IN ('CONFIRMED', 'COMPLETED')
                             AND EXISTS (SELECT 1 FROM contracts ct WHERE ct.order_id = sales_orders.id)
@@ -137,7 +143,13 @@ public class JdbcReportRepository {
         long scheduledTestDrives = count("SELECT COUNT(*) FROM test_drive_appointments WHERE status = 'SCHEDULED'");
         String revenueSql = """
                 SELECT COALESCE(SUM(total_amount), 0) AS total_revenue,
-                       COALESCE(SUM(CASE WHEN status = 'PENDING' THEN total_amount ELSE 0 END), 0) AS pending_revenue,
+                       COALESCE(SUM(CASE
+                           WHEN status = 'PENDING'
+                             OR (status = 'CONFIRMED' AND NOT (
+                                 EXISTS (SELECT 1 FROM contracts ct WHERE ct.order_id = sales_orders.id)
+                                 AND EXISTS (SELECT 1 FROM invoices i WHERE i.order_id = sales_orders.id)
+                             ))
+                           THEN total_amount ELSE 0 END), 0) AS pending_revenue,
                        COALESCE(SUM(CASE
                            WHEN status IN ('CONFIRMED', 'COMPLETED')
                             AND EXISTS (SELECT 1 FROM contracts ct WHERE ct.order_id = sales_orders.id)
@@ -305,7 +317,10 @@ public class JdbcReportRepository {
                 SELECT EXTRACT(YEAR FROM revenue_date) AS yr,
                        EXTRACT(MONTH FROM revenue_date) AS mo,
                        COUNT(*) AS total_orders,
-                       COALESCE(SUM(CASE WHEN status = 'PENDING' THEN total_amount ELSE 0 END), 0) AS pending_revenue,
+                       COALESCE(SUM(CASE
+                           WHEN status = 'PENDING'
+                             OR (status = 'CONFIRMED' AND NOT has_revenue_documents)
+                           THEN total_amount ELSE 0 END), 0) AS pending_revenue,
                        COALESCE(SUM(CASE
                            WHEN status IN ('CONFIRMED', 'COMPLETED') AND has_revenue_documents
                            THEN total_amount ELSE 0 END), 0) AS recognized_revenue,
