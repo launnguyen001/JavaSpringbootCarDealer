@@ -120,18 +120,6 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     @Override
-    public Invoice getByOrderCode(String orderCode) {
-        if (orderCode == null || orderCode.isBlank()) {
-            throw new BadRequestException("Mã đơn hàng không được để trống");
-        }
-        Invoice invoice = invoiceRepository.findByOrder_OrderCode(orderCode.trim())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Không tìm thấy hóa đơn của đơn hàng mã = " + orderCode));
-        syncPaymentTotal(invoice);
-        return invoice;
-    }
-
-    @Override
     public Invoice getByVin(String vin) {
         if (vin == null || vin.isBlank()) throw new BadRequestException("Mã VIN không được để trống");
         Invoice invoice = invoiceRepository.findAllByVehicleVin(vin.trim()).stream()
