@@ -9,6 +9,7 @@ import com.example.lab5.dto.InventoryByModel;
 import com.example.lab5.dto.OrderStatusCount;
 import com.example.lab5.dto.OrderSummary;
 import com.example.lab5.dto.RevenueByMonth;
+import com.example.lab5.dto.RevenueOrderSummary;
 import com.example.lab5.dto.RevenueSummary;
 import com.example.lab5.dto.TopSellingCar;
 import com.example.lab5.entity.OrderStatus;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.time.LocalDate;
+import java.time.YearMonth;
 
 @Service
 public class ReportServiceImpl implements ReportService {
@@ -149,6 +151,19 @@ public class ReportServiceImpl implements ReportService {
             throw new ResourceNotFoundException("Không tìm thấy dòng xe id = " + modelId);
         if (from == null) return jdbcReportRepository.findOrdersByStatus(normalized);
         return jdbcReportRepository.findOrdersByStatus(normalized, from, to, brandId, modelId);
+    }
+
+    @Override
+    public List<RevenueOrderSummary> getOrdersByRevenue(YearMonth period, String category, Long brandId, Long modelId) {
+        if (period == null) throw new BadRequestException("Tháng doanh thu không hợp lệ");
+        if (category == null || !List.of("PENDING", "RECOGNIZED", "ACTUAL").contains(category.trim().toUpperCase())) {
+            throw new BadRequestException("Nhóm doanh thu không hợp lệ");
+        }
+        if (brandId != null && !brandRepository.existsById(brandId))
+            throw new ResourceNotFoundException("Không tìm thấy hãng xe id = " + brandId);
+        if (modelId != null && !carModelRepository.existsById(modelId))
+            throw new ResourceNotFoundException("Không tìm thấy dòng xe id = " + modelId);
+        return jdbcDashboardRepository.findOrdersByRevenue(period, category.trim().toUpperCase(), brandId, modelId);
     }
 
     @Override
