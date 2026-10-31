@@ -24,7 +24,7 @@ export type { AppointmentStatus, TestDrive, TestDriveRequest } from './testDrive
 export type { CartItem } from './cart';
 export type { PaymentMethod, PaymentStatus, Payment, PaymentRequest } from './payment';
 export type { Contract, ContractRequest } from './contract';
-export type { Invoice, InvoiceRequest } from './invoice';
+export type { Invoice, InvoiceRequest, InvoicePaymentStatus } from './invoice';
 export type { ActivityLog } from './activityLog';
 export type { NotificationType, AppNotification } from './notification';
 export type {

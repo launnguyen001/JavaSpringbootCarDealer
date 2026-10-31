@@ -99,7 +99,7 @@ class OrderStateServiceTests {
     @Test
     void exposesAllowedTransitionsAndEnforcesOwnership() {
         assertThat(orderStateService.allowedNext(order.getId(), owner.getUsername(), false))
-                .containsExactlyInAnyOrder(OrderStatus.CONFIRMED, OrderStatus.COMPLETED, OrderStatus.CANCELLED);
+                .containsExactlyInAnyOrder(OrderStatus.CONFIRMED, OrderStatus.CANCELLED);
 
         assertThatThrownBy(() -> orderStateService.getHistory(order.getId(), "someone-else", false))
                 .isInstanceOf(ForbiddenException.class);

@@ -3,12 +3,13 @@ import { useCallback,useEffect,useMemo,useState } from 'react';
 import { useRouter } from 'next/navigation';
 import KpiCard from '@/components/ui/KpiCard';
 import BarChart from '@/components/ui/BarChart';
+import RevenueTubeChart from '@/components/admin/RevenueTubeChart';
 import DataTable,{type Column} from '@/components/ui/DataTable';
 import StatusPill from '@/components/ui/StatusPill';
 import DashboardDrawer from '@/components/admin/DashboardDrawer';
 import {useToast} from '@/components/ui/Toast';
 import {getErrorMessage} from '@/lib/utils/error';
-import {formatVnd,formatDateTime,formatCurrentcy} from '@/lib/utils/format';
+import {formatVnd,formatDateTime} from '@/lib/utils/format';
 import {getDashboardData,listBrands,getCarModelsByBrand} from '@/lib/api';
 import type {Brand,CarModel,DashboardData,OrderSummary} from '@/types';
 
@@ -62,7 +63,7 @@ export default function AdminDashboardPage(){
     </div>
     <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-2">
      <div className="min-h-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm"><div className="mb-2 flex items-center justify-between"><h2 className="font-semibold text-[#111827]">Đơn hàng theo trạng thái</h2><span className="text-xs text-[#9ca3af]">Trong kỳ</span></div><BarChart data={data.orderStatuses.map(s=>({label:s.status,value:s.total}))}/></div>
-     <div className="min-h-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm"><div className="mb-2 flex items-center justify-between"><h2 className="font-semibold text-[#111827]">Doanh thu theo tháng</h2><span className="text-xs text-[#6b7280]">{growth(data.revenue,data.previousRevenue)}</span></div><BarChart data={data.revenueByMonth.map(r=>({label:r.period,value:r.totalRevenue}))} formatValue={formatCurrentcy}/></div>
+     <div className="min-h-[220px] rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm"><div className="mb-2 flex items-center justify-between"><h2 className="font-semibold text-[#111827]">Doanh thu theo tháng</h2><span className="text-xs text-[#6b7280]">{growth(data.revenue,data.previousRevenue)}</span></div><RevenueTubeChart data={data.revenueByMonth}/></div>
     </div>
    </>}
    {loading&&!data&&<p className="py-12 text-center text-sm text-[#9ca3af]">Đang tải dashboard…</p>}

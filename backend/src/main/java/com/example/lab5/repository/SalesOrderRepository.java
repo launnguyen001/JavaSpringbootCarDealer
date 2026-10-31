@@ -34,7 +34,7 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
     @Query("""
             SELECT o FROM SalesOrder o
             JOIN FETCH o.customer
-            WHERE o.status <> com.example.lab5.entity.OrderStatus.CANCELLED
+            WHERE o.status = com.example.lab5.entity.OrderStatus.CONFIRMED
               AND NOT EXISTS (SELECT i.id FROM Invoice i WHERE i.order = o)
             ORDER BY o.orderDate DESC, o.id DESC
             """)
@@ -44,17 +44,17 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
     @Query("""
             SELECT o FROM SalesOrder o
             JOIN FETCH o.customer
-            WHERE o.status <> com.example.lab5.entity.OrderStatus.CANCELLED
+            WHERE o.status = com.example.lab5.entity.OrderStatus.CONFIRMED
               AND NOT EXISTS (SELECT c.id FROM Contract c WHERE c.order = o)
             ORDER BY o.orderDate DESC, o.id DESC
             """)
     List<SalesOrder> findOptionsForContract();
 
-    /** Mọi đơn chưa bị hủy (dùng cho form thanh toán). */
+    /** Chỉ đơn CONFIRMED (dùng cho form thanh toán). */
     @Query("""
             SELECT o FROM SalesOrder o
             JOIN FETCH o.customer
-            WHERE o.status <> com.example.lab5.entity.OrderStatus.CANCELLED
+            WHERE o.status = com.example.lab5.entity.OrderStatus.CONFIRMED
             ORDER BY o.orderDate DESC, o.id DESC
             """)
     List<SalesOrder> findActiveOrderOptions();

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { Field, Select } from '@/components/ui/Field';
@@ -33,6 +34,7 @@ interface ItemRow {
 
 export default function AdminOrdersPage() {
   const toast = useToast();
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -173,6 +175,19 @@ export default function AdminOrdersPage() {
           <Button size="sm" variant="gold" onClick={() => setDetailId(r.id)}>
             Chi tiết
           </Button>
+          {r.status === 'CONFIRMED' && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => router.push('/admin/contracts?orderId=' + r.id)}>
+                Hợp đồng
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => router.push('/admin/invoices?orderId=' + r.id)}>
+                Hóa đơn
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => router.push('/admin/payments?orderId=' + r.id)}>
+                Thu tiền
+              </Button>
+            </>
+          )}
           <Select
             value={r.status}
             disabled={!transitions || (transitions[r.status] ?? []).filter((s) => s !== 'CANCELLED').length === 0}

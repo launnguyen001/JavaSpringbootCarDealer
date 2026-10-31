@@ -37,6 +37,8 @@ public class JdbcReportRepository {
                        SUM(oi.quantity) AS total_sold,
                        SUM(oi.quantity * oi.unit_price) AS revenue
                 FROM order_items oi
+                JOIN sales_orders o ON o.id = oi.order_id
+                JOIN contracts ct ON ct.order_id = o.id
                 JOIN car_items ci ON ci.id = oi.car_item_id
                 JOIN cars c ON c.id = ci.car_id
                 GROUP BY c.id, c.name
@@ -79,7 +81,7 @@ public class JdbcReportRepository {
                 SELECT COUNT(*) AS total_orders,
                        COALESCE(SUM(total_amount), 0) AS total_revenue
                 FROM sales_orders
-                WHERE status <> 'CANCELLED'
+                WHERE status IN ('CONFIRMED', 'COMPLETED')
                 """;
         return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> new RevenueSummary(
                 rs.getLong("total_orders"),
@@ -115,7 +117,7 @@ public class JdbcReportRepository {
         long employees = count("SELECT COUNT(*) FROM employees");
         long orders = count("SELECT COUNT(*) FROM sales_orders");
         long scheduledTestDrives = count("SELECT COUNT(*) FROM test_drive_appointments WHERE status = 'SCHEDULED'");
-        double revenue = value("SELECT COALESCE(SUM(total_amount), 0) FROM sales_orders WHERE status <> 'CANCELLED'");
+        double revenue = value("SELECT COALESCE(SUM(total_amount), 0) FROM sales_orders WHERE status IN ('CONFIRMED', 'COMPLETED')");
 
         return new DashboardSummary(totalCars, available, reserved, sold, maintenance, newItems, usedItems,
                 customers, employees, orders, scheduledTestDrives, revenue);
@@ -237,19 +239,32 @@ public class JdbcReportRepository {
     // D6: doanh thu theo tháng (nhóm năm/tháng, ghép chuỗi ở Java để tránh khác biệt MySQL/H2)
     public List<RevenueByMonth> findRevenueByMonth() {
         String sql = """
-                SELECT EXTRACT(YEAR FROM order_date) AS yr,
-                       EXTRACT(MONTH FROM order_date) AS mo,
+                WITH eligible_orders AS (
+                    SELECT o.id,
+                           COALESCE(o.confirmed_at, o.order_date) AS revenue_date,
+                           o.total_amount,
+                           (SELECT COALESCE(SUM(p.amount), 0)
+                            FROM payments p
+                            WHERE p.order_id = o.id AND p.status IN ('PAID', 'PARTIAL')) AS collected
+                    FROM sales_orders o
+                    WHERE o.status IN ('CONFIRMED', 'COMPLETED')
+                )
+                SELECT EXTRACT(YEAR FROM revenue_date) AS yr,
+                       EXTRACT(MONTH FROM revenue_date) AS mo,
                        COUNT(*) AS total_orders,
-                       COALESCE(SUM(total_amount), 0) AS total_revenue
-                FROM sales_orders
-                WHERE status <> 'CANCELLED'
-                GROUP BY EXTRACT(YEAR FROM order_date), EXTRACT(MONTH FROM order_date)
-                ORDER BY EXTRACT(YEAR FROM order_date), EXTRACT(MONTH FROM order_date)
+                       COALESCE(SUM(total_amount), 0) AS total_revenue,
+                       COALESCE(SUM(LEAST(total_amount, collected)), 0) AS total_collected,
+                       COALESCE(SUM(GREATEST(total_amount - LEAST(total_amount, collected), 0)), 0) AS outstanding_amount
+                FROM eligible_orders
+                GROUP BY EXTRACT(YEAR FROM revenue_date), EXTRACT(MONTH FROM revenue_date)
+                ORDER BY yr, mo
                 """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> new RevenueByMonth(
                 String.format("%04d-%02d", rs.getInt("yr"), rs.getInt("mo")),
                 rs.getLong("total_orders"),
-                rs.getDouble("total_revenue")
+                rs.getDouble("total_revenue"),
+                rs.getDouble("total_collected"),
+                rs.getDouble("outstanding_amount")
         ));
     }
 

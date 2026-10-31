@@ -1,3 +1,5 @@
+export type InvoicePaymentStatus = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+
 export interface Invoice {
   id: number;
   orderId: number;
@@ -5,6 +7,11 @@ export interface Invoice {
   invoiceNumber: string;
   issuedAt: string | null;
   total: number;
+  paidAmount: number;
+  remainingAmount: number;
+  paymentStatus: InvoicePaymentStatus;
+  dueDate: string | null;
+  customerName: string | null;
 }
 
 export interface InvoiceRequest {
@@ -12,4 +19,5 @@ export interface InvoiceRequest {
   invoiceNumber: string;
   total: number;
   issuedAt?: string | null;
+  dueDate?: string | null;
 }

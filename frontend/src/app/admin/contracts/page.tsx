@@ -8,7 +8,6 @@ import {
   listContracts,
   createContract,
   updateContract,
-  deleteContract,
   getOrderOptions,
   downloadFile,
 } from '@/lib/api';
@@ -33,7 +32,7 @@ export default function AdminContractsPage() {
       list={listContracts}
       create={createContract}
       update={updateContract}
-      remove={deleteContract}
+      canDelete={false}
       rowActions={(row) => (
         <Button size="sm" variant="ghost" onClick={() => downloadPdf(row)}>
           PDF

@@ -1,6 +1,7 @@
 package com.example.lab5.service.Impl;
 
 import com.example.lab5.dto.PaymentRequest;
+import com.example.lab5.entity.Invoice;
 import com.example.lab5.entity.OrderStatus;
 import com.example.lab5.entity.Payment;
 import com.example.lab5.entity.PaymentStatus;
@@ -8,30 +9,34 @@ import com.example.lab5.entity.SalesOrder;
 import com.example.lab5.event.NotificationEventFactory;
 import com.example.lab5.exception.BadRequestException;
 import com.example.lab5.exception.ResourceNotFoundException;
+import com.example.lab5.repository.InvoiceRepository;
 import com.example.lab5.repository.PaymentRepository;
 import com.example.lab5.repository.SalesOrderRepository;
-import com.example.lab5.service.OrderStateService;
 import com.example.lab5.service.PaymentService;
-import com.example.lab5.util.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Payment là giao dịch đã thu; công nợ được suy ra từ tổng giao dịch thành công. */
+/** Payment lưu từng lần nhận tiền; trạng thái tổng hợp công nợ được quản lý tại Invoice. */
 @Service
 public class PaymentServiceImpl implements PaymentService {
     private static final double EPSILON = 0.0001d;
     private final PaymentRepository paymentRepository;
+    private final InvoiceRepository invoiceRepository;
     private final SalesOrderRepository salesOrderRepository;
-    private final OrderStateService orderStateService;
     private final NotificationEventFactory notificationEvents;
 
-    public PaymentServiceImpl(PaymentRepository paymentRepository, SalesOrderRepository salesOrderRepository,
-                              OrderStateService orderStateService, NotificationEventFactory notificationEvents) {
+    public PaymentServiceImpl(
+            PaymentRepository paymentRepository,
+            InvoiceRepository invoiceRepository,
+            SalesOrderRepository salesOrderRepository,
+            NotificationEventFactory notificationEvents
+    ) {
         this.paymentRepository = paymentRepository;
+        this.invoiceRepository = invoiceRepository;
         this.salesOrderRepository = salesOrderRepository;
-        this.orderStateService = orderStateService;
         this.notificationEvents = notificationEvents;
     }
 
@@ -45,8 +50,9 @@ public class PaymentServiceImpl implements PaymentService {
 
         SalesOrder order = salesOrderRepository.findByIdForUpdate(request.orderId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng có id = " + request.orderId()));
-        if (order.getStatus() == OrderStatus.CANCELLED) throw new BadRequestException("Không thể thu tiền đơn hàng đã hủy");
-        if (order.getStatus() == OrderStatus.COMPLETED) throw new BadRequestException("Đơn hàng đã hoàn tất thanh toán");
+        if (order.getStatus() != OrderStatus.CONFIRMED) {
+            throw new BadRequestException("Chỉ được ghi nhận thanh toán sau khi đơn hàng đã CONFIRMED");
+        }
         if (order.getTotalAmount() == null || order.getTotalAmount() <= 0)
             throw new BadRequestException("Đơn hàng không có giá trị hợp lệ để thu tiền");
 
@@ -59,15 +65,18 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setOrder(order);
         payment.setAmount(request.amount());
         payment.setMethod(request.method());
-        // Giữ cột status để tương thích dữ liệu hiện hữu; mỗi record là khoản tiền đã thu thành công.
+        // Một bản ghi được tạo ở đây chỉ đại diện cho tiền đã được nhân viên xác minh là đã nhận.
         payment.setStatus(PaymentStatus.PAID);
         payment.setPaidAt(LocalDateTime.now());
         Payment saved = paymentRepository.save(payment);
 
-        if (paid + saved.getAmount() + EPSILON >= order.getTotalAmount()) {
-            orderStateService.transition(order, OrderStatus.COMPLETED,
-                    SecurityUtils.currentUsername(), "Đã thu đủ tiền theo các giao dịch");
-        }
+        double newPaidAmount = paid + saved.getAmount();
+        invoiceRepository.findByOrder_Id(order.getId()).ifPresent(invoice -> {
+            invoice.setPaidAmount(newPaidAmount);
+            invoice.refreshPaymentStatus();
+            invoiceRepository.save(invoice);
+        });
+
         notificationEvents.paymentPaid(saved);
         return saved;
     }

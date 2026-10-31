@@ -1,7 +1,6 @@
 'use client';
 
 import ResourceManager from '@/components/admin/ResourceManager';
-import StatusPill from '@/components/ui/StatusPill';
 import {
   listPayments,
   createPayment,
@@ -65,7 +64,6 @@ export default function AdminPaymentsPage() {
           render: (r) => formatVnd(r.amount),
         },
         { key: 'method', label: 'Phương thức' },
-        { key: 'status', label: 'Trạng thái', render: (r) => <StatusPill status={r.status} /> },
         {
           key: 'paidAt',
           label: 'Thời điểm',

@@ -54,9 +54,10 @@ public class JdbcDashboardRepository {
                 JOIN car_models m ON m.id = c.model_id
                 WHERE (? IS NULL
                     OR (? = 'SOLD' AND EXISTS (
-                      SELECT 1 FROM order_items oi JOIN sales_orders o ON o.id = oi.order_id
-                      WHERE oi.car_item_id = ci.id AND o.status = 'COMPLETED'
-                        AND o.order_date >= ? AND o.order_date < ?
+                      SELECT 1 FROM order_items oi
+                      JOIN contracts ct ON ct.order_id = oi.order_id
+                      WHERE oi.car_item_id = ci.id
+                        AND ct.signed_at >= ? AND ct.signed_at < ?
                     ))
                     OR (? <> 'SOLD' AND ci.status = ?))
                   AND (? IS NULL OR m.brand_id = ?)
@@ -103,12 +104,12 @@ public class JdbcDashboardRepository {
         String sql = """
                 SELECT COUNT(DISTINCT ci.id)
                 FROM sales_orders o
+                JOIN contracts ct ON ct.order_id = o.id
                 JOIN order_items oi ON oi.order_id = o.id
                 JOIN car_items ci ON ci.id = oi.car_item_id
                 JOIN cars c ON c.id = ci.car_id
                 JOIN car_models m ON m.id = c.model_id
-                WHERE o.status = 'COMPLETED'
-                  AND o.order_date >= ? AND o.order_date < ?
+                WHERE ct.signed_at >= ? AND ct.signed_at < ?
                   AND (? IS NULL OR m.brand_id = ?)
                   AND (? IS NULL OR m.id = ?)
                 """;
@@ -125,8 +126,9 @@ public class JdbcDashboardRepository {
                 JOIN car_items ci ON ci.id = oi.car_item_id
                 JOIN cars c ON c.id = ci.car_id
                 JOIN car_models m ON m.id = c.model_id
-                WHERE o.status <> 'CANCELLED'
-                  AND o.order_date >= ? AND o.order_date < ?
+                WHERE o.status IN ('CONFIRMED', 'COMPLETED')
+                  AND COALESCE(o.confirmed_at, o.order_date) >= ?
+                  AND COALESCE(o.confirmed_at, o.order_date) < ?
                   AND (? IS NULL OR m.brand_id = ?)
                   AND (? IS NULL OR m.id = ?)
                 """;
@@ -155,40 +157,61 @@ public class JdbcDashboardRepository {
     }
 
     private List<RevenueByMonth> findRevenueByMonth(LocalDate from, LocalDate to, Long brandId, Long modelId) {
+        // Thực thu được quy về tháng xác nhận của đơn, không phải tháng paid_at.
+        // Mỗi đơn chỉ xuất hiện một lần; khi lọc hãng/model, tiền thu được phân bổ theo tỷ trọng giá trị xe.
         String sql = """
-                SELECT EXTRACT(YEAR FROM o.order_date) AS yr,
-                       EXTRACT(MONTH FROM o.order_date) AS mo,
-                       COUNT(DISTINCT o.id) AS total_orders,
-                       COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS total_revenue
-                FROM sales_orders o
-                JOIN order_items oi ON oi.order_id = o.id
-                JOIN car_items ci ON ci.id = oi.car_item_id
-                JOIN cars c ON c.id = ci.car_id
-                JOIN car_models m ON m.id = c.model_id
-                WHERE o.status <> 'CANCELLED'
-                  AND o.order_date >= ? AND o.order_date < ?
-                  AND (? IS NULL OR m.brand_id = ?)
-                  AND (? IS NULL OR m.id = ?)
-                GROUP BY EXTRACT(YEAR FROM o.order_date), EXTRACT(MONTH FROM o.order_date)
+                WITH eligible_orders AS (
+                    SELECT o.id,
+                           COALESCE(o.confirmed_at, o.order_date) AS revenue_date,
+                           o.total_amount,
+                           SUM(oi.quantity * oi.unit_price) AS revenue_amount,
+                           (SELECT COALESCE(SUM(p.amount), 0)
+                            FROM payments p
+                            WHERE p.order_id = o.id AND p.status IN ('PAID', 'PARTIAL')) AS order_collected
+                    FROM sales_orders o
+                    JOIN order_items oi ON oi.order_id = o.id
+                    JOIN car_items ci ON ci.id = oi.car_item_id
+                    JOIN cars c ON c.id = ci.car_id
+                    JOIN car_models m ON m.id = c.model_id
+                    WHERE o.status IN ('CONFIRMED', 'COMPLETED')
+                      AND COALESCE(o.confirmed_at, o.order_date) >= ?
+                      AND COALESCE(o.confirmed_at, o.order_date) < ?
+                      AND (? IS NULL OR m.brand_id = ?)
+                      AND (? IS NULL OR m.id = ?)
+                    GROUP BY o.id, o.confirmed_at, o.order_date, o.total_amount
+                ),
+                allocated_orders AS (
+                    SELECT id, revenue_date, revenue_amount,
+                           CASE WHEN total_amount > 0
+                                THEN LEAST(revenue_amount, order_collected * revenue_amount / total_amount)
+                                ELSE 0 END AS collected
+                    FROM eligible_orders
+                )
+                SELECT EXTRACT(YEAR FROM revenue_date) AS yr,
+                       EXTRACT(MONTH FROM revenue_date) AS mo,
+                       COUNT(*) AS total_orders,
+                       COALESCE(SUM(revenue_amount), 0) AS total_revenue,
+                       COALESCE(SUM(collected), 0) AS total_collected,
+                       COALESCE(SUM(GREATEST(revenue_amount - collected, 0)), 0) AS outstanding_amount
+                FROM allocated_orders
+                GROUP BY EXTRACT(YEAR FROM revenue_date), EXTRACT(MONTH FROM revenue_date)
                 ORDER BY yr, mo
                 """;
         List<RevenueByMonth> actual = jdbc.query(sql, (rs, i) -> new RevenueByMonth(
                 String.format("%04d-%02d", rs.getInt("yr"), rs.getInt("mo")),
-                rs.getLong("total_orders"), rs.getDouble("total_revenue")),
+                rs.getLong("total_orders"), rs.getDouble("total_revenue"),
+                rs.getDouble("total_collected"), rs.getDouble("outstanding_amount")),
                 start(from), start(to.plusDays(1)), brandId, brandId, modelId, modelId);
 
-        // Giữ đủ các mốc tháng trong khoảng lọc, kể cả tháng chưa phát sinh doanh thu.
         Map<String, RevenueByMonth> byPeriod = new HashMap<>();
-        for (RevenueByMonth item : actual) {
-            byPeriod.put(item.period(), item);
-        }
+        for (RevenueByMonth item : actual) byPeriod.put(item.period(), item);
 
         List<RevenueByMonth> result = new ArrayList<>();
         YearMonth current = YearMonth.from(from);
         YearMonth last = YearMonth.from(to);
         while (!current.isAfter(last)) {
             String period = current.toString();
-            result.add(byPeriod.getOrDefault(period, new RevenueByMonth(period, 0L, 0.0)));
+            result.add(byPeriod.getOrDefault(period, new RevenueByMonth(period, 0L, 0.0, 0.0, 0.0)));
             current = current.plusMonths(1);
         }
         return result;
@@ -227,11 +250,11 @@ public class JdbcDashboardRepository {
                        SUM(oi.quantity * oi.unit_price) AS revenue
                 FROM order_items oi
                 JOIN sales_orders o ON o.id = oi.order_id
+                JOIN contracts ct ON ct.order_id = o.id
                 JOIN car_items ci ON ci.id = oi.car_item_id
                 JOIN cars c ON c.id = ci.car_id
                 JOIN car_models m ON m.id = c.model_id
-                WHERE o.status <> 'CANCELLED'
-                  AND o.order_date >= ? AND o.order_date < ?
+                WHERE ct.signed_at >= ? AND ct.signed_at < ?
                   AND (? IS NULL OR m.brand_id = ?)
                   AND (? IS NULL OR m.id = ?)
                 GROUP BY c.id, c.name

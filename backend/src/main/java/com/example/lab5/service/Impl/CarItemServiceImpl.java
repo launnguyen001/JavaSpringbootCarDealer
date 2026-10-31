@@ -94,7 +94,9 @@ public class CarItemServiceImpl implements CarItemService {
         existing.setYear(data.getYear());
         existing.setCondition(data.getCondition() == null ? CarCondition.NEW : data.getCondition());
         existing.setPrice(data.getPrice() == null ? car.getBasePrice() : data.getPrice());
-        existing.setStatus(data.getStatus() == null ? existing.getStatus() : data.getStatus());
+        if (data.getStatus() != null && data.getStatus() != existing.getStatus()) {
+            throw new BadRequestException("Không thể sửa trạng thái tồn kho trực tiếp tại màn hình thông tin xe");
+        }
         existing.setMileageKm(data.getMileageKm());
         existing.setNote(normalize(data.getNote()));
 
@@ -110,6 +112,12 @@ public class CarItemServiceImpl implements CarItemService {
             throw new BadRequestException("Trạng thái không được để trống");
         }
         CarItem existing = getById(id);
+        boolean allowedMaintenanceChange =
+                (existing.getStatus() == CarStatus.AVAILABLE && status == CarStatus.MAINTENANCE)
+                || (existing.getStatus() == CarStatus.MAINTENANCE && status == CarStatus.AVAILABLE);
+        if (!allowedMaintenanceChange && existing.getStatus() != status) {
+            throw new BadRequestException("Xe RESERVED/SOLD chỉ được thay đổi trạng thái thông qua luồng đơn hàng và hợp đồng");
+        }
         existing.setStatus(status);
         CarItem saved = carItemRepository.save(existing);
         carCatalogService.evictCatalog();

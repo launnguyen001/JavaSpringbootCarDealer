@@ -1,6 +1,8 @@
 package com.example.lab5.service;
 
+import com.example.lab5.dto.InvoiceRequest;
 import com.example.lab5.dto.OrderItemRequest;
+import com.example.lab5.dto.PaymentRequest;
 import com.example.lab5.dto.OrderOptionResponse;
 import com.example.lab5.dto.SalesOrderRequest;
 import com.example.lab5.entity.Brand;
@@ -12,6 +14,8 @@ import com.example.lab5.entity.CarStatus;
 import com.example.lab5.entity.Contract;
 import com.example.lab5.entity.Customer;
 import com.example.lab5.entity.Invoice;
+import com.example.lab5.entity.InvoicePaymentStatus;
+import com.example.lab5.entity.OrderStatus;
 import com.example.lab5.entity.Payment;
 import com.example.lab5.entity.PaymentMethod;
 import com.example.lab5.entity.PaymentStatus;
@@ -40,6 +44,12 @@ class SalesOrderServiceTests {
     private SalesOrderService salesOrderService;
 
     @Autowired
+    private InvoiceService invoiceService;
+
+    @Autowired
+    private PaymentService paymentService;
+
+    @Autowired
     private EntityManager entityManager;
 
     private Long customerId;
@@ -55,13 +65,13 @@ class SalesOrderServiceTests {
     }
 
     @Test
-    void createMarksChosenItemSoldAndKeepsOthersAvailable() {
+    void createReservesChosenItemAndKeepsOthersAvailable() {
         Long carId = persistCarWithItems(3);
         Long itemId = firstItemId(carId);
 
         salesOrderService.create(orderOf(itemId));
 
-        assertThat(entityManager.find(CarItem.class, itemId).getStatus()).isEqualTo(CarStatus.SOLD);
+        assertThat(entityManager.find(CarItem.class, itemId).getStatus()).isEqualTo(CarStatus.RESERVED);
         long available = availableCount(carId);
         assertThat(available).isEqualTo(2);
     }
@@ -102,7 +112,7 @@ class SalesOrderServiceTests {
         Long carId = persistCarWithItems(1);
         Long itemId = firstItemId(carId);
         SalesOrder order = salesOrderService.create(orderOf(itemId));
-        assertThat(entityManager.find(CarItem.class, itemId).getStatus()).isEqualTo(CarStatus.SOLD);
+        assertThat(entityManager.find(CarItem.class, itemId).getStatus()).isEqualTo(CarStatus.RESERVED);
 
         salesOrderService.cancel(order.getId());
 
@@ -120,6 +130,9 @@ class SalesOrderServiceTests {
         SalesOrder cancelled = salesOrderService.create(orderOf(firstItemId(cancelledCarId)));
         SalesOrder eligible = salesOrderService.create(orderOf(firstItemId(eligibleCarId)));
 
+        salesOrderService.updateStatus(invoiced.getId(), com.example.lab5.entity.OrderStatus.CONFIRMED);
+        salesOrderService.updateStatus(cancelled.getId(), com.example.lab5.entity.OrderStatus.CONFIRMED);
+        salesOrderService.updateStatus(eligible.getId(), com.example.lab5.entity.OrderStatus.CONFIRMED);
         persistInvoice(invoiced);
         salesOrderService.cancel(cancelled.getId());
 
@@ -141,6 +154,8 @@ class SalesOrderServiceTests {
         SalesOrder contracted = salesOrderService.create(orderOf(firstItemId(contractedCarId)));
         SalesOrder eligible = salesOrderService.create(orderOf(firstItemId(eligibleCarId)));
 
+        salesOrderService.updateStatus(contracted.getId(), com.example.lab5.entity.OrderStatus.CONFIRMED);
+        salesOrderService.updateStatus(eligible.getId(), com.example.lab5.entity.OrderStatus.CONFIRMED);
         persistContract(contracted);
 
         List<OrderOptionResponse> options = salesOrderService.getOrderOptions("contract");
@@ -156,6 +171,7 @@ class SalesOrderServiceTests {
 
         SalesOrder order = salesOrderService.create(orderOf(firstItemId(paidCarId)));
         SalesOrder cancelled = salesOrderService.create(orderOf(firstItemId(cancelledCarId)));
+        salesOrderService.updateStatus(order.getId(), com.example.lab5.entity.OrderStatus.CONFIRMED);
         salesOrderService.cancel(cancelled.getId());
 
         persistPayment(order, 40.0);
@@ -173,6 +189,42 @@ class SalesOrderServiceTests {
     void getOrderOptionsRejectsUnknownTarget() {
         assertThatThrownBy(() -> salesOrderService.getOrderOptions("bogus"))
                 .isInstanceOf(BadRequestException.class);
+    }
+
+
+    @Test
+    void paymentBeforeInvoiceIsCarriedIntoInvoiceCollectionStatus() {
+        Long carId = persistCarWithItems(1);
+        SalesOrder order = salesOrderService.create(orderOf(firstItemId(carId)));
+        salesOrderService.updateStatus(order.getId(), OrderStatus.CONFIRMED);
+
+        paymentService.create(new PaymentRequest(order.getId(), 40.0, PaymentMethod.CASH, null));
+        Invoice invoice = invoiceService.create(new InvoiceRequest(
+                order.getId(), "INV-PREPAY-" + System.nanoTime(), 100.0,
+                LocalDateTime.now(), LocalDateTime.now().toLocalDate().plusDays(30)));
+
+        assertThat(invoice.getPaidAmount()).isEqualTo(40.0);
+        assertThat(invoice.getRemainingAmount()).isEqualTo(60.0);
+        assertThat(invoice.getPaymentStatus()).isEqualTo(InvoicePaymentStatus.PARTIALLY_PAID);
+        assertThat(salesOrderService.getOrderById(order.getId()).getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+    }
+
+    @Test
+    void paymentAfterInvoiceUpdatesInvoiceToPaidWithoutCompletingOrderPrematurely() {
+        Long carId = persistCarWithItems(1);
+        SalesOrder order = salesOrderService.create(orderOf(firstItemId(carId)));
+        salesOrderService.updateStatus(order.getId(), OrderStatus.CONFIRMED);
+        invoiceService.create(new InvoiceRequest(
+                order.getId(), "INV-POSTPAY-" + System.nanoTime(), 100.0,
+                LocalDateTime.now(), LocalDateTime.now().toLocalDate().plusDays(30)));
+
+        paymentService.create(new PaymentRequest(order.getId(), 100.0, PaymentMethod.BANK_TRANSFER, null));
+        Invoice invoice = invoiceService.getByOrder(order.getId());
+
+        assertThat(invoice.getPaidAmount()).isEqualTo(100.0);
+        assertThat(invoice.getRemainingAmount()).isEqualTo(0.0);
+        assertThat(invoice.getPaymentStatus()).isEqualTo(InvoicePaymentStatus.PAID);
+        assertThat(salesOrderService.getOrderById(order.getId()).getStatus()).isEqualTo(OrderStatus.CONFIRMED);
     }
 
     private SalesOrderRequest orderOf(Long carItemId) {

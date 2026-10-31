@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -53,8 +54,18 @@ public class InvoiceController {
     }
 
     @GetMapping
-    public List<InvoiceResponse> getAllInvoices() {
-        return toResponses(invoiceService.getAllInvoices());
+    public List<InvoiceResponse> getAllInvoices(
+            @RequestParam(required = false) String paymentStatus
+    ) {
+        return toResponses(invoiceService.getAllInvoices(paymentStatus));
+    }
+
+    /** Danh sách hóa đơn còn công nợ để nhân viên theo dõi và truy thu. */
+    @GetMapping("/collections")
+    public List<InvoiceResponse> getCollectionInvoices(
+            @RequestParam(required = false) String status
+    ) {
+        return toResponses(invoiceService.getInvoicesForCollection(status));
     }
 
     @GetMapping("/{id}")

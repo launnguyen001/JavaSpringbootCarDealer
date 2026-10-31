@@ -16,6 +16,8 @@ const statusMap: Record<string, { label: string; className: string }> = {
   // PaymentStatus
   UNPAID: { label: 'Chưa thanh toán', className: 'bg-[#fef2f2] text-[#ef4444] border-[#ef4444]/30' },
   PARTIAL: { label: 'Thanh toán một phần', className: 'bg-[#fffbeb] text-[#f59e0b] border-[#f59e0b]/30' },
+  PARTIALLY_PAID: { label: 'Đã thu một phần', className: 'bg-[#fffbeb] text-[#f59e0b] border-[#f59e0b]/30' },
+  OVERDUE: { label: 'Quá hạn', className: 'bg-[#fef2f2] text-[#ef4444] border-[#ef4444]/30' },
   PAID: { label: 'Đã thanh toán', className: 'bg-[#ecfdf5] text-[#10b981] border-[#10b981]/30' },
   REFUNDED: { label: 'Đã hoàn tiền', className: 'bg-[#f3f4f6] text-[#6b7280] border-[#6b7280]/30' },
 };

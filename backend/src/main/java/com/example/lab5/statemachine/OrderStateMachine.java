@@ -16,8 +16,7 @@ import java.util.Map;
  *    └────────────┴──────► CANCELLED
  * </pre>
  *
- * <p>PENDING được phép đi thẳng COMPLETED vì nghiệp vụ hiện tại ghi nhận thanh toán cho mọi
- * đơn chưa hủy (thanh toán đủ → hoàn tất). COMPLETED và CANCELLED là trạng thái kết thúc.
+ * <p>PENDING chỉ được xác nhận hoặc hủy. Chỉ đơn CONFIRMED mới có thể hoàn tất sau khi thu đủ tiền.
  */
 @Component
 public class OrderStateMachine extends StateMachine<OrderStatus> {
@@ -28,7 +27,7 @@ public class OrderStateMachine extends StateMachine<OrderStatus> {
 
     private static Map<OrderStatus, EnumSet<OrderStatus>> definition() {
         Map<OrderStatus, EnumSet<OrderStatus>> map = new EnumMap<>(OrderStatus.class);
-        map.put(OrderStatus.PENDING, EnumSet.of(OrderStatus.CONFIRMED, OrderStatus.COMPLETED, OrderStatus.CANCELLED));
+        map.put(OrderStatus.PENDING, EnumSet.of(OrderStatus.CONFIRMED, OrderStatus.CANCELLED));
         map.put(OrderStatus.CONFIRMED, EnumSet.of(OrderStatus.COMPLETED, OrderStatus.CANCELLED));
         map.put(OrderStatus.COMPLETED, EnumSet.noneOf(OrderStatus.class));
         map.put(OrderStatus.CANCELLED, EnumSet.noneOf(OrderStatus.class));

@@ -9,7 +9,9 @@ public interface InvoiceService {
 
     Invoice create(InvoiceRequest request);
 
-    List<Invoice> getAllInvoices();
+    List<Invoice> getAllInvoices(String paymentStatus);
+
+    List<Invoice> getInvoicesForCollection(String paymentStatus);
 
     Invoice getInvoiceById(Long id);
 

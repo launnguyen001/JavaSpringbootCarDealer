@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import ResourceManager from '@/components/admin/ResourceManager';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
@@ -13,6 +14,7 @@ import {
   downloadFile,
 } from '@/lib/api';
 import { formatVnd, formatDateTime } from '@/lib/utils/format';
+import StatusPill from '@/components/ui/StatusPill';
 import type { Invoice } from '@/types';
 
 export default function AdminInvoicesPage() {
@@ -27,7 +29,9 @@ export default function AdminInvoicesPage() {
   };
 
   return (
-    <ResourceManager<Invoice>
+    <div className="space-y-4">
+      <div className="flex justify-end"><Link href="/admin/collections" className="rounded-lg border border-[#e5e7eb] px-4 py-2 text-sm font-medium text-[#374151] hover:bg-[#fafafa]">Danh sách cần thu →</Link></div>
+      <ResourceManager<Invoice>
       title="Hóa đơn"
       description="Quản lý hóa đơn bán hàng và tải bản PDF."
       list={listInvoices}
@@ -45,6 +49,7 @@ export default function AdminInvoicesPage() {
         invoiceNumber: row.invoiceNumber,
         total: row.total,
         issuedAt: row.issuedAt ?? '',
+        dueDate: row.dueDate ?? '',
       })}
       fields={[
         {
@@ -67,6 +72,7 @@ export default function AdminInvoicesPage() {
         { name: 'invoiceNumber', label: 'Số hóa đơn', required: true },
         { name: 'total', label: 'Tổng tiền (triệu)', type: 'number', required: true, step: '0.1' },
         { name: 'issuedAt', label: 'Ngày phát hành', type: 'datetime' },
+        { name: 'dueDate', label: 'Hạn thanh toán', type: 'date' },
       ]}
       columns={[
         { key: 'id', label: 'ID' },
@@ -78,12 +84,17 @@ export default function AdminInvoicesPage() {
           className: 'text-right',
           render: (r) => formatVnd(r.total),
         },
+        { key: 'paidAmount', label: 'Đã thu', className: 'text-right', render: (r) => formatVnd(r.paidAmount) },
+        { key: 'remainingAmount', label: 'Còn nợ', className: 'text-right', render: (r) => formatVnd(r.remainingAmount) },
+        { key: 'paymentStatus', label: 'Thu tiền', render: (r) => <StatusPill status={r.paymentStatus} /> },
         {
           key: 'issuedAt',
           label: 'Ngày phát hành',
           render: (r) => (r.issuedAt ? formatDateTime(r.issuedAt) : '—'),
         },
+        { key: 'dueDate', label: 'Hạn thanh toán', render: (r) => r.dueDate ?? '—' },
       ]}
-    />
+      />
+    </div>
   );
 }

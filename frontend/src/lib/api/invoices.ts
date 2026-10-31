@@ -5,6 +5,11 @@ export async function listInvoices(): Promise<Invoice[]> {
   return apiRequest<Invoice[]>('/invoices', { auth: true });
 }
 
+export async function listInvoicesForCollection(status?: string): Promise<Invoice[]> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return apiRequest<Invoice[]>(`/invoices/collections${query}`, { auth: true });
+}
+
 export async function getInvoice(id: number): Promise<Invoice> {
   return apiRequest<Invoice>(`/invoices/${id}`, { auth: true });
 }

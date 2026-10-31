@@ -154,8 +154,8 @@ function OrderDetailContent({
 
   const toggle = (key: SectionKey) => setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  const paidTotal = payments.reduce((sum, p) => sum + (p.amount ?? 0), 0);
-  const remaining = order ? order.totalAmount - paidTotal : 0;
+  const paidTotal = payments.reduce((sum, p) => sum + (p.status === 'PAID' || p.status === 'PARTIAL' ? (p.amount ?? 0) : 0), 0);
+  const remaining = invoice ? invoice.remainingAmount : order ? order.totalAmount - paidTotal : 0;
 
   if (loading) {
     return <div className="py-12 text-center text-[#9ca3af] text-sm">Đang tải chi tiết đơn hàng…</div>;
@@ -231,6 +231,10 @@ function OrderDetailContent({
               <Info label="Tổng tiền">
                 <span className="text-[#c58e00] font-bold">{formatVnd(invoice.total)}</span>
               </Info>
+              <Info label="Trạng thái thu"><StatusPill status={invoice.paymentStatus} /></Info>
+              <Info label="Đã thu">{formatVnd(invoice.paidAmount)}</Info>
+              <Info label="Còn phải thu">{formatVnd(invoice.remainingAmount)}</Info>
+              <Info label="Hạn thanh toán">{invoice.dueDate ?? '—'}</Info>
             </dl>
             <div className="mt-4">
               <Button
@@ -299,7 +303,6 @@ function OrderDetailContent({
                   <tr className="bg-[#fafafa] border-b border-[#e5e7eb]">
                     <th className="px-3 py-2 text-left text-[10px] font-semibold text-[#6b7280] uppercase tracking-wider">Số tiền</th>
                     <th className="px-3 py-2 text-left text-[10px] font-semibold text-[#6b7280] uppercase tracking-wider">Phương thức</th>
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-[#6b7280] uppercase tracking-wider">Trạng thái</th>
                     <th className="px-3 py-2 text-left text-[10px] font-semibold text-[#6b7280] uppercase tracking-wider">Thời điểm</th>
                   </tr>
                 </thead>
@@ -308,9 +311,6 @@ function OrderDetailContent({
                     <tr key={p.id} className="border-b border-[#f3f4f6] last:border-0">
                       <td className="px-3 py-2 font-medium text-[#0a0a0a]">{formatVnd(p.amount)}</td>
                       <td className="px-3 py-2 text-[#374151]">{METHOD_LABEL[p.method] ?? p.method}</td>
-                      <td className="px-3 py-2">
-                        <StatusPill status={p.status} />
-                      </td>
                       <td className="px-3 py-2 text-[#374151]">
                         {p.paidAt ? formatDateTime(p.paidAt) : '—'}
                       </td>

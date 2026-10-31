@@ -58,6 +58,9 @@ public class OrderStateServiceImpl implements OrderStateService {
         }
         stateMachine.assertCanTransition(current, target);
         order.setStatus(target);
+        if (target == OrderStatus.CONFIRMED && order.getConfirmedAt() == null) {
+            order.setConfirmedAt(LocalDateTime.now());
+        }
         SalesOrder saved = salesOrderRepository.save(order);
         saveHistory(saved, current, target, actor, note);
         notificationEvents.orderStatusChanged(saved, current, target);

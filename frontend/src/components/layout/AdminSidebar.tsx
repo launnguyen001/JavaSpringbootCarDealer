@@ -155,6 +155,17 @@ const items = [
     ),
   },
   {
+    href: '/admin/collections',
+    label: 'Công nợ',
+    icon: (
+      <>
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M7 9h10M7 13h5M7 17h3" />
+        <path d="m15 15 2 2 3-4" />
+      </>
+    ),
+  },
+  {
     href: '/admin/reviews',
     label: 'Đánh giá',
     icon: (

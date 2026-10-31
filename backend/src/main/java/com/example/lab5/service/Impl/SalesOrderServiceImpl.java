@@ -24,6 +24,7 @@ import com.example.lab5.repository.OrderItemRepository;
 import com.example.lab5.repository.PaymentRepository;
 import com.example.lab5.repository.SalesOrderRepository;
 import com.example.lab5.service.OrderStateService;
+import com.example.lab5.service.CarCatalogService;
 import com.example.lab5.service.SalesOrderService;
 import com.example.lab5.util.SecurityUtils;
 import org.springframework.stereotype.Service;
@@ -50,6 +51,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final ContractRepository contractRepository;
     private final InvoiceRepository invoiceRepository;
     private final OrderStateService orderStateService;
+    private final CarCatalogService carCatalogService;
     private final NotificationEventFactory notificationEvents;
 
     public SalesOrderServiceImpl(
@@ -62,6 +64,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             ContractRepository contractRepository,
             InvoiceRepository invoiceRepository,
             OrderStateService orderStateService,
+            CarCatalogService carCatalogService,
             NotificationEventFactory notificationEvents
     ) {
         this.salesOrderRepository = salesOrderRepository;
@@ -73,6 +76,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         this.contractRepository = contractRepository;
         this.invoiceRepository = invoiceRepository;
         this.orderStateService = orderStateService;
+        this.carCatalogService = carCatalogService;
         this.notificationEvents = notificationEvents;
     }
 
@@ -101,6 +105,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
 
         SalesOrder saved = salesOrderRepository.save(order);
         orderStateService.recordInitial(saved, SecurityUtils.currentUsername());
+        carCatalogService.evictCatalog();
         notificationEvents.orderCreated(saved);
         return saved;
     }
@@ -180,6 +185,15 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             return cancel(id);
         }
         SalesOrder order = getOrderById(id);
+        if (status == OrderStatus.COMPLETED) {
+            double paid = paymentRepository.sumPaidAmountByOrderId(id);
+            if (paid + 0.0001d < (order.getTotalAmount() == null ? 0.0 : order.getTotalAmount())) {
+                throw new BadRequestException("Chỉ hoàn tất đơn hàng sau khi đã thu đủ tiền");
+            }
+            if (!contractRepository.existsByOrder_Id(id) || !invoiceRepository.existsByOrder_Id(id)) {
+                throw new BadRequestException("Cần có cả hợp đồng và hóa đơn trước khi hoàn tất đơn hàng");
+            }
+        }
         return orderStateService.transition(order, status, SecurityUtils.currentUsername(),
                 "Cập nhật trạng thái qua API");
     }
@@ -191,9 +205,15 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         if (order.getStatus() == OrderStatus.CANCELLED) {
             throw new BadRequestException("Đơn hàng đã bị huỷ trước đó");
         }
+        if (contractRepository.existsByOrder_Id(id) || invoiceRepository.existsByOrder_Id(id)
+                || paymentRepository.existsByOrder_Id(id)) {
+            throw new BadRequestException("Đơn đã phát sinh hợp đồng, hóa đơn hoặc thanh toán. Cần xử lý điều chỉnh chứng từ trước khi hủy");
+        }
         restoreStock(order);
-        return orderStateService.transition(order, OrderStatus.CANCELLED, SecurityUtils.currentUsername(),
+        SalesOrder cancelled = orderStateService.transition(order, OrderStatus.CANCELLED, SecurityUtils.currentUsername(),
                 "Hủy đơn hàng");
+        carCatalogService.evictCatalog();
+        return cancelled;
     }
 
     @Override
@@ -217,6 +237,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
 
         SalesOrder saved = salesOrderRepository.save(order);
         salesOrderRepository.flush();
+        carCatalogService.evictCatalog();
         return saved;
     }
 
@@ -249,7 +270,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         assertOrderEditable(order);
 
         CarItem carItem = findAvailableItem(request.carItemId());
-        markItemSold(carItem);
+        markItemReserved(carItem);
 
         OrderItem item = new OrderItem();
         item.setOrder(order);
@@ -261,6 +282,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
 
         salesOrderRepository.save(order);
         salesOrderRepository.flush();
+        carCatalogService.evictCatalog();
         return item;
     }
 
@@ -276,7 +298,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         // Trả lại trạng thái xe cũ rồi đánh dấu chiếc xe mới
         restoreItemStatus(item.getCarItem());
         CarItem carItem = findAvailableItem(request.carItemId());
-        markItemSold(carItem);
+        markItemReserved(carItem);
 
         item.setCarItem(carItem);
         item.setQuantity(1);
@@ -285,6 +307,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
 
         salesOrderRepository.save(order);
         salesOrderRepository.flush();
+        carCatalogService.evictCatalog();
         return item;
     }
 
@@ -299,6 +322,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         order.getItems().remove(item);
         recalculateTotal(order);
         salesOrderRepository.save(order);
+        carCatalogService.evictCatalog();
     }
 
     private OrderItem findItem(SalesOrder order, Long itemId) {
@@ -309,10 +333,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                         "Không tìm thấy dòng xe có id = " + itemId + " trong đơn hàng"));
     }
 
-    // Thêm một chiếc xe vào đơn: kiểm tra còn bán được không + đánh dấu đã bán
+    // Thêm một chiếc xe vào đơn: giữ chỗ tồn kho, chưa ghi nhận đã bán
     private double addItemToOrder(SalesOrder order, OrderItemRequest itemRequest) {
         CarItem carItem = findAvailableItem(itemRequest.carItemId());
-        markItemSold(carItem);
+        markItemReserved(carItem);
 
         OrderItem item = new OrderItem();
         item.setOrder(order);
@@ -325,7 +349,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     }
 
     private CarItem findAvailableItem(Long carItemId) {
-        CarItem carItem = carItemRepository.findById(carItemId)
+        CarItem carItem = carItemRepository.findByIdForUpdate(carItemId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Không tìm thấy xe có id = " + carItemId));
         if (carItem.getStatus() != CarStatus.AVAILABLE) {
@@ -335,9 +359,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         return carItem;
     }
 
-    // Mỗi dòng đơn là một chiếc xe -> đánh dấu chiếc đó là SOLD
-    private void markItemSold(CarItem carItem) {
-        carItem.setStatus(CarStatus.SOLD);
+    // PENDING/CONFIRMED giữ xe ở trạng thái RESERVED; chỉ tạo hợp đồng mới chuyển SOLD.
+    private void markItemReserved(CarItem carItem) {
+        carItem.setStatus(CarStatus.RESERVED);
         carItemRepository.save(carItem);
     }
 
@@ -351,7 +375,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         if (carItem == null) {
             return;
         }
-        if (carItem.getStatus() == CarStatus.SOLD) {
+        if (carItem.getStatus() == CarStatus.RESERVED) {
             carItem.setStatus(CarStatus.AVAILABLE);
             carItemRepository.save(carItem);
         }
@@ -382,9 +406,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     }
 
     private void assertOrderEditable(SalesOrder order) {
-        if (order.getStatus() == OrderStatus.COMPLETED || order.getStatus() == OrderStatus.CANCELLED) {
+        if (order.getStatus() != OrderStatus.PENDING) {
             throw new BadRequestException(
-                    "Chỉ sửa được đơn hàng ở trạng thái PENDING hoặc CONFIRMED");
+                    "Chỉ được chỉnh sửa nội dung đơn hàng khi đơn còn ở trạng thái PENDING");
         }
         if (paymentRepository.existsByOrder_Id(order.getId())) {
             throw new BadRequestException(

@@ -40,6 +40,9 @@ public class SalesOrder {
     @Column(nullable = false)
     private LocalDateTime orderDate = LocalDateTime.now();
 
+    @Column(name = "confirmed_at")
+    private LocalDateTime confirmedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private OrderStatus status = OrderStatus.PENDING;

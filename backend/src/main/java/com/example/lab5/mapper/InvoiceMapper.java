@@ -14,7 +14,13 @@ public class InvoiceMapper {
                 invoice.getOrder() == null ? null : invoice.getOrder().getOrderCode(),
                 invoice.getInvoiceNumber(),
                 invoice.getIssuedAt(),
-                invoice.getTotal()
+                invoice.getTotal(),
+                invoice.getPaidAmount(),
+                invoice.getRemainingAmount(),
+                invoice.getPaymentStatus(),
+                invoice.getDueDate(),
+                invoice.getOrder() == null || invoice.getOrder().getCustomer() == null
+                        ? null : invoice.getOrder().getCustomer().getFullName()
         );
     }
 }

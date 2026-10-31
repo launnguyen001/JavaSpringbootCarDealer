@@ -18,7 +18,7 @@ export interface FieldOption {
 export interface FieldConfig {
   name: string;
   label: string;
-  type?: 'text' | 'number' | 'textarea' | 'select' | 'datetime' | 'checkbox';
+  type?: 'text' | 'number' | 'textarea' | 'select' | 'datetime' | 'date' | 'checkbox';
   options?: FieldOption[];
   /** Nạp lựa chọn bất đồng bộ khi mở form "Thêm mới" (chỉ dùng với type: 'select'). */
   optionsLoader?: () => Promise<FieldOption[]>;
@@ -153,7 +153,17 @@ export default function ResourceManager<T>({
       const loader = f.optionsLoader;
       setLoadingOptions((p) => ({ ...p, [f.name]: true }));
       loader()
-        .then((opts) => setDynamicOptions((p) => ({ ...p, [f.name]: opts })))
+        .then((opts) => {
+          setDynamicOptions((p) => ({ ...p, [f.name]: opts }));
+          const orderId = new URLSearchParams(window.location.search).get('orderId');
+          const selected = orderId && f.name === 'orderId'
+            ? opts.find((option) => String(option.value) === orderId)
+            : undefined;
+          if (selected && f.onPick) {
+            const patch = f.onPick(selected);
+            if (patch) setForm((previous) => ({ ...previous, ...patch }));
+          }
+        })
         .catch((err) => {
           toast.error(getErrorMessage(err));
           setDynamicOptions((p) => ({ ...p, [f.name]: [] }));
@@ -164,7 +174,8 @@ export default function ResourceManager<T>({
 
   const openCreate = () => {
     setEditing(null);
-    setForm(emptyForm(fields));
+    const orderId = new URLSearchParams(window.location.search).get('orderId');
+    setForm({ ...emptyForm(fields), ...(orderId ? { orderId } : {}) });
     loadDynamicOptions();
     setOpen(true);
   };
@@ -381,7 +392,7 @@ export default function ResourceManager<T>({
                 </label>
               ) : (
                 <Input
-                  type={f.type === 'number' ? 'number' : f.type === 'datetime' ? 'datetime-local' : 'text'}
+                  type={f.type === 'number' ? 'number' : f.type === 'datetime' ? 'datetime-local' : f.type === 'date' ? 'date' : 'text'}
                   step={f.step}
                   value={String(form[f.name] ?? '')}
                   onChange={(e) => setForm((p) => ({ ...p, [f.name]: e.target.value }))}
