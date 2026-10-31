@@ -41,7 +41,7 @@ export default function AdminDashboardPage(){
  const growth=(now:number,prev:number)=>prev===0?(now>0?'Mới phát sinh':'Không đổi'):(now-prev>0?'+':'')+(((now-prev)/Math.abs(prev))*100).toFixed(1)+'% so với kỳ trước';
  const open=(status:string|null,title:string,count:number)=>setDrawer({status,title,count});
  return <div className="space-y-7">
-  <section className="flex min-h-[calc(100dvh-4rem)] flex-col gap-4">
+  <section className="flex min-h-[calc(100dvh-8rem)] flex-col gap-4">
    <div className="flex flex-wrap items-end justify-between gap-3">
     <div><h1 className="text-2xl font-serif font-bold text-[#111827]">Dashboard</h1><p className="mt-1 text-sm text-[#6b7280]">Tổng quan tồn kho và hoạt động kinh doanh</p></div>
     <div className="flex flex-wrap items-end gap-2">
